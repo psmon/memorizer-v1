@@ -1,3 +1,4 @@
+version: '2'
 services:
   postgres:
     image: pgvector/pgvector:pg17
@@ -10,12 +11,9 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      - postgres-data:/var/lib/postgresql/data    
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
 
   pgadmin:
     image: dpage/pgadmin4
@@ -28,6 +26,8 @@ services:
       - "5050:80"
     depends_on:
       - postgres
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
 
   ollama:
     image: ollama/ollama
@@ -37,6 +37,8 @@ services:
       - "11434:11434"
     volumes:
       - ollama-data:/root/.ollama
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
 
   # Initialize Ollama with the required models
   ollama-init:
@@ -78,7 +80,7 @@ services:
 
   # Memorizer application
   memorizer:
-    image: memorizer:latest
+    image: registry.webnori.com/memorizer:latest
     restart: unless-stopped
     container_name: memorizer-dev
     environment:
@@ -90,22 +92,15 @@ services:
       - MEMORIZER_LLM__Timeout=00:02:00
       - MEMORIZER_LLM__Chunking__MinCharactersForChunking=2000
       - MEMORIZER_LLM__Chunking__TargetChunkSize=1500
-      - MEMORIZER_Server__CanonicalUrl=http://localhost:5000
-
+      - MEMORIZER_Server__CanonicalUrl=https://mcp.webnori.com
       - ASPNETCORE_ENVIRONMENT=Development
     ports:
-      - "5000:8080"
-    healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      - "5000:8080"    
     depends_on:
-      postgres:
-        condition: service_healthy
-      ollama-init:
-        condition: service_completed_successfully
+      - postgres      
+      - ollama-init        
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
 
 volumes:
   postgres-data:
