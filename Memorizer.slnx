@@ -5,6 +5,8 @@
     <File Path="global.json" />
     <File Path="NuGet.Config" />
     <File Path="README.md" />
+    <File Path="BUILD.md" />
+    <File Path="CLUADE-UPDATE1.MD" />
   </Folder>
   <Project Path="src\Memorizer.IntegrationTests\Memorizer.IntegrationTests.csproj" Type="Classic C#" />
   <Project Path="src\Memorizer\Memorizer.csproj" Type="Classic C#" />

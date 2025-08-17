@@ -410,3 +410,4 @@ FodyWeavers.xsd
 .devcontainer/.persisted_credentials/
 .devcontainer/.vscode-server/
 .devcontainer/.features.temp.dockerfile
+/.claude

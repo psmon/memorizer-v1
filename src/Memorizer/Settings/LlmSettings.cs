@@ -19,4 +19,7 @@ public sealed class LlmSettings
     /// Timeout for LLM requests
     /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromMinutes(2);
+
+    public string ApiKey { get; init; } = string.Empty;
+
 } 

@@ -13,6 +13,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddMemorizer(
         this IServiceCollection services, bool initialize = true)
     {
+        services.AddHttpClient(); // Add HttpClientFactory for service implementations
         services.AddEmbeddings();
         services.AddLlmServices();
         services.AddActorSystem();
@@ -30,13 +31,29 @@ public static class ServiceCollectionExtensions
         services
             .AddSingleton<EmbeddingSettings>(sp =>
                 sp.GetRequiredService<IConfiguration>().GetSection("Embeddings").Get<EmbeddingSettings>() ??
-                throw new ArgumentNullException("Embeddings Settings"))
-            .AddHttpClient<IEmbeddingService, EmbeddingService>((sp, client) =>
+                throw new ArgumentNullException("Embeddings Settings"));
+
+        // Check if we should use OpenAI or Ollama based on the API URL
+        services.AddSingleton<IEmbeddingService>(sp =>
+        {
+            var settings = sp.GetRequiredService<EmbeddingSettings>();
+            var logger = sp.GetRequiredService<ILoggerFactory>();
+            
+            // If the API URL contains "api.openai.com", use OpenAI service
+            if (settings.ApiUrl.ToString().Contains("api.openai.com", StringComparison.OrdinalIgnoreCase))
             {
-                EmbeddingSettings settings = sp.GetRequiredService<EmbeddingSettings>();
-                client.BaseAddress = settings.ApiUrl;
-                client.Timeout = settings.Timeout;
-            });
+                return new OpenAIEmbeddingService(settings, logger.CreateLogger<OpenAIEmbeddingService>());
+            }
+            else
+            {
+                // Otherwise, use Ollama service
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new EmbeddingService(httpClient, settings, logger.CreateLogger<EmbeddingService>());
+            }
+        });
 
         return services;
     }
@@ -61,13 +78,29 @@ public static class ServiceCollectionExtensions
                 }
                 
                 return llmSettings;
-            })
-            .AddHttpClient<ILlmService, LlmService>((sp, client) =>
-            {
-                LlmSettings settings = sp.GetRequiredService<LlmSettings>();
-                client.BaseAddress = settings.ApiUrl;
-                client.Timeout = settings.Timeout;
             });
+
+        // Check if we should use OpenAI or Ollama based on the API URL
+        services.AddSingleton<ILlmService>(sp =>
+        {
+            var settings = sp.GetRequiredService<LlmSettings>();
+            var logger = sp.GetRequiredService<ILoggerFactory>();
+            
+            // If the API URL contains "api.openai.com", use OpenAI service
+            if (settings.ApiUrl.ToString().Contains("api.openai.com", StringComparison.OrdinalIgnoreCase))
+            {
+                return new OpenAILlmService(settings, logger.CreateLogger<OpenAILlmService>());
+            }
+            else
+            {
+                // Otherwise, use Ollama service
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new LlmService(httpClient, settings, logger.CreateLogger<LlmService>());
+            }
+        });
 
         return services;
     }
