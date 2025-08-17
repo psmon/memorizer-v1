@@ -1,0 +1,44 @@
+version: '2'
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    container_name: postgmem-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgmem
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data    
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
+
+  # Memorizer application
+  memorizer:
+    image: psmon/mcp-memorizer:latest
+    restart: unless-stopped
+    container_name: memorizer-dev
+    environment:
+      - ConnectionStrings__Storage=Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
+      - MEMORIZER_Embeddings__ApiUrl=https://api.openai.com/v1
+      - MEMORIZER_Embeddings__Model=text-embedding-3-small
+      - MEMORIZER_Embeddings__ApiKey=...
+      - MEMORIZER_LLM__ApiUrl=https://api.openai.com/v1
+      - MEMORIZER_LLM__Model=gpt-4o
+      - MEMORIZER_LLM__Timeout=00:02:00
+      - MEMORIZER_LLM__ApiKey=...
+      - MEMORIZER_LLM__Chunking__MinCharactersForChunking=2000
+      - MEMORIZER_LLM__Chunking__TargetChunkSize=1500
+      - MEMORIZER_Server__CanonicalUrl=https://mcp.webnori.com
+      - ASPNETCORE_ENVIRONMENT=Development
+    ports:
+      - "5000:8080"    
+    depends_on:
+      - postgres
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
+
+volumes:
+  postgres-data:  
