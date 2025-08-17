@@ -77,6 +77,9 @@ services:
       echo 'Failed to pull models after multiple attempts' &&
       exit 1
       "
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
+      io.rancher.container.start_once: 'true'
 
   # Memorizer application
   memorizer:

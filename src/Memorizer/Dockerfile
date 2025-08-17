@@ -17,6 +17,7 @@ WORKDIR /src
 COPY ["Memorizer.slnx", "./"]
 COPY ["Directory.Packages.props", "./"]
 COPY ["Directory.Build.props", "./"]
+COPY ["NuGet.Config", "./"]
 
 COPY ["src/Memorizer/Memorizer.csproj", "src/Memorizer/"]
 COPY ["src/Memorizer.IntegrationTests/Memorizer.IntegrationTests.csproj", "src/Memorizer.IntegrationTests/"]
