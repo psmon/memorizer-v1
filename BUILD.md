@@ -7,10 +7,20 @@ This document provides instructions for building and running the Memorizer appli
 ## 🐳 Build the Docker Image
 
 
+```
 docker build -f src/Memorizer/Dockerfile  -t registry.webnori.com/memorizer:latest .
 
-
 docker push registry.webnori.com/memorizer:latest
+```
+
+
+## 🐳 Build the DockerHub Image
+
+```
+docker build -f src/Memorizer/Dockerfile  -t psmon/mcp-memorizer:latest .
+
+docker push psmon/mcp-memorizer:latest
+```
 
 
 ## Proxy Configuration

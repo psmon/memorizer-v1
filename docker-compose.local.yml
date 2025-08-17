@@ -83,7 +83,7 @@ services:
 
   # Memorizer application
   memorizer:
-    image: registry.webnori.com/memorizer:latest
+    image: psmon/mcp-memorizer:latest
     restart: unless-stopped
     container_name: memorizer-dev
     environment:
