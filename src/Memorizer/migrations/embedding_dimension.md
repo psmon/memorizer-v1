@@ -8,6 +8,11 @@
 - text-embedding-3-small	1,536	가볍고 빠름, 비용 저렴
 - text-embedding-3-large	3,072	더 정밀한 표현, 성능 우수
 
+
+## Migration to Update Embedding Dimensions in Memories Table
+
+상위 임베딩 이용시 007_metadata_embedding_migration.sql 에 다음스크립트를 넣어수행
+
 ``` 
 -- Step 1: Drop the existing embedding_metadata column
 ALTER TABLE memories DROP COLUMN IF EXISTS embedding;

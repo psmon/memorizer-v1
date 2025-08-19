@@ -1,0 +1,17 @@
+# IDE junk
+.vs/
+.vscode/
+.idea/
+
+# VCS
+.git/
+
+# Build outputs
+bin/
+obj/
+target/
+node_modules/
+
+# OS files
+Thumbs.db
+.DS_Store
