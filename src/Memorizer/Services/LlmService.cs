@@ -268,6 +268,45 @@ public sealed class LlmService : ILlmService
         }
     }
 
+    public async Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Sending completion request to LLM model {Model}", _settings.Model);
+            
+            // Use OllamaSharp API to generate completion without JSON format requirement
+            var request = new OllamaSharp.Models.GenerateRequest
+            {
+                Model = _settings.Model,
+                Prompt = prompt,
+                Stream = true
+            };
+            
+            var responseStream = _ollamaClient.GenerateAsync(request, cancellationToken);
+            
+            var responseBuilder = new StringBuilder();
+            await foreach (var responseChunk in responseStream)
+            {
+                responseBuilder.Append(responseChunk?.Response);
+            }
+            
+            var response = responseBuilder.ToString();
+
+            if (string.IsNullOrEmpty(response))
+            {
+                throw new InvalidOperationException("Empty response from LLM service");
+            }
+
+            _logger.LogDebug("Received completion response with length {Length}", response.Length);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating completion from LLM");
+            throw;
+        }
+    }
+
     public void Dispose()
     {
         _ollamaClient?.Dispose();

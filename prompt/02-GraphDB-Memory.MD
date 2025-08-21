@@ -10,7 +10,6 @@
 - https://github.com/psmon/AkkaNeo4j/blob/master/AkkaNeo4j/Actors/GraphEventActor.cs
 
 
-
 ## 메모리 MCP활용방법
 ```
 메모리 MCP사용예

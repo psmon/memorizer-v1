@@ -15,11 +15,13 @@ public class MemoryTools
 {
     private readonly IStorage _storage;
     private readonly ILogger<MemoryTools> _logger;
+    private readonly IGraphSearchService? _graphSearchService;
 
-    public MemoryTools(IStorage storage, ILogger<MemoryTools> logger)
+    public MemoryTools(IStorage storage, ILogger<MemoryTools> logger, IGraphSearchService? graphSearchService = null)
     {
         _storage = storage;
         _logger = logger;
+        _graphSearchService = graphSearchService;
     }
 
     [McpServerTool, Description("Store a new memory in the database, optionally creating a relationship to another memory. Use this to save reference material, how-to guides, coding standards, or any information you (the LLM) may want to refer to when completing tasks. Include as much context as possible, such as markdown, code samples, and detailed explanations. Create relationships to link related reference materials or examples.")]
@@ -422,5 +424,87 @@ public class MemoryTools
     {
         var rel = await _storage.CreateRelationship(fromId, toId, type, cancellationToken);
         return $"Relationship created: {rel.Id} from {rel.FromMemoryId} to {rel.ToMemoryId} (type: {rel.Type})";
+    }
+    
+    [McpServerTool, Description("Search the graph database using natural language queries. This uses LLM to convert natural language to Cypher queries for Neo4j graph traversal. Use this to find complex relationships, patterns, and connections between memories.")]
+    public async Task<string> SearchGraph(
+        [Description("Natural language query to search the graph (e.g., 'Find all memories that extend DDD concepts', 'Show the most connected memories', 'Find reference documents related to AI')")] string query,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (_graphSearchService == null)
+        {
+            return "Graph search is not available. Neo4j integration may not be configured.";
+        }
+        
+        try
+        {
+            using var activity = TelemetryConfig.ActivitySource.StartActivity("MemoryTools.SearchGraph");
+            
+            activity?.AddEvent(new ActivityEvent("query.details", DateTimeOffset.UtcNow, new ActivityTagsCollection
+            {
+                {"query.text", query}
+            }));
+            
+            _logger.LogInformation("Executing graph search: {Query}", query);
+            
+            var result = await _graphSearchService.SearchGraphAsync(query);
+            
+            var sb = new StringBuilder();
+            sb.AppendLine($"Found {result.Nodes.Count} nodes and {result.Relationships.Count} relationships");
+            sb.AppendLine();
+            
+            if (result.Nodes.Count > 0)
+            {
+                sb.AppendLine("Nodes:");
+                foreach (var node in result.Nodes.Take(20))
+                {
+                    sb.AppendLine($"  • [{node.Type}] {node.Title ?? "Untitled"} (ID: {node.Id})");
+                    if (node.Tags?.Count > 0)
+                    {
+                        sb.AppendLine($"    Tags: {string.Join(", ", node.Tags)}");
+                    }
+                    if (!string.IsNullOrEmpty(node.Summary))
+                    {
+                        sb.AppendLine($"    Summary: {node.Summary.Substring(0, Math.Min(100, node.Summary.Length))}...");
+                    }
+                }
+                
+                if (result.Nodes.Count > 20)
+                {
+                    sb.AppendLine($"  ... and {result.Nodes.Count - 20} more nodes");
+                }
+            }
+            
+            if (result.Relationships.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("Relationships:");
+                foreach (var rel in result.Relationships.Take(20))
+                {
+                    var fromNode = result.Nodes.FirstOrDefault(n => n.Id == rel.FromId);
+                    var toNode = result.Nodes.FirstOrDefault(n => n.Id == rel.ToId);
+                    
+                    var fromTitle = fromNode?.Title ?? rel.FromId.ToString().Substring(0, 8);
+                    var toTitle = toNode?.Title ?? rel.ToId.ToString().Substring(0, 8);
+                    
+                    sb.AppendLine($"  • {fromTitle} --[{rel.Type}]--> {toTitle}");
+                }
+                
+                if (result.Relationships.Count > 20)
+                {
+                    sb.AppendLine($"  ... and {result.Relationships.Count - 20} more relationships");
+                }
+            }
+            
+            activity?.SetStatus(ActivityStatusCode.Ok, $"Found {result.Nodes.Count} nodes, {result.Relationships.Count} relationships");
+            
+            return sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing graph search: {Query}", query);
+            return $"Error executing graph search: {ex.Message}";
+        }
     }
 }

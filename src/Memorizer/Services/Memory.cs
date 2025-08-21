@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Linq;
 using Memorizer.Models;
 using Npgsql;
 using Pgvector;
@@ -113,11 +114,28 @@ public class Storage : IStorage
 {
     private readonly NpgsqlDataSource _dataSource;
     private readonly IEmbeddingService _embeddingService;
+    private readonly IGraphSyncService? _graphSyncService;
+    private readonly ILogger<Storage> _logger;
 
-    public Storage(NpgsqlDataSource dataSource, IEmbeddingService embeddingService)
+    public Storage(
+        NpgsqlDataSource dataSource, 
+        IEmbeddingService embeddingService,
+        IServiceProvider serviceProvider,
+        ILogger<Storage> logger)
     {
         _dataSource = dataSource;
         _embeddingService = embeddingService;
+        _logger = logger;
+        
+        // Try to get GraphSyncService - it may not be available if Neo4j is not configured
+        try
+        {
+            _graphSyncService = serviceProvider.GetService<IGraphSyncService>();
+        }
+        catch
+        {
+            _logger.LogWarning("GraphSyncService not available - Neo4j synchronization disabled");
+        }
     }
 
     public async Task<Memorizer.Models.Memory> StoreMemory(
@@ -226,6 +244,21 @@ public class Storage : IStorage
         cmd.Parameters.AddWithValue("title", (object?)memory.Title ?? DBNull.Value);
 
         await cmd.ExecuteNonQueryAsync(cancellationToken);
+
+        // Sync to GraphDB if available
+        if (_graphSyncService != null)
+        {
+            try
+            {
+                await SyncMemoryToGraph(memory);
+                _logger.LogInformation("Memory {MemoryId} synced to GraphDB", memory.Id);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync memory {MemoryId} to GraphDB", memory.Id);
+                // Don't fail the operation if graph sync fails
+            }
+        }
 
         // Optionally create a relationship
         if (relatedTo.HasValue && !string.IsNullOrWhiteSpace(relationshipType))
@@ -456,6 +489,35 @@ public class Storage : IStorage
         cmd.Parameters.AddWithValue("type", type);
         cmd.Parameters.AddWithValue("createdAt", rel.CreatedAt);
         await cmd.ExecuteNonQueryAsync(cancellationToken);
+        
+        // Sync relationship to GraphDB if available
+        if (_graphSyncService != null)
+        {
+            try
+            {
+                // Create the basic relationship in graph
+                await _graphSyncService.CreateGraphRelationshipAsync(fromId, toId, type);
+                
+                // Also trigger LLM-based relationship discovery for enhanced connections
+                var suggestions = await _graphSyncService.SuggestRelationshipsAsync(fromId);
+                foreach (var suggestion in suggestions.Where(s => s.Weight >= 0.7))
+                {
+                    await _graphSyncService.CreateGraphRelationshipAsync(
+                        suggestion.FromId, 
+                        suggestion.ToId, 
+                        suggestion.Type,
+                        new Dictionary<string, object> { ["weight"] = suggestion.Weight, ["llm_suggested"] = true });
+                }
+                
+                _logger.LogInformation("Relationship and {Count} suggested relationships synced to GraphDB", suggestions.Count(s => s.Weight >= 0.7));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync relationship to GraphDB");
+                // Don't fail the operation if graph sync fails
+            }
+        }
+        
         return rel;
     }
 
@@ -1044,5 +1106,42 @@ public class Storage : IStorage
         }
         
         return result;
+    }
+    
+    private async Task SyncMemoryToGraph(Memorizer.Models.Memory memory)
+    {
+        if (_graphSyncService == null) return;
+        
+        try
+        {
+            // Create the memory node in graph
+            await _graphSyncService.CreateOrUpdateGraphNodeAsync(new Models.Memory
+            {
+                Id = memory.Id,
+                Type = memory.Type,
+                Source = memory.Source,
+                Title = memory.Title,
+                Tags = memory.Tags,
+                Confidence = memory.Confidence,
+                CreatedAt = memory.CreatedAt,
+                Text = memory.Text
+            });
+            
+            // Suggest and create LLM-based relationships
+            var suggestions = await _graphSyncService.SuggestRelationshipsAsync(memory.Id);
+            foreach (var suggestion in suggestions.Where(s => s.Weight >= 0.7))
+            {
+                await _graphSyncService.CreateGraphRelationshipAsync(
+                    suggestion.FromId,
+                    suggestion.ToId,
+                    suggestion.Type,
+                    new Dictionary<string, object> { ["weight"] = suggestion.Weight, ["llm_suggested"] = true });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing memory to graph: {MemoryId}", memory.Id);
+            throw;
+        }
     }
 }

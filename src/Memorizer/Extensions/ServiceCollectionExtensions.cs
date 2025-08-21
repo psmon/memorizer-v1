@@ -1,8 +1,10 @@
+using Akka.Actor;
 using Akka.Hosting;
 using Memorizer.Actors;
 using Memorizer.Services;
 using Memorizer.Settings;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Npgsql;
 using Registrator.Net;
 
@@ -19,6 +21,7 @@ public static class ServiceCollectionExtensions
         services.AddActorSystem();
         services.AddStorage();
         services.AddServerSettings();
+        services.AddGraphServices();
         if(initialize)
             services.AddHostedService<InitializationService>();
         services.AutoRegisterTypesInAssemblies(typeof(Storage).Assembly);
@@ -129,6 +132,11 @@ public static class ServiceCollectionExtensions
                 var metadataEmbeddingActorProps = resolver.Props<MetadataEmbeddingActor>();
                 var metadataEmbeddingActor = system.ActorOf(metadataEmbeddingActorProps, "metadata-embedding");
                 registry.Register<MetadataEmbeddingActorKey>(metadataEmbeddingActor);
+                
+                // Create and register the GraphSyncActor
+                var graphSyncActorProps = resolver.Props<GraphSyncActor>();
+                var graphSyncActor = system.ActorOf(graphSyncActorProps, "graph-sync");
+                registry.Register<GraphSyncActorKey>(graphSyncActor);
             });
 
             // TODO: Configure Akka.Persistence.Sql with PostgreSQL
@@ -161,6 +169,43 @@ public static class ServiceCollectionExtensions
             sp.GetRequiredService<IConfiguration>().GetSection("Server").Get<ServerSettings>() ??
             new ServerSettings());
 
+        return services;
+    }
+    
+    public static IServiceCollection AddGraphServices(
+        this IServiceCollection services)
+    {
+        // Configure Neo4j settings
+        services.Configure<Neo4jSettings>(options =>
+        {
+            var config = services.BuildServiceProvider().GetRequiredService<IConfiguration>();
+            config.GetSection(Neo4jSettings.SectionName).Bind(options);
+        });
+        
+        // Add Neo4j driver factory as singleton
+        services.AddSingleton<INeo4jDriverFactory, Neo4jDriverFactory>();
+        
+        // Add graph repository - Changed to Singleton for Actor compatibility
+        services.AddSingleton<IGraphRepository, GraphRepository>();
+        
+        // Add graph sync service - Changed to Singleton for Actor compatibility
+        services.AddSingleton<IGraphSyncService, GraphSyncService>();
+        
+        // Add graph search service - Changed to Singleton for Actor compatibility
+        services.AddSingleton<IGraphSearchService, GraphSearchService>();
+        
+        // Register the GraphRelationshipActor with Akka
+        services.AddSingleton(sp =>
+        {
+            var actorSystem = sp.GetRequiredService<ActorSystem>();
+            var graphSyncService = sp.GetRequiredService<IGraphSyncService>();
+            var llmService = sp.GetRequiredService<ILlmService>();
+            var logger = sp.GetRequiredService<ILogger<GraphRelationshipActor>>();
+            
+            var props = GraphRelationshipActor.Props(graphSyncService, llmService, logger);
+            return actorSystem.ActorOf(props, "graph-relationship-actor");
+        });
+        
         return services;
     }
 

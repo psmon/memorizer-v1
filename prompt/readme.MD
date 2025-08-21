@@ -26,6 +26,11 @@
 claude mcp add --transport sse memorizer https://mcp.webnori.com/sse
 
 claude mcp list
+```
 
+```
+claude mcp remove memorizer
+
+claude mcp add --transport sse memorizer http://localhost:5000/sse
 ```
 

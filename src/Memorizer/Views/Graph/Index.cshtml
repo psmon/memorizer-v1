@@ -1,0 +1,419 @@
+@{
+    ViewData["Title"] = "Graph Visualization";
+}
+
+<div class="container-fluid">
+    <h1>Memory Graph Visualization</h1>
+    
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Graph Controls</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <button id="syncButton" class="btn btn-primary w-100 mb-2">
+                                <i class="bi bi-arrow-repeat"></i> Sync from PostgreSQL
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button id="fullSyncButton" class="btn btn-warning w-100 mb-2">
+                                <i class="bi bi-arrow-clockwise"></i> Full Sync
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button id="refreshButton" class="btn btn-success w-100 mb-2">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh Graph
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="input-group">
+                                <span class="input-group-text">Limit</span>
+                                <input type="number" id="nodeLimit" class="form-control" value="100" min="10" max="500">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <div id="syncStatus" class="alert d-none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <div id="graphContainer" style="height: 600px; border: 1px solid #ddd;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Node Details</h5>
+                </div>
+                <div class="card-body">
+                    <div id="nodeDetails">
+                        <p class="text-muted">Click on a node to view details</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Graph Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div id="graphStats">
+                        <p>Nodes: <span id="nodeCount">0</span></p>
+                        <p>Edges: <span id="edgeCount">0</span></p>
+                        <p>Components: <span id="componentCount">0</span></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Legend</h5>
+                </div>
+                <div class="card-body">
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #3b82f6;"></span> Reference
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #10b981;"></span> How-To
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #f59e0b;"></span> System
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #8b5cf6;"></span> Conversation
+                    </div>
+                    <div class="legend-item">
+                        <span class="legend-color" style="background-color: #6b7280;"></span> Other
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .legend-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 5px;
+    }
+    
+    .legend-color {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        margin-right: 10px;
+        display: inline-block;
+    }
+    
+    #graphContainer {
+        background: #f8f9fa;
+        position: relative;
+    }
+    
+    .node-tooltip {
+        position: absolute;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 8px;
+        font-size: 12px;
+        pointer-events: none;
+        z-index: 1000;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+
+@section Scripts {
+    <!-- Vis.js Network -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
+    
+    <script>
+        let network = null;
+        let nodes = null;
+        let edges = null;
+        
+        $(document).ready(function() {
+            initializeGraph();
+            loadGraphData();
+            
+            $('#syncButton').click(function() {
+                syncMemories(false);
+            });
+            
+            $('#fullSyncButton').click(function() {
+                if (confirm('Full sync will re-sync all memories. This may take a while. Continue?')) {
+                    syncMemories(true);
+                }
+            });
+            
+            $('#refreshButton').click(function() {
+                loadGraphData();
+            });
+            
+            $('#nodeLimit').change(function() {
+                loadGraphData();
+            });
+        });
+        
+        function initializeGraph() {
+            const container = document.getElementById('graphContainer');
+            
+            const options = {
+                nodes: {
+                    shape: 'dot',
+                    font: {
+                        size: 12,
+                        color: '#343434'
+                    },
+                    borderWidth: 2,
+                    shadow: true
+                },
+                edges: {
+                    width: 1,
+                    shadow: true,
+                    smooth: {
+                        type: 'continuous'
+                    },
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: 0.5
+                        }
+                    },
+                    font: {
+                        size: 10,
+                        align: 'middle'
+                    }
+                },
+                physics: {
+                    forceAtlas2Based: {
+                        gravitationalConstant: -50,
+                        centralGravity: 0.005,
+                        springLength: 230,
+                        springConstant: 0.18
+                    },
+                    maxVelocity: 146,
+                    solver: 'forceAtlas2Based',
+                    timestep: 0.35,
+                    stabilization: {
+                        iterations: 150
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    tooltipDelay: 200,
+                    hideEdgesOnDrag: true
+                }
+            };
+            
+            nodes = new vis.DataSet([]);
+            edges = new vis.DataSet([]);
+            
+            const data = {
+                nodes: nodes,
+                edges: edges
+            };
+            
+            network = new vis.Network(container, data, options);
+            
+            network.on('click', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    showNodeDetails(nodeId);
+                }
+            });
+            
+            network.on('doubleClick', function(params) {
+                if (params.nodes.length > 0) {
+                    const nodeId = params.nodes[0];
+                    window.open('/ui/view/' + nodeId, '_blank');
+                }
+            });
+        }
+        
+        function loadGraphData() {
+            const limit = $('#nodeLimit').val();
+            
+            $.ajax({
+                url: '/api/graph/visualization',
+                method: 'GET',
+                data: { limit: limit },
+                success: function(data) {
+                    updateGraph(data);
+                },
+                error: function(xhr, status, error) {
+                    showStatus('Error loading graph data: ' + error, 'danger');
+                }
+            });
+        }
+        
+        function updateGraph(data) {
+            nodes.clear();
+            edges.clear();
+            
+            const nodeData = data.nodes.map(node => ({
+                id: node.id,
+                label: node.label || node.id.substring(0, 8),
+                title: createNodeTooltip(node),
+                color: node.color,
+                size: node.size,
+                data: node.data
+            }));
+            
+            const edgeData = data.edges.map(edge => ({
+                from: edge.source,
+                to: edge.target,
+                label: edge.label,
+                color: { color: edge.color },
+                width: Math.max(1, edge.weight * 2)
+            }));
+            
+            nodes.add(nodeData);
+            edges.add(edgeData);
+            
+            $('#nodeCount').text(nodeData.length);
+            $('#edgeCount').text(edgeData.length);
+            
+            const components = countComponents(nodeData, edgeData);
+            $('#componentCount').text(components);
+            
+            network.fit();
+        }
+        
+        function createNodeTooltip(node) {
+            return `
+                <div>
+                    <strong>${node.label}</strong><br>
+                    Type: ${node.type}<br>
+                    Source: ${node.data.source}<br>
+                    Tags: ${node.data.tags ? node.data.tags.join(', ') : 'None'}<br>
+                    Created: ${new Date(node.data.createdAt).toLocaleDateString()}
+                </div>
+            `;
+        }
+        
+        function showNodeDetails(nodeId) {
+            const node = nodes.get(nodeId);
+            if (node) {
+                const html = `
+                    <h6>${node.label}</h6>
+                    <p><strong>ID:</strong> ${node.id}</p>
+                    <p><strong>Type:</strong> ${node.data.type || 'Unknown'}</p>
+                    <p><strong>Source:</strong> ${node.data.source || 'Unknown'}</p>
+                    <p><strong>Tags:</strong> ${node.data.tags ? node.data.tags.join(', ') : 'None'}</p>
+                    <p><strong>Created:</strong> ${new Date(node.data.createdAt).toLocaleDateString()}</p>
+                    <div class="mt-3">
+                        <a href="/ui/view/${node.id}" class="btn btn-sm btn-primary" target="_blank">
+                            <i class="bi bi-eye"></i> View Details
+                        </a>
+                        <button class="btn btn-sm btn-secondary" onclick="suggestRelationships('${node.id}')">
+                            <i class="bi bi-diagram-3"></i> Suggest Relations
+                        </button>
+                    </div>
+                `;
+                $('#nodeDetails').html(html);
+            }
+        }
+        
+        function syncMemories(fullSync) {
+            $('#syncButton, #fullSyncButton').prop('disabled', true);
+            showStatus('Syncing memories...', 'info');
+            
+            $.ajax({
+                url: '/api/graph/sync',
+                method: 'POST',
+                data: { fullSync: fullSync },
+                success: function(response) {
+                    showStatus(`Successfully synced ${response.syncedCount} memories`, 'success');
+                    loadGraphData();
+                },
+                error: function(xhr, status, error) {
+                    showStatus('Sync failed: ' + error, 'danger');
+                },
+                complete: function() {
+                    $('#syncButton, #fullSyncButton').prop('disabled', false);
+                }
+            });
+        }
+        
+        function suggestRelationships(nodeId) {
+            $.ajax({
+                url: `/api/graph/relationships/suggest/${nodeId}`,
+                method: 'POST',
+                success: function(response) {
+                    if (response.success && response.suggestions.length > 0) {
+                        showStatus(`Found ${response.suggestions.length} relationship suggestions`, 'success');
+                    } else {
+                        showStatus('No relationship suggestions found', 'info');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    showStatus('Error suggesting relationships: ' + error, 'danger');
+                }
+            });
+        }
+        
+        function countComponents(nodes, edges) {
+            const adjacencyList = {};
+            nodes.forEach(node => {
+                adjacencyList[node.id] = [];
+            });
+            
+            edges.forEach(edge => {
+                if (adjacencyList[edge.from]) {
+                    adjacencyList[edge.from].push(edge.to);
+                }
+                if (adjacencyList[edge.to]) {
+                    adjacencyList[edge.to].push(edge.from);
+                }
+            });
+            
+            const visited = new Set();
+            let components = 0;
+            
+            for (const nodeId in adjacencyList) {
+                if (!visited.has(nodeId)) {
+                    components++;
+                    dfs(nodeId, adjacencyList, visited);
+                }
+            }
+            
+            return components;
+        }
+        
+        function dfs(nodeId, adjacencyList, visited) {
+            visited.add(nodeId);
+            for (const neighbor of adjacencyList[nodeId]) {
+                if (!visited.has(neighbor)) {
+                    dfs(neighbor, adjacencyList, visited);
+                }
+            }
+        }
+        
+        function showStatus(message, type) {
+            const $status = $('#syncStatus');
+            $status.removeClass('d-none alert-success alert-danger alert-warning alert-info');
+            $status.addClass('alert-' + type);
+            $status.text(message);
+            
+            setTimeout(function() {
+                $status.addClass('d-none');
+            }, 5000);
+        }
+    </script>
+}

@@ -30,6 +30,14 @@ public interface ILlmService : IDisposable
         int maxTitleLength = 80,
         CancellationToken cancellationToken = default
     );
+    
+    /// <summary>
+    /// Sends a generic completion request to the LLM
+    /// </summary>
+    /// <param name="prompt">The prompt to send to the LLM</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The LLM's response</returns>
+    Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

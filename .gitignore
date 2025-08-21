@@ -411,3 +411,4 @@ FodyWeavers.xsd
 .devcontainer/.vscode-server/
 .devcontainer/.features.temp.dockerfile
 /.claude
+/.config

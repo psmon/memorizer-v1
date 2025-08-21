@@ -1,0 +1,327 @@
+@{
+    ViewData["Title"] = "Graph Database Synchronization";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-4">
+    <h1 class="mb-4">Graph Database Synchronization</h1>
+    
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-project-diagram"></i> Neo4j Graph Sync Control
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> 
+                        This tool synchronizes all memories from PostgreSQL to Neo4j Graph Database. 
+                        It also uses LLM to discover and create semantic relationships between memories.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="pageSize">Batch Page Size:</label>
+                        <select id="pageSize" class="form-control">
+                            <option value="50">50 memories per batch</option>
+                            <option value="100" selected>100 memories per batch</option>
+                            <option value="200">200 memories per batch</option>
+                            <option value="500">500 memories per batch</option>
+                        </select>
+                        <small class="form-text text-muted">
+                            Smaller batch sizes are more reliable but take longer to complete.
+                        </small>
+                    </div>
+                    
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" id="initializeSchema" checked>
+                        <label class="form-check-label" for="initializeSchema">
+                            Initialize/Update Graph Schema
+                        </label>
+                        <small class="form-text text-muted d-block">
+                            Creates indexes and constraints in Neo4j for optimal performance.
+                        </small>
+                    </div>
+                    
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="fullSync" checked>
+                        <label class="form-check-label" for="fullSync">
+                            Full Sync (Process All Memories)
+                        </label>
+                        <small class="form-text text-muted d-block">
+                            When checked, all memories will be synchronized. Otherwise, only new ones.
+                        </small>
+                    </div>
+                    
+                    <div class="btn-group" role="group">
+                        <button id="startSyncBtn" class="btn btn-success">
+                            <i class="fas fa-play"></i> Start Synchronization
+                        </button>
+                        <button id="initSchemaBtn" class="btn btn-info">
+                            <i class="fas fa-database"></i> Initialize Schema Only
+                        </button>
+                        <button id="refreshStatusBtn" class="btn btn-secondary">
+                            <i class="fas fa-sync"></i> Refresh Status
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Progress Display -->
+            <div class="card mb-4" id="progressCard" style="display: none;">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks"></i> Synchronization Progress
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Overall Progress</span>
+                            <span id="progressPercentage">0%</span>
+                        </div>
+                        <div class="progress" style="height: 25px;">
+                            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="row text-center">
+                        <div class="col-md-3">
+                            <div class="metric-box bg-light p-3 rounded">
+                                <div class="metric-value text-primary h3" id="totalMemories">0</div>
+                                <div class="metric-label">Total Memories</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box bg-light p-3 rounded">
+                                <div class="metric-value text-success h3" id="successCount">0</div>
+                                <div class="metric-label">Synced</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box bg-light p-3 rounded">
+                                <div class="metric-value text-info h3" id="relationshipsCount">0</div>
+                                <div class="metric-label">Relationships</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="metric-box bg-light p-3 rounded">
+                                <div class="metric-value text-danger h3" id="failureCount">0</div>
+                                <div class="metric-label">Failed</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td><span id="statusText" class="badge badge-info">Idle</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Current Page:</strong></td>
+                                    <td id="currentPage">-</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Duration:</strong></td>
+                                    <td id="duration">-</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Requested By:</strong></td>
+                                    <td id="requestedBy">-</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="failedMemoriesSection" class="mt-3" style="display: none;">
+                        <h6>Failed Memory IDs:</h6>
+                        <div id="failedMemoriesList" class="text-danger small"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle"></i> Help
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h6>What does this tool do?</h6>
+                    <p>This tool synchronizes your PostgreSQL memory database with Neo4j Graph Database for enhanced relationship discovery and graph-based queries.</p>
+                    
+                    <h6>Features:</h6>
+                    <ul>
+                        <li>Syncs all memories to graph nodes</li>
+                        <li>Creates basic relationships from PostgreSQL</li>
+                        <li>Uses LLM to discover semantic relationships</li>
+                        <li>Provides progress tracking</li>
+                        <li>Supports batch processing for large datasets</li>
+                    </ul>
+                    
+                    <h6>Relationship Types:</h6>
+                    <ul class="small">
+                        <li><strong>extends:</strong> Extends concepts</li>
+                        <li><strong>supports:</strong> Provides evidence</li>
+                        <li><strong>contradicts:</strong> Opposing view</li>
+                        <li><strong>implements:</strong> Practical implementation</li>
+                        <li><strong>references:</strong> Direct reference</li>
+                        <li><strong>related-to:</strong> General relation</li>
+                    </ul>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        <strong>Note:</strong> Full synchronization may take several minutes depending on the number of memories.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let statusCheckInterval = null;
+        let isRunning = false;
+
+        function formatDuration(seconds) {
+            if (!seconds) return '-';
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = Math.floor(seconds % 60);
+            
+            if (hours > 0) {
+                return `${hours}h ${minutes}m ${secs}s`;
+            } else if (minutes > 0) {
+                return `${minutes}m ${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+
+        function updateStatus() {
+            $.ajax({
+                url: '/ui/tools/graph-sync/status',
+                method: 'GET',
+                success: function(data) {
+                    if (data.success) {
+                        $('#progressCard').show();
+                        
+                        // Update progress bar
+                        const percentage = data.progressPercentage || 0;
+                        $('#progressBar').css('width', percentage + '%');
+                        $('#progressPercentage').text(Math.round(percentage) + '%');
+                        
+                        // Update metrics
+                        $('#totalMemories').text(data.totalMemories || 0);
+                        $('#successCount').text(data.totalSuccessful || 0);
+                        $('#relationshipsCount').text(data.relationshipsCreated || 0);
+                        $('#failureCount').text(data.totalFailed || 0);
+                        
+                        // Update status
+                        $('#statusText').text(data.status);
+                        if (data.isRunning) {
+                            $('#statusText').removeClass('badge-success badge-danger').addClass('badge-info');
+                        } else if (data.status === 'Completed') {
+                            $('#statusText').removeClass('badge-info badge-danger').addClass('badge-success');
+                        }
+                        
+                        // Update details
+                        $('#currentPage').text(data.currentPage || '-');
+                        $('#duration').text(formatDuration(data.duration));
+                        $('#requestedBy').text(data.requestedBy || '-');
+                        
+                        // Show failed memories if any
+                        if (data.failedMemoryIds && data.failedMemoryIds.length > 0) {
+                            $('#failedMemoriesSection').show();
+                            $('#failedMemoriesList').text(data.failedMemoryIds.join(', '));
+                        } else {
+                            $('#failedMemoriesSection').hide();
+                        }
+                        
+                        // Update running state
+                        isRunning = data.isRunning;
+                        $('#startSyncBtn').prop('disabled', isRunning);
+                        $('#initSchemaBtn').prop('disabled', isRunning);
+                        
+                        if (!isRunning && statusCheckInterval) {
+                            clearInterval(statusCheckInterval);
+                            statusCheckInterval = null;
+                        }
+                    }
+                },
+                error: function() {
+                    console.error('Failed to get status');
+                }
+            });
+        }
+
+        $('#startSyncBtn').click(function() {
+            const pageSize = parseInt($('#pageSize').val());
+            const fullSync = $('#fullSync').is(':checked');
+            const initializeSchema = $('#initializeSchema').is(':checked');
+            
+            $.ajax({
+                url: '/ui/tools/graph-sync/start',
+                method: 'POST',
+                data: {
+                    pageSize: pageSize,
+                    fullSync: fullSync,
+                    initializeSchema: initializeSchema
+                },
+                success: function(data) {
+                    if (data.success) {
+                        alert('Success: ' + data.message);
+                        
+                        // Start status checking
+                        if (!statusCheckInterval) {
+                            statusCheckInterval = setInterval(updateStatus, 2000);
+                        }
+                        updateStatus();
+                    } else {
+                        alert('Error: ' + data.message);
+                        updateStatus();
+                    }
+                },
+                error: function() {
+                    alert('Failed to start synchronization');
+                }
+            });
+        });
+
+        $('#initSchemaBtn').click(function() {
+            if (confirm('Initialize Neo4j graph schema? This will create indexes and constraints.')) {
+                $.ajax({
+                    url: '/ui/tools/graph-sync/initialize-schema',
+                    method: 'POST',
+                    success: function(data) {
+                        alert(data.success ? 'Success: ' + data.message : 'Error: ' + data.message);
+                    },
+                    error: function() {
+                        alert('Failed to initialize schema');
+                    }
+                });
+            }
+        });
+
+        $('#refreshStatusBtn').click(updateStatus);
+
+        // Initial status check
+        $(document).ready(function() {
+            updateStatus();
+            
+            // Auto-refresh every 5 seconds if running
+            setInterval(function() {
+                if (isRunning && !statusCheckInterval) {
+                    statusCheckInterval = setInterval(updateStatus, 2000);
+                }
+            }, 5000);
+        });
+    </script>
+}

@@ -32,5 +32,6 @@
     <PackageVersion Include="Akka.Hosting.TestKit" Version="1.5.46" />
     <PackageVersion Include="Akka.Persistence.Sql.Hosting" Version="1.5.44" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="9.0.7" />
+    <PackageVersion Include="Neo4j.Driver" Version="5.27.0" />
   </ItemGroup>
 </Project>

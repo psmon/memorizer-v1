@@ -264,6 +264,47 @@ public sealed class OpenAILlmService : ILlmService
         }
     }
 
+    public async Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Sending completion request to OpenAI model {Model}", _settings.Model);
+            
+            var messages = new List<ChatMessage>
+            {
+                ChatMessage.CreateUserMessage(prompt)
+            };
+
+            var chatRequest = new ChatCompletionOptions
+            {
+                Temperature = 0.7f,
+                MaxOutputTokenCount = 500
+            };
+
+            var response = await _chatClient.CompleteChatAsync(messages, chatRequest, cancellationToken);
+
+            if (response?.Value?.Content == null || response.Value.Content.Count == 0)
+            {
+                throw new InvalidOperationException("Empty response from OpenAI service");
+            }
+
+            var responseText = response.Value.Content[0].Text;
+            
+            if (string.IsNullOrEmpty(responseText))
+            {
+                throw new InvalidOperationException("Empty response text from OpenAI service");
+            }
+
+            _logger.LogDebug("Received completion response with length {Length}", responseText.Length);
+            return responseText;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating completion from OpenAI");
+            throw;
+        }
+    }
+
     public void Dispose()
     {
         // OpenAI client doesn't need explicit disposal
