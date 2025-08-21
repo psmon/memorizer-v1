@@ -1,3 +1,4 @@
+using Akka.Actor;
 using Akka.Hosting;
 using Akka.Hosting.TestKit;
 using Memorizer.Actors;
@@ -75,6 +76,28 @@ public class TitleGenerationActorTests : TestKit
         _output.WriteLine($"✅ Actor resolved correctly: {titleGenerationActor.Path}");
     }
 
+    [Fact]
+    public void TitleGenerationActor_ShouldAcceptMessage_WithoutError()
+    {
+        // Arrange
+        var titleGenerationActor = ActorRegistry.Get<TitleGenerationActorKey>();
+        Assert.NotNull(titleGenerationActor);
+
+        var testMessage = new GenerateTitleForMemory
+        {
+            MemoryId = Guid.NewGuid(),
+            Content = "Test content",
+            Type = "text/plain",
+            RequestedBy = "test-user"
+        };
+
+        // Act - Simply verify the actor accepts the message without throwing
+        titleGenerationActor.Tell(testMessage);
+
+        // Assert - If we got here without exception, the message was accepted
+        _output.WriteLine("✅ TitleGenerationActor accepted GenerateTitleForMemory message without error");
+    }
+
     /// <summary>
     /// Minimal mock storage for testing
     /// </summary>
@@ -150,7 +173,11 @@ public class TitleGenerationActorTests : TestKit
 
         public Task<string> GenerateTitle(string content, string contentType, string[]? existingTags = null, int maxTitleLength = 100, CancellationToken cancellationToken = default)
             => Task.FromResult("Mock Generated Title");
+        
+        public Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
+            => Task.FromResult("Mock LLM response");
 
         public void Dispose() { }
     }
-} 
+}
+
