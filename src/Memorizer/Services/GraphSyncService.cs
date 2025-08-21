@@ -81,6 +81,19 @@ public class GraphSyncService : IGraphSyncService
         
         try
         {
+            // Clear GraphDB if full sync is requested
+            if (fullSync)
+            {
+                await _graphRepository.ExecuteWriteAsync(async tx =>
+                {
+                    await tx.RunAsync("MATCH (n) DETACH DELETE n");
+                });
+                _logger.LogInformation("GraphDB cleared for full sync");
+                
+                // Reinitialize schema after clearing
+                await InitializeGraphSchemaAsync();
+            }
+            
             await using var pgConnection = new NpgsqlConnection(_postgresConnectionString);
             await pgConnection.OpenAsync();
             
@@ -549,32 +562,23 @@ Return as JSON array with format:
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(memory.Text))
+            // Use tags from postgres instead of LLM extraction
+            if (memory.Tags == null || memory.Tags.Length == 0)
             {
-                _logger.LogDebug("Skipping keyword extraction for memory {MemoryId} - no text content", memory.Id);
+                _logger.LogDebug("No tags found for memory {MemoryId} - skipping Word node creation", memory.Id);
                 return;
             }
 
-            // Extract keywords using LLM
-            var keywords = await _llmService.ExtractKeywordsAsync(
-                memory.Text,
-                memory.Type,
-                maxKeywords: 10
-            );
+            _logger.LogInformation("Creating {Count} Word nodes from tags for memory {MemoryId}", memory.Tags.Length, memory.Id);
 
-            if (!keywords.Any())
+            // Create NodeWords and relationships from tags
+            foreach (var tag in memory.Tags)
             {
-                _logger.LogDebug("No keywords extracted for memory {MemoryId}", memory.Id);
-                return;
-            }
-
-            _logger.LogInformation("Extracted {Count} keywords for memory {MemoryId}", keywords.Count, memory.Id);
-
-            // Create NodeWords and relationships
-            foreach (var keyword in keywords)
-            {
-                await CreateNodeWordAsync(keyword);
-                await CreateMemoryToWordRelationshipAsync(memory.Id, keyword);
+                if (!string.IsNullOrWhiteSpace(tag))
+                {
+                    await CreateNodeWordAsync(tag.ToLowerInvariant());
+                    await CreateMemoryToWordRelationshipAsync(memory.Id, tag.ToLowerInvariant());
+                }
             }
         }
         catch (Exception ex)
@@ -583,7 +587,7 @@ Return as JSON array with format:
         }
     }
 
-    public async Task<bool> CreateNodeWordAsync(string word, string language = "en")
+    public async Task<bool> CreateNodeWordAsync(string name, string language = "en")
     {
         try
         {
@@ -602,7 +606,7 @@ Return as JSON array with format:
                 
                 var parameters = new
                 {
-                    name = word.ToLowerInvariant(),
+                    name = name.ToLowerInvariant(),
                     language = language,
                     now = DateTime.UtcNow.ToString("o")
                 };
@@ -614,12 +618,12 @@ Return as JSON array with format:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create NodeWord for word: {Word}", word);
+            _logger.LogError(ex, "Failed to create NodeWord for name: {Name}", name);
             return false;
         }
     }
 
-    public async Task<bool> CreateMemoryToWordRelationshipAsync(Guid memoryId, string word, double relevance = 1.0)
+    public async Task<bool> CreateMemoryToWordRelationshipAsync(Guid memoryId, string wordName, double relevance = 1.0)
     {
         try
         {
@@ -636,7 +640,7 @@ Return as JSON array with format:
                 var parameters = new
                 {
                     memoryId = memoryId.ToString(),
-                    name = word.ToLowerInvariant(),
+                    name = wordName.ToLowerInvariant(),
                     relevance = relevance,
                     createdAt = DateTime.UtcNow.ToString("o")
                 };
@@ -648,7 +652,7 @@ Return as JSON array with format:
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create Memory-to-Word relationship from {MemoryId} to {Word}", memoryId, word);
+            _logger.LogError(ex, "Failed to create Memory-to-Word relationship from {MemoryId} to {WordName}", memoryId, wordName);
             return false;
         }
     }

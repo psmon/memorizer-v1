@@ -1127,12 +1127,13 @@ public class Storage : IStorage
                 Text = memory.Text
             });
             
-            // Create NodeWords and relationships
+            // Create NodeWords and relationships using tags
             await _graphSyncService.CreateNodeWordsAndRelationshipsAsync(new Models.Memory
             {
                 Id = memory.Id,
                 Type = memory.Type,
-                Text = memory.Text
+                Text = memory.Text,
+                Tags = memory.Tags
             });
             
             // Suggest and create LLM-based relationships
