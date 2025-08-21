@@ -1,5 +1,25 @@
-version: '2'
+version: '3.8'
+
 services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: memorizer-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_dbms_memory_heap_initial__size=1G
+      - NEO4J_dbms_memory_heap_max__size=2G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+  
   postgres:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
@@ -11,7 +31,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data    
+      - postgres_data:/var/lib/postgresql/data
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
 
@@ -36,7 +56,7 @@ services:
     ports:
       - "11434:11434"
     volumes:
-      - ollama-data:/root/.ollama
+      - ollama_data:/root/.ollama
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
 
@@ -54,7 +74,7 @@ services:
       
       echo 'Pulling embedding model...' &&
       for i in 1 2 3 4 5; do
-        echo 'Attempting to pull embedding model (try $i/5)...' &&
+        echo \"Attempting to pull embedding model (try \$i/5)...\" &&
         if curl -s -X POST http://ollama:11434/api/pull -d '{\"name\": \"all-minilm:33m-l12-v2-fp16\"}'; then
           echo 'Embedding model pull initiated successfully' &&
           break
@@ -65,7 +85,7 @@ services:
       
       echo 'Pulling lightweight LLM model...' &&
       for i in 1 2 3 4 5; do
-        echo 'Attempting to pull LLM model (try $i/5)...' &&
+        echo \"Attempting to pull LLM model (try \$i/5)...\" &&
         if curl -s -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2:0.5b\"}'; then
           echo 'LLM model pull initiated successfully' &&
           echo 'All models pulled successfully' &&
@@ -81,30 +101,37 @@ services:
       io.rancher.scheduler.affinity:host_label: server=latemain
       io.rancher.container.start_once: 'true'
 
-  # Memorizer application
   memorizer:
-    image: psmon/mcp-memorizer:latest
-    restart: unless-stopped
-    container_name: memorizer-dev
+    build:
+      context: .
+      dockerfile: src/Memorizer/Dockerfile
+    container_name: memorizer-app
+    ports:
+      - "5000:8080"
     environment:
       - ConnectionStrings__Storage=Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      - MEMORIZER_Embeddings__ApiUrl=http://ollama:11434
-      - MEMORIZER_Embeddings__Model=all-minilm:33m-l12-v2-fp16
-      - MEMORIZER_LLM__ApiUrl=http://ollama:11434
-      - MEMORIZER_LLM__Model=qwen2:0.5b
-      - MEMORIZER_LLM__Timeout=00:02:00
-      - MEMORIZER_LLM__Chunking__MinCharactersForChunking=2000
-      - MEMORIZER_LLM__Chunking__TargetChunkSize=1500
-      - MEMORIZER_Server__CanonicalUrl=https://mcp.webnori.com
-      - ASPNETCORE_ENVIRONMENT=Development
-    ports:
-      - "5000:8080"    
+      - Embeddings__ApiUrl=http://ollama:11434
+      - Embeddings__Model=all-minilm:33m-l12-v2-fp16
+      - LLM__ApiUrl=http://ollama:11434
+      - LLM__Model=qwen2:0.5b
+      - Neo4j__Uri=bolt://neo4j:7687
+      - Neo4j__User=neo4j
+      - Neo4j__Password=password
+      - Neo4j__Database=neo4j
+      - ASPNETCORE_URLS=http://+:8080
     depends_on:
-      - postgres      
-      - ollama-init        
-    labels:
-      io.rancher.scheduler.affinity:host_label: server=latemain
+      - postgres
+      - neo4j
+      - ollama-init
+    
+    volumes:
+      - ./migrations:/app/migrations
+
 
 volumes:
-  postgres-data:
-  ollama-data: 
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:
+  ollama_data:

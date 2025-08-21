@@ -13,25 +13,43 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-3">
-                            <button id="syncButton" class="btn btn-primary w-100 mb-2">
-                                <i class="bi bi-arrow-repeat"></i> Sync from PostgreSQL
-                            </button>
+                        <div class="col-md-6">
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">Cypher Query</span>
+                                <input type="text" id="cypherQuery" class="form-control" placeholder="e.g., MATCH (n:Memory) RETURN n LIMIT 25">
+                                <button id="executeCypherButton" class="btn btn-primary">
+                                    <i class="bi bi-play-fill"></i> Execute
+                                </button>
+                            </div>
                         </div>
-                        <div class="col-md-3">
-                            <button id="fullSyncButton" class="btn btn-warning w-100 mb-2">
-                                <i class="bi bi-arrow-clockwise"></i> Full Sync
-                            </button>
+                        <div class="col-md-4">
+                            <div class="input-group mb-2">
+                                <span class="input-group-text">Natural Language</span>
+                                <input type="text" id="nlQuery" class="form-control" placeholder="e.g., Find all memories about AI">
+                                <button id="executeNLButton" class="btn btn-info">
+                                    <i class="bi bi-chat-dots"></i> Search
+                                </button>
+                            </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <button id="refreshButton" class="btn btn-success w-100 mb-2">
-                                <i class="bi bi-arrow-clockwise"></i> Refresh Graph
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
                         </div>
-                        <div class="col-md-3">
-                            <div class="input-group">
-                                <span class="input-group-text">Limit</span>
-                                <input type="number" id="nodeLimit" class="form-control" value="100" min="10" max="500">
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="showWords" value="true">
+                                <label class="form-check-label" for="showWords">
+                                    Show Word Nodes
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="number" id="nodeLimit" value="100" min="10" max="500" style="width: 80px;">
+                                <label class="form-check-label" for="nodeLimit">
+                                    Node Limit
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -151,13 +169,23 @@
             initializeGraph();
             loadGraphData();
             
-            $('#syncButton').click(function() {
-                syncMemories(false);
+            $('#executeCypherButton').click(function() {
+                executeCypherQuery();
             });
             
-            $('#fullSyncButton').click(function() {
-                if (confirm('Full sync will re-sync all memories. This may take a while. Continue?')) {
-                    syncMemories(true);
+            $('#executeNLButton').click(function() {
+                executeNaturalLanguageQuery();
+            });
+            
+            $('#cypherQuery').keypress(function(e) {
+                if (e.which == 13) {
+                    executeCypherQuery();
+                }
+            });
+            
+            $('#nlQuery').keypress(function(e) {
+                if (e.which == 13) {
+                    executeNaturalLanguageQuery();
                 }
             });
             
@@ -330,25 +358,140 @@
             }
         }
         
-        function syncMemories(fullSync) {
-            $('#syncButton, #fullSyncButton').prop('disabled', true);
-            showStatus('Syncing memories...', 'info');
+        function executeCypherQuery() {
+            const query = $('#cypherQuery').val();
+            if (!query) {
+                showStatus('Please enter a Cypher query', 'warning');
+                return;
+            }
+            
+            $('#executeCypherButton').prop('disabled', true);
+            showStatus('Executing Cypher query...', 'info');
             
             $.ajax({
-                url: '/api/graph/sync',
+                url: '/api/graph/search/cypher',
                 method: 'POST',
-                data: { fullSync: fullSync },
+                contentType: 'application/json',
+                data: JSON.stringify({ query: query }),
                 success: function(response) {
-                    showStatus(`Successfully synced ${response.syncedCount} memories`, 'success');
-                    loadGraphData();
+                    if (response.nodes && response.relationships) {
+                        updateGraphFromSearchResults(response);
+                        showStatus(`Found ${response.nodes.length} nodes and ${response.relationships.length} relationships`, 'success');
+                    } else {
+                        showStatus('No results found', 'info');
+                    }
                 },
                 error: function(xhr, status, error) {
-                    showStatus('Sync failed: ' + error, 'danger');
+                    const errorMsg = xhr.responseJSON?.error || error;
+                    showStatus('Query failed: ' + errorMsg, 'danger');
                 },
                 complete: function() {
-                    $('#syncButton, #fullSyncButton').prop('disabled', false);
+                    $('#executeCypherButton').prop('disabled', false);
                 }
             });
+        }
+        
+        function executeNaturalLanguageQuery() {
+            const query = $('#nlQuery').val();
+            if (!query) {
+                showStatus('Please enter a natural language query', 'warning');
+                return;
+            }
+            
+            $('#executeNLButton').prop('disabled', true);
+            showStatus('Processing natural language query...', 'info');
+            
+            $.ajax({
+                url: '/api/graph/search',
+                method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({ query: query }),
+                success: function(response) {
+                    if (response.nodes && response.relationships) {
+                        updateGraphFromSearchResults(response);
+                        showStatus(`Found ${response.nodes.length} nodes and ${response.relationships.length} relationships`, 'success');
+                        
+                        // Show the generated Cypher query if available
+                        if (response.cypherQuery) {
+                            $('#cypherQuery').val(response.cypherQuery);
+                        }
+                    } else {
+                        showStatus('No results found', 'info');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    const errorMsg = xhr.responseJSON?.error || error;
+                    showStatus('Query failed: ' + errorMsg, 'danger');
+                },
+                complete: function() {
+                    $('#executeNLButton').prop('disabled', false);
+                }
+            });
+        }
+        
+        function updateGraphFromSearchResults(searchResults) {
+            nodes.clear();
+            edges.clear();
+            
+            const showWords = $('#showWords').is(':checked');
+            
+            const nodeData = searchResults.nodes
+                .filter(node => showWords || node.type !== 'Word')
+                .map(node => ({
+                    id: node.id,
+                    label: node.title || node.word || node.id.substring(0, 8),
+                    title: createNodeTooltip(node),
+                    color: node.type === 'Word' ? '#ef4444' : getColorForType(node.type),
+                    size: node.type === 'Word' ? 8 : (node.confidence ? node.confidence * 20 : 10),
+                    data: {
+                        type: node.type,
+                        source: node.source,
+                        tags: node.tags,
+                        createdAt: node.createdAt
+                    }
+                }));
+            
+            const edgeData = searchResults.relationships.map(rel => ({
+                from: rel.fromId,
+                to: rel.toId,
+                label: rel.type,
+                color: { color: getColorForRelationType(rel.type) },
+                width: Math.max(1, (rel.weight || 1) * 2)
+            }));
+            
+            nodes.add(nodeData);
+            edges.add(edgeData);
+            
+            $('#nodeCount').text(nodeData.length);
+            $('#edgeCount').text(edgeData.length);
+            
+            const components = countComponents(nodeData, edgeData);
+            $('#componentCount').text(components);
+            
+            network.fit();
+        }
+        
+        function getColorForType(type) {
+            const typeColors = {
+                'reference': '#3b82f6',
+                'how-to': '#10b981',
+                'system': '#f59e0b',
+                'conversation': '#8b5cf6',
+                'Word': '#ef4444'
+            };
+            return typeColors[type?.toLowerCase()] || '#6b7280';
+        }
+        
+        function getColorForRelationType(type) {
+            const relColors = {
+                'extends': '#3b82f6',
+                'supports': '#10b981',
+                'contradicts': '#ef4444',
+                'implements': '#8b5cf6',
+                'references': '#f59e0b',
+                'HAS_KEYWORD': '#ec4899'
+            };
+            return relColors[type] || '#94a3b8';
         }
         
         function suggestRelationships(nodeId) {

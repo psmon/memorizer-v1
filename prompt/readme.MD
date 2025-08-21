@@ -31,6 +31,6 @@ claude mcp list
 ```
 claude mcp remove memorizer
 
-claude mcp add --transport sse memorizer http://localhost:5000/sse
+claude mcp add --transport sse memorizer http://localhost:5012/sse
 ```
 

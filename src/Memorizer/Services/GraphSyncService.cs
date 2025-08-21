@@ -14,6 +14,9 @@ public interface IGraphSyncService
     Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 100);
     Task<bool> InitializeGraphSchemaAsync();
     Task CreateOrUpdateGraphNodeAsync(Memory memory);
+    Task CreateNodeWordsAndRelationshipsAsync(Memory memory);
+    Task<bool> CreateNodeWordAsync(string word, string language = "en");
+    Task<bool> CreateMemoryToWordRelationshipAsync(Guid memoryId, string word, double relevance = 1.0);
 }
 
 public class GraphSyncService : IGraphSyncService
@@ -50,7 +53,10 @@ public class GraphSyncService : IGraphSyncService
                     "CREATE INDEX memory_type IF NOT EXISTS FOR (m:Memory) ON (m.type)",
                     "CREATE INDEX memory_source IF NOT EXISTS FOR (m:Memory) ON (m.source)",
                     "CREATE INDEX memory_created IF NOT EXISTS FOR (m:Memory) ON (m.createdAt)",
-                    "CREATE INDEX relationship_type IF NOT EXISTS FOR ()-[r:RELATES_TO]-() ON (r.type)"
+                    "CREATE INDEX relationship_type IF NOT EXISTS FOR ()-[r:RELATES_TO]-() ON (r.type)",
+                    "CREATE CONSTRAINT word_unique IF NOT EXISTS FOR (w:Word) REQUIRE w.name IS UNIQUE",
+                    "CREATE INDEX word_language IF NOT EXISTS FOR (w:Word) ON (w.language)",
+                    "CREATE INDEX word_frequency IF NOT EXISTS FOR (w:Word) ON (w.frequency)"
                 };
                 
                 foreach (var query in queries)
@@ -113,6 +119,7 @@ public class GraphSyncService : IGraphSyncService
             foreach (var memory in memories)
             {
                 await CreateOrUpdateGraphNodeAsync(memory);
+                await CreateNodeWordsAndRelationshipsAsync(memory);
                 syncedCount++;
             }
             
@@ -366,10 +373,12 @@ Return as JSON array with format:
         {
             var nodes = await _graphRepository.ExecuteReadAsync(async tx =>
             {
+                // Get both Memory and Word nodes
                 var query = @"
-                    MATCH (m:Memory)
-                    RETURN m
-                    ORDER BY m.createdAt DESC
+                    MATCH (n)
+                    WHERE n:Memory OR n:Word
+                    RETURN n, labels(n) as labels
+                    ORDER BY n.createdAt DESC
                     LIMIT $limit";
                 
                 var cursor = await tx.RunAsync(query, new { limit });
@@ -377,33 +386,76 @@ Return as JSON array with format:
                 
                 return results.Select(record =>
                 {
-                    var node = record["m"].As<INode>();
-                    return new GraphNode
+                    var node = record["n"].As<INode>();
+                    var labels = record["labels"].As<List<string>>();
+                    
+                    if (labels.Contains("Word"))
                     {
-                        Id = node["id"].As<string>(),
-                        Label = node["title"].As<string>(),
-                        Type = node["type"].As<string>(),
-                        Color = GetColorForType(node["type"].As<string>()),
-                        Size = (int)(node["confidence"].As<double>() * 20),
-                        Data = new Dictionary<string, object>
+                        // Handle Word nodes
+                        var name = node.Properties.ContainsKey("name") ? node["name"].As<string>() : 
+                                  node.Properties.ContainsKey("word") ? node["word"].As<string>() : "unknown";
+                        return new GraphNode
                         {
-                            ["tags"] = node["tags"].As<List<string>>() ?? new List<string>(),
-                            ["source"] = node["source"].As<string>(),
-                            ["createdAt"] = node["createdAt"].As<string>()
-                        }
-                    };
+                            Id = name, // Use name as ID for Word nodes
+                            Label = name,
+                            Type = "Word",
+                            Color = "#ef4444", // Red for keywords
+                            Size = node.Properties.ContainsKey("frequency") ? 
+                                   Math.Min(20, 5 + node["frequency"].As<int>()) : 8,
+                            Data = new Dictionary<string, object>
+                            {
+                                ["frequency"] = node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1,
+                                ["language"] = node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en",
+                                ["createdAt"] = node.Properties.ContainsKey("createdAt") ? node["createdAt"].As<string>() : DateTime.UtcNow.ToString("o")
+                            }
+                        };
+                    }
+                    else
+                    {
+                        // Handle Memory nodes
+                        return new GraphNode
+                        {
+                            Id = node["id"].As<string>(),
+                            Label = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
+                            Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
+                            Color = GetColorForType(node.Properties.ContainsKey("type") ? node["type"].As<string>() : ""),
+                            Size = (int)(node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() * 20 : 10),
+                            Data = new Dictionary<string, object>
+                            {
+                                ["tags"] = node.Properties.ContainsKey("tags") ? node["tags"].As<List<string>>() ?? new List<string>() : new List<string>(),
+                                ["source"] = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
+                                ["createdAt"] = node.Properties.ContainsKey("createdAt") ? node["createdAt"].As<string>() : DateTime.UtcNow.ToString("o")
+                            }
+                        };
+                    }
                 }).ToList();
             });
             
             var relationships = await _graphRepository.ExecuteReadAsync(async tx =>
             {
+                // Get all relationships including HAS_KEYWORD
                 var query = @"
-                    MATCH (from:Memory)-[r:RELATES_TO]->(to:Memory)
-                    WHERE from.id IN $nodeIds AND to.id IN $nodeIds
-                    RETURN from.id AS fromId, to.id AS toId, r.type AS type, r.weight AS weight";
+                    MATCH (from)-[r]->(to)
+                    WHERE (from:Memory OR from:Word) AND (to:Memory OR to:Word)
+                    AND (
+                        (from:Memory AND from.id IN $memoryIds) OR
+                        (from:Word AND from.name IN $wordIds) OR
+                        (to:Memory AND to.id IN $memoryIds) OR
+                        (to:Word AND to.name IN $wordIds)
+                    )
+                    RETURN 
+                        CASE WHEN from:Memory THEN from.id ELSE from.name END AS fromId,
+                        CASE WHEN to:Memory THEN to.id ELSE to.name END AS toId,
+                        type(r) AS relType,
+                        CASE WHEN r.type IS NOT NULL THEN r.type ELSE type(r) END AS type,
+                        CASE WHEN r.weight IS NOT NULL THEN r.weight 
+                             WHEN r.relevance IS NOT NULL THEN r.relevance 
+                             ELSE 1.0 END AS weight";
                 
-                var nodeIds = nodes.Select(n => n.Id).ToList();
-                var cursor = await tx.RunAsync(query, new { nodeIds });
+                var memoryIds = nodes.Where(n => n.Type != "Word").Select(n => n.Id).ToList();
+                var wordIds = nodes.Where(n => n.Type == "Word").Select(n => n.Id).ToList();
+                
+                var cursor = await tx.RunAsync(query, new { memoryIds, wordIds });
                 var results = await cursor.ToListAsync();
                 
                 return results.Select(record => new GraphEdge
@@ -413,7 +465,7 @@ Return as JSON array with format:
                     Target = record["toId"].As<string>(),
                     Label = record["type"].As<string>(),
                     Weight = record["weight"].As<double>(),
-                    Color = GetColorForRelationType(record["type"].As<string>())
+                    Color = GetColorForRelationType(record["relType"].As<string>())
                 }).ToList();
             });
             
@@ -449,6 +501,7 @@ Return as JSON array with format:
             "contradicts" => "#ef4444",
             "implements" => "#8b5cf6",
             "references" => "#f59e0b",
+            "has_keyword" => "#ec4899",
             _ => "#94a3b8"
         };
     }
@@ -490,5 +543,113 @@ Return as JSON array with format:
             
             await tx.RunAsync(query, new { syncTime = syncTime.ToString("o") });
         });
+    }
+
+    public async Task CreateNodeWordsAndRelationshipsAsync(Memory memory)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(memory.Text))
+            {
+                _logger.LogDebug("Skipping keyword extraction for memory {MemoryId} - no text content", memory.Id);
+                return;
+            }
+
+            // Extract keywords using LLM
+            var keywords = await _llmService.ExtractKeywordsAsync(
+                memory.Text,
+                memory.Type,
+                maxKeywords: 10
+            );
+
+            if (!keywords.Any())
+            {
+                _logger.LogDebug("No keywords extracted for memory {MemoryId}", memory.Id);
+                return;
+            }
+
+            _logger.LogInformation("Extracted {Count} keywords for memory {MemoryId}", keywords.Count, memory.Id);
+
+            // Create NodeWords and relationships
+            foreach (var keyword in keywords)
+            {
+                await CreateNodeWordAsync(keyword);
+                await CreateMemoryToWordRelationshipAsync(memory.Id, keyword);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating NodeWords for memory {MemoryId}", memory.Id);
+        }
+    }
+
+    public async Task<bool> CreateNodeWordAsync(string word, string language = "en")
+    {
+        try
+        {
+            await _graphRepository.ExecuteWriteAsync(async tx =>
+            {
+                var query = @"
+                    MERGE (w:Word {name: $name, language: $language})
+                    ON CREATE SET 
+                        w.frequency = 1,
+                        w.createdAt = $now,
+                        w.updatedAt = $now
+                    ON MATCH SET 
+                        w.frequency = w.frequency + 1,
+                        w.updatedAt = $now
+                    RETURN w";
+                
+                var parameters = new
+                {
+                    name = word.ToLowerInvariant(),
+                    language = language,
+                    now = DateTime.UtcNow.ToString("o")
+                };
+                
+                await tx.RunAsync(query, parameters);
+            });
+            
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create NodeWord for word: {Word}", word);
+            return false;
+        }
+    }
+
+    public async Task<bool> CreateMemoryToWordRelationshipAsync(Guid memoryId, string word, double relevance = 1.0)
+    {
+        try
+        {
+            await _graphRepository.ExecuteWriteAsync(async tx =>
+            {
+                var query = @"
+                    MATCH (m:Memory {id: $memoryId})
+                    MATCH (w:Word {name: $name})
+                    MERGE (m)-[r:HAS_KEYWORD]->(w)
+                    SET r.relevance = $relevance,
+                        r.createdAt = $createdAt
+                    RETURN r";
+                
+                var parameters = new
+                {
+                    memoryId = memoryId.ToString(),
+                    name = word.ToLowerInvariant(),
+                    relevance = relevance,
+                    createdAt = DateTime.UtcNow.ToString("o")
+                };
+                
+                await tx.RunAsync(query, parameters);
+            });
+            
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create Memory-to-Word relationship from {MemoryId} to {Word}", memoryId, word);
+            return false;
+        }
     }
 }

@@ -38,6 +38,21 @@ public interface ILlmService : IDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The LLM's response</returns>
     Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Extracts keywords from content for creating NodeWord relationships
+    /// </summary>
+    /// <param name="content">The text content to extract keywords from</param>
+    /// <param name="contentType">Type of content for context</param>
+    /// <param name="maxKeywords">Maximum number of keywords to extract</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>List of extracted keywords</returns>
+    Task<List<string>> ExtractKeywordsAsync(
+        string content,
+        string contentType,
+        int maxKeywords = 10,
+        CancellationToken cancellationToken = default
+    );
 }
 
 /// <summary>

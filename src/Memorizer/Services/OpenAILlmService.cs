@@ -305,6 +305,126 @@ public sealed class OpenAILlmService : ILlmService
         }
     }
 
+    public async Task<List<string>> ExtractKeywordsAsync(
+        string content,
+        string contentType,
+        int maxKeywords = 10,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogDebug("Extracting keywords from content: length={Length}, type={Type}", 
+                content.Length, contentType);
+
+            var prompt = CreateKeywordExtractionPrompt(content, contentType, maxKeywords);
+            
+            _logger.LogDebug("Sending keyword extraction request to OpenAI model {Model}", _settings.Model);
+            
+            var messages = new List<ChatMessage>
+            {
+                ChatMessage.CreateSystemMessage("You are an expert at extracting meaningful keywords from text content."),
+                ChatMessage.CreateUserMessage(prompt)
+            };
+
+            var chatRequest = new ChatCompletionOptions
+            {
+                ResponseFormat = ChatResponseFormat.CreateJsonObjectFormat(),
+                Temperature = 0.5f,
+                MaxOutputTokenCount = 200
+            };
+
+            var response = await _chatClient.CompleteChatAsync(messages, chatRequest, cancellationToken);
+
+            if (response?.Value?.Content == null || response.Value.Content.Count == 0)
+            {
+                throw new InvalidOperationException("Empty response from OpenAI service");
+            }
+
+            var responseText = response.Value.Content[0].Text;
+            var keywords = ParseKeywordsResponse(responseText);
+            
+            _logger.LogDebug("Keyword extraction complete: {Count} keywords", keywords.Count);
+
+            return keywords;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during keyword extraction: {ErrorMessage}", ex.Message);
+            
+            // Fallback: return empty list
+            return new List<string>();
+        }
+    }
+
+    private static string CreateKeywordExtractionPrompt(
+        string content,
+        string contentType,
+        int maxKeywords)
+    {
+        var prompt = new StringBuilder();
+        
+        prompt.AppendLine("TASK: Extract the most important and relevant keywords from the provided content.");
+        prompt.AppendLine();
+        prompt.AppendLine("GUIDELINES:");
+        prompt.AppendLine($"- Extract up to {maxKeywords} keywords");
+        prompt.AppendLine("- Focus on technical terms, concepts, and significant entities");
+        prompt.AppendLine("- Include both single words and meaningful multi-word phrases");
+        prompt.AppendLine("- Prioritize domain-specific terminology");
+        prompt.AppendLine("- Normalize keywords to lowercase");
+        prompt.AppendLine("- Avoid common stop words unless they are part of technical terms");
+        prompt.AppendLine("- Consider the content type for appropriate keyword selection");
+        prompt.AppendLine();
+        prompt.AppendLine("CONTENT DETAILS:");
+        prompt.AppendLine($"- Type: {contentType}");
+        prompt.AppendLine($"- Length: {content.Length} characters");
+        prompt.AppendLine();
+        prompt.AppendLine("CONTENT TO ANALYZE:");
+        prompt.AppendLine("```");
+        // Truncate content if it's very long to avoid token limits
+        var truncatedContent = content.Length > 3000 ? content[..3000] + "..." : content;
+        prompt.AppendLine(truncatedContent);
+        prompt.AppendLine("```");
+        prompt.AppendLine();
+        prompt.AppendLine("RESPOND WITH VALID JSON in this exact format:");
+        prompt.AppendLine("""
+        {
+          "keywords": ["keyword1", "keyword2", "keyword3"],
+          "reasoning": "Brief explanation of keyword selection strategy"
+        }
+        """);
+
+        return prompt.ToString();
+    }
+
+    private static List<string> ParseKeywordsResponse(string response)
+    {
+        try
+        {
+            var jsonDoc = JsonDocument.Parse(response);
+            var root = jsonDoc.RootElement;
+
+            if (root.TryGetProperty("keywords", out var keywordsProp) && keywordsProp.ValueKind == JsonValueKind.Array)
+            {
+                var keywords = new List<string>();
+                foreach (var keyword in keywordsProp.EnumerateArray())
+                {
+                    var keywordStr = keyword.GetString()?.Trim().ToLowerInvariant();
+                    if (!string.IsNullOrWhiteSpace(keywordStr))
+                    {
+                        keywords.Add(keywordStr);
+                    }
+                }
+                return keywords;
+            }
+
+            throw new InvalidOperationException("No valid keywords found in OpenAI response");
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Failed to parse OpenAI keywords response: {ex.Message}", ex);
+        }
+    }
+
     public void Dispose()
     {
         // OpenAI client doesn't need explicit disposal

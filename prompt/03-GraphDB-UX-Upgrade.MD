@@ -19,3 +19,10 @@ posggres DB에 저장된 메모리를 Neo4j 그래프 데이터베이스로 동�
 - "src/Memorizer.IntegrationTests/" 에 유닛테스트 파일이 있습니다.
 - postgres 스키마는 src/Memorizer/migrations에 있습니다.
 
+
+## fix
+- Word node 속성중 word를 name으로 변경합니다. neo4j 에서 name을 시각화해 표현하기때문입니다.
+- Neo4j 툴에서는 Graph의 Node가 잘 표시됩니다. ui/graph 페이지가 graph db를 조회하는지 체크..postgres의 view를 표현하는것같습니다. view를 개선하고 검색기능도 다시 체크해 연결
+- NodeWord는 단어별로 생성되며 중복단어 생성을 방지는... "Hello" 란 Node를 중복해서 생성하지 않아야함을 의미하는것이며... 연결은 N개 가능해야합니다. 언급된 단어가 많은 도큐먼트를 찾을때 유용하기때문입니다. 로직을 파악후 개선
+-  GRAPH.md 에서 이 프로젝트가 만드는 graph 종류를 파악해 cyper query를 학습할수 있는 다양한 샘플 쿼리를 작성해~
+ 

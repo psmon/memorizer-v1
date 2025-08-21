@@ -31,7 +31,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data    
+      - /opt/postgres/mcp_ver1:/var/lib/postgresql/data    
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
 
@@ -102,9 +102,7 @@ services:
       io.rancher.container.start_once: 'true'
 
   memorizer:
-    build:
-      context: .
-      dockerfile: src/Memorizer/Dockerfile
+    image: psmon/mcp-memorizer:latest
     container_name: memorizer-app
     ports:
       - "5000:8080"
@@ -122,14 +120,11 @@ services:
     depends_on:
       - postgres
       - neo4j
-      - ollama
+      - ollama-init
     
     volumes:
       - ./migrations:/app/migrations
-
-
 volumes:
-  postgres_data:
   neo4j_data:
   neo4j_logs:
   neo4j_import:

@@ -177,6 +177,9 @@ public class TitleGenerationActorTests : TestKit
         public Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
             => Task.FromResult("Mock LLM response");
 
+        public Task<List<string>> ExtractKeywordsAsync(string content, string contentType, int maxKeywords = 10, CancellationToken cancellationToken = default)
+            => Task.FromResult(new List<string> { "mock", "keyword" });
+
         public void Dispose() { }
     }
 }

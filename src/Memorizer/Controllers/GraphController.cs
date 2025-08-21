@@ -235,6 +235,147 @@ public class GraphController : ControllerBase
             return StatusCode(503, new { status = "unhealthy", error = ex.Message });
         }
     }
+    
+    [HttpPost("search")]
+    public async Task<IActionResult> SearchWithNaturalLanguage([FromBody] NaturalLanguageSearchRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Query))
+            {
+                return BadRequest(new { success = false, error = "Query cannot be empty" });
+            }
+            
+            // Get the GraphSearchService if available
+            var graphSearchService = HttpContext.RequestServices.GetService<IGraphSearchService>();
+            if (graphSearchService == null)
+            {
+                return StatusCode(501, new { success = false, error = "Graph search service not available" });
+            }
+            
+            var result = await graphSearchService.SearchGraphAsync(request.Query);
+            
+            // Also return the generated Cypher query for transparency
+            var cypherQuery = await graphSearchService.GenerateCypherQueryAsync(request.Query);
+            
+            return Ok(new
+            {
+                nodes = result.Nodes,
+                relationships = result.Relationships,
+                cypherQuery = cypherQuery
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error performing natural language graph search");
+            return StatusCode(500, new { success = false, error = ex.Message });
+        }
+    }
+    
+    [HttpPost("search/cypher")]
+    public async Task<IActionResult> SearchWithCypher([FromBody] CypherSearchRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Query))
+            {
+                return BadRequest(new { success = false, error = "Query cannot be empty" });
+            }
+            
+            _logger.LogInformation("Executing Cypher query: {Query}", request.Query);
+            
+            var records = await _graphRepository.RunQueryAsync(request.Query);
+            var result = new GraphSearchResult();
+            
+            var nodeIds = new HashSet<string>();
+            var relationships = new List<GraphRelationship>();
+            
+            foreach (var record in records)
+            {
+                foreach (var value in record.Values.Values)
+                {
+                    if (value is INode node)
+                    {
+                        // Handle Word nodes
+                        if (node.Labels.Contains("Word"))
+                        {
+                            var word = node.Properties.ContainsKey("name") ? node["name"].As<string>() : 
+                                        node.Properties.ContainsKey("word") ? node["word"].As<string>() : "unknown";
+                            if (!nodeIds.Contains(word))
+                            {
+                                nodeIds.Add(word);
+                                result.Nodes.Add(new GraphMemoryNode
+                                {
+                                    Id = Guid.NewGuid(),
+                                    Title = word,
+                                    Type = "Word",
+                                    Source = "keyword",
+                                    Confidence = node.Properties.ContainsKey("frequency") ? node["frequency"].As<double>() / 100.0 : 1.0,
+                                    CreatedAt = node.Properties.ContainsKey("createdAt") 
+                                        ? DateTime.Parse(node["createdAt"].As<string>()) 
+                                        : DateTime.UtcNow,
+                                    Tags = new List<string> { node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en" }
+                                });
+                            }
+                        }
+                        // Handle Memory nodes
+                        else if (node.Labels.Contains("Memory"))
+                        {
+                            var nodeId = node["id"].As<string>();
+                            if (!nodeIds.Contains(nodeId))
+                            {
+                                nodeIds.Add(nodeId);
+                                result.Nodes.Add(new GraphMemoryNode
+                                {
+                                    Id = Guid.Parse(nodeId),
+                                    Title = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
+                                    Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
+                                    Source = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
+                                    Confidence = node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() : 1.0,
+                                    CreatedAt = node.Properties.ContainsKey("createdAt") 
+                                        ? DateTime.Parse(node["createdAt"].As<string>()) 
+                                        : DateTime.UtcNow,
+                                    Tags = node.Properties.ContainsKey("tags") 
+                                        ? node["tags"].As<List<string>>() ?? new List<string>()
+                                        : new List<string>()
+                                });
+                            }
+                        }
+                    }
+                    else if (value is IRelationship relationship)
+                    {
+                        // For now, we'll include basic relationship info
+                        // In a full implementation, we'd need to resolve the start and end nodes
+                        relationships.Add(new GraphRelationship
+                        {
+                            FromId = Guid.NewGuid(), // Would need to resolve actual IDs
+                            ToId = Guid.NewGuid(),
+                            Type = relationship.Type,
+                            Weight = relationship.Properties.ContainsKey("weight") 
+                                ? relationship["weight"].As<double>() 
+                                : 1.0,
+                            CreatedAt = relationship.Properties.ContainsKey("createdAt")
+                                ? DateTime.Parse(relationship["createdAt"].As<string>())
+                                : DateTime.UtcNow
+                        });
+                    }
+                }
+            }
+            
+            result.Relationships = relationships;
+            
+            return Ok(new
+            {
+                nodes = result.Nodes,
+                relationships = result.Relationships
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing Cypher query");
+            return StatusCode(500, new { success = false, error = ex.Message });
+        }
+    }
 }
 
 public class CreateRelationshipRequest
@@ -243,4 +384,14 @@ public class CreateRelationshipRequest
     public Guid ToId { get; set; }
     public string Type { get; set; } = "related-to";
     public Dictionary<string, object>? Properties { get; set; }
+}
+
+public class NaturalLanguageSearchRequest
+{
+    public string Query { get; set; } = string.Empty;
+}
+
+public class CypherSearchRequest
+{
+    public string Query { get; set; } = string.Empty;
 }

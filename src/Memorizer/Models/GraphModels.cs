@@ -53,3 +53,21 @@ public class GraphEdge
     public string Color { get; set; } = "#94a3b8";
     public double Weight { get; set; } = 1.0;
 }
+
+public class NodeWord
+{
+    public string Word { get; set; } = string.Empty;
+    public string Language { get; set; } = "en";
+    public int Frequency { get; set; } = 1;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public List<Guid> ConnectedMemories { get; set; } = new();
+}
+
+public class MemoryToWordRelationship
+{
+    public Guid MemoryId { get; set; }
+    public string Word { get; set; } = string.Empty;
+    public double Relevance { get; set; } = 1.0;
+    public DateTime CreatedAt { get; set; }
+}

@@ -1,20 +1,5 @@
 version: '2'
 services:
-  postgres:
-    image: pgvector/pgvector:pg17
-    restart: unless-stopped
-    container_name: postgmem-postgres
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgmem
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data    
-    labels:
-      io.rancher.scheduler.affinity:host_label: server=latemain
-
   # Memorizer application
   memorizer:
     image: psmon/mcp-memorizer:latest
@@ -39,6 +24,3 @@ services:
       - postgres
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
-
-volumes:
-  postgres-data:  

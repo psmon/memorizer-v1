@@ -1,3 +1,9 @@
+# Memorizer with Graph
+
+![Introduction](intro.png)
+
+This project extends the capabilities of the **original Memorizer** by adding Graph functionality.
+
 # Memorizer
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/petabridge/memorizer)](https://hub.docker.com/r/petabridge/memorizer) ![GitHub License](https://img.shields.io/github/license/petabridge/memorizer-v1) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/petabridge/memorizer-v1/pr_validation.yml) ![GitHub Release](https://img.shields.io/github/v/release/petabridge/memorizer-v1)

@@ -1127,6 +1127,14 @@ public class Storage : IStorage
                 Text = memory.Text
             });
             
+            // Create NodeWords and relationships
+            await _graphSyncService.CreateNodeWordsAndRelationshipsAsync(new Models.Memory
+            {
+                Id = memory.Id,
+                Type = memory.Type,
+                Text = memory.Text
+            });
+            
             // Suggest and create LLM-based relationships
             var suggestions = await _graphSyncService.SuggestRelationshipsAsync(memory.Id);
             foreach (var suggestion in suggestions.Where(s => s.Weight >= 0.7))
