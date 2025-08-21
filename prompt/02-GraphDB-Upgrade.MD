@@ -18,7 +18,6 @@
 # 소스위치
 - "src/Memorizer/ 하위디렉토리에 있습니다.
 - postgres 스키마는 src/Memorizer/migrations에 있습니다.
-- OpenAI 사용시 appsettings.json 설정파일을 이용합니다.
 
 
 ## 레퍼런스 활용 지침
