@@ -1,6 +1,19 @@
-version: '3.8'
-
+version: '2'
 services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    container_name: postgmem-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgmem
+    ports:
+      - "5432:5432"
+    volumes:
+      - /opt/postgres/mcp_ver1:/var/lib/postgresql/data
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain  
   neo4j:
     image: neo4j:5-community
     container_name: memorizer-neo4j
@@ -18,23 +31,9 @@ services:
       - neo4j_data:/data
       - neo4j_logs:/logs
       - neo4j_import:/var/lib/neo4j/import
-      - neo4j_plugins:/plugins    
-
-  postgres:
-    image: pgvector/pgvector:pg17
-    restart: unless-stopped
-    container_name: postgmem-postgres
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgmem
-    ports:
-      - "5432:5432"
-    volumes:
-      - /opt/postgres/mcp_ver1:/var/lib/postgresql/data    
+      - neo4j_plugins:/plugins
     labels:
-      io.rancher.scheduler.affinity:host_label: server=latemain
-
+      io.rancher.scheduler.affinity:host_label: server=latemain       
   pgadmin:
     image: dpage/pgadmin4
     restart: unless-stopped
@@ -107,23 +106,26 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ConnectionStrings__Storage=Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      - Embeddings__ApiUrl=http://ollama:11434
-      - Embeddings__Model=all-minilm:33m-l12-v2-fp16
-      - LLM__ApiUrl=http://ollama:11434
-      - LLM__Model=qwen2:0.5b
-      - Neo4j__Uri=bolt://neo4j:7687
-      - Neo4j__User=neo4j
-      - Neo4j__Password=password
-      - Neo4j__Database=neo4j
-      - ASPNETCORE_URLS=http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Storage: Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
+      MEMORIZER_Embeddings__ApiUrl: http://ollama:11434
+      MEMORIZER_Embeddings__Model: all-minilm:33m-l12-v2-fp16
+      MEMORIZER_LLM__ApiUrl: http://ollama:11434
+      MEMORIZER_LLM__Chunking__MinCharactersForChunking: '2000'
+      MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
+      MEMORIZER_LLM__Model: qwen2:0.5b
+      MEMORIZER_LLM__Timeout: 00:02:00
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__User: neo4j
+      Neo4j__Password: password
+      Neo4j__Database: neo4j      
+      MEMORIZER_Server__CanonicalUrl: https://mcp.memorizer.com      
     depends_on:
       - postgres
       - neo4j
       - ollama-init
-    
-    volumes:
-      - ./migrations:/app/migrations
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain      
 volumes:
   neo4j_data:
   neo4j_logs:

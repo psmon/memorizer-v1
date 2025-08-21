@@ -109,16 +109,20 @@ services:
     ports:
       - "5000:8080"
     environment:
-      - ConnectionStrings__Storage=Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      - Embeddings__ApiUrl=http://ollama:11434
-      - Embeddings__Model=all-minilm:33m-l12-v2-fp16
-      - LLM__ApiUrl=http://ollama:11434
-      - LLM__Model=qwen2:0.5b
-      - Neo4j__Uri=bolt://neo4j:7687
-      - Neo4j__User=neo4j
-      - Neo4j__Password=password
-      - Neo4j__Database=neo4j
-      - ASPNETCORE_URLS=http://+:8080
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Storage: Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
+      MEMORIZER_Embeddings__ApiUrl: http://ollama:11434
+      MEMORIZER_Embeddings__Model: all-minilm:33m-l12-v2-fp16
+      MEMORIZER_LLM__ApiUrl: http://ollama:11434
+      MEMORIZER_LLM__Chunking__MinCharactersForChunking: '2000'
+      MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
+      MEMORIZER_LLM__Model: qwen2:0.5b
+      MEMORIZER_LLM__Timeout: 00:02:00
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__User: neo4j
+      Neo4j__Password: password
+      Neo4j__Database: neo4j
+      MEMORIZER_Server__CanonicalUrl: http://localhost:5000
     depends_on:
       - postgres
       - neo4j
