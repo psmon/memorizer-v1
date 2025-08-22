@@ -1,5 +1,6 @@
 using Configuration.Extensions.EnvironmentFile;
 using Memorizer.Extensions;
+using Memorizer.Middleware;
 using Memorizer.Services;
 using Memorizer.Telemetry;
 using PostgMem.Tools;
@@ -70,6 +71,19 @@ builder.Services.AddCors(options =>
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+});
+
+// Add authentication services
+builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
+
+// Add session support
+builder.Services.AddDistributedMemoryCache();
+builder.Services.AddSession(options =>
+{
+    options.IdleTimeout = TimeSpan.FromHours(24);
+    options.Cookie.HttpOnly = true;
+    options.Cookie.IsEssential = true;
+    options.Cookie.Name = ".Memorizer.Session";
 });
 
 // Add services
@@ -154,6 +168,12 @@ app.UseCors();
 
 app.UseStaticFiles();
 
+// Add session middleware
+app.UseSession();
+
+// Add authentication middleware
+app.UseMiddleware<AuthenticationMiddleware>();
+
 // Add logging before and after MCP mapping
 appLogger.LogInformation("Mapping MCP endpoints...");
 try
@@ -213,6 +233,16 @@ app.MapGet("/sse-test", async (HttpContext context) =>
         sseLogger.LogError(ex, "SSE test failed: {Error}", ex.Message);
         throw;
     }
+});
+
+// Add root redirect to login
+app.MapGet("/", (HttpContext context) =>
+{
+    if (context.Session.GetString("IsAuthenticated") == "true")
+    {
+        return Results.Redirect("/ui");
+    }
+    return Results.Redirect("/auth/login");
 });
 
 // Configure default MVC routing

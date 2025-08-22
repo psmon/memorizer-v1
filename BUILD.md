@@ -20,6 +20,7 @@ docker push registry.webnori.com/memorizer:latest
 docker build -f src/Memorizer/Dockerfile  -t psmon/mcp-memorizer:latest .
 
 docker push psmon/mcp-memorizer:latest
+
 ```
 
 

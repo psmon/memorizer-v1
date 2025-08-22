@@ -25,6 +25,9 @@
 ```
 claude mcp add --transport sse memorizer https://mcp.webnori.com/sse
 
+claude mcp add --transport sse memorizer https://mcp.webnori.com/sse \
+  --header "X-API-Key: xxxxxxxxxxxxxxxxxxx"    
+
 claude mcp list
 ```
 
@@ -32,5 +35,27 @@ claude mcp list
 claude mcp remove memorizer
 
 claude mcp add --transport sse memorizer http://localhost:5012/sse
+```
+
+## claude Desktop
+
+```
+{
+  "mcpServers": {
+    "mcp-memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.webnori.com/sse",
+        "--header",
+        "X-API-Key:${MCP_API_KEY}"
+      ],
+      "env": {
+        "MCP_API_KEY": "xxxxxxxxxxxxxxxxxxx"
+      }
+    }
+  }
+}
 ```
 

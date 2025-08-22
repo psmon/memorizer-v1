@@ -123,6 +123,9 @@ services:
       Neo4j__Password: password
       Neo4j__Database: neo4j
       MEMORIZER_Server__CanonicalUrl: http://localhost:5000
+      MEMORIZER_Server__UserName: admin
+      MEMORIZER_Server__Password: admin123
+      MEMORIZER_Server__ApiKey: your_api_key_here
     depends_on:
       - postgres
       - neo4j

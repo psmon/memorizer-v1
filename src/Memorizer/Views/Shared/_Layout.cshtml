@@ -1,3 +1,7 @@
+@{
+    var isAuthenticated = Context.Items["IsAuthenticated"] as bool? ?? false;
+    var username = Context.Items["Username"] as string ?? "";
+}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -34,50 +38,77 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Create" ? "active" : "")" 
-                               asp-controller="Home" asp-action="Create">
-                                <i class="fas fa-plus me-2"></i>
-                                Create Memory
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tools" ? "active" : "")" 
-                               asp-controller="Tools" asp-action="Index">
-                                <i class="fas fa-tools me-2"></i>
-                                Tools
-                            </a>
-                        </li>
-                        <li class="nav-item">
                             <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "GraphView" ? "active" : "")" 
                                href="/ui/graph">
                                 <i class="fas fa-project-diagram me-2"></i>
                                 Graph View
                             </a>
                         </li>
-                        <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Stats" ? "active" : "")" 
-                               asp-controller="Home" asp-action="Stats">
-                                <i class="fas fa-chart-bar me-2"></i>
-                                Statistics
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "McpConfig" ? "active" : "")" 
-                               asp-controller="Home" asp-action="McpConfig">
-                                <i class="fas fa-cog me-2"></i>
-                                MCP Config
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Config" ? "active" : "")" 
-                               asp-controller="Home" asp-action="Config">
-                                <i class="fas fa-cogs me-2"></i>
-                                System Config
-                            </a>
-                        </li>
+                        @if (isAuthenticated)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Create" ? "active" : "")" 
+                                   asp-controller="Home" asp-action="Create">
+                                    <i class="fas fa-plus me-2"></i>
+                                    Create Memory
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tools" ? "active" : "")" 
+                                   asp-controller="Tools" asp-action="Index">
+                                    <i class="fas fa-tools me-2"></i>
+                                    Tools
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Stats" ? "active" : "")" 
+                                   asp-controller="Home" asp-action="Stats">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    Statistics
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "McpConfig" ? "active" : "")" 
+                                   asp-controller="Home" asp-action="McpConfig">
+                                    <i class="fas fa-cog me-2"></i>
+                                    MCP Config
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Config" ? "active" : "")" 
+                                   asp-controller="Home" asp-action="Config">
+                                    <i class="fas fa-cogs me-2"></i>
+                                    System Config
+                                </a>
+                            </li>
+                        }
                     </ul>
                     
                     <hr class="my-4" style="border-color: rgba(255, 255, 255, 0.3);">
+                    
+                    @if (isAuthenticated)
+                    {
+                        <div class="text-center mb-3">
+                            <small class="text-white-50">
+                                <i class="fas fa-user me-1"></i>
+                                Logged in as: <strong>@username</strong>
+                            </small>
+                            <br>
+                            <a href="/logout" class="btn btn-sm btn-outline-light mt-2">
+                                <i class="fas fa-sign-out-alt me-1"></i>
+                                Logout
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center mb-3">
+                            <a href="/auth/login" class="btn btn-sm btn-outline-light">
+                                <i class="fas fa-sign-in-alt me-1"></i>
+                                Login
+                            </a>
+                        </div>
+                    }
                     
                     <div class="text-center">
                         <small class="text-white-50">
