@@ -41,6 +41,13 @@ MCP Memory View – Mainly covers Akka-related context
 https://mcp.webnori.com/ui
 
 
+## Version 1.0.3
+
+Improve GraphDB search functionality with enhanced natural language to Cypher query conversion and better UX for query exploration
+
+- [GraphDB-Prompt-Upgrade](06-GraphDB-Prompt-Upgrade.MD)
+
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

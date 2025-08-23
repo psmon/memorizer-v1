@@ -5,65 +5,8 @@
 <div class="container-fluid">
     <h1>Memory Graph Visualization</h1>
     
+    <!-- Graph Visualization Section First -->
     <div class="row mb-3">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">Graph Controls</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="input-group mb-2">
-                                <span class="input-group-text">Cypher Query</span>
-                                <input type="text" id="cypherQuery" class="form-control" placeholder="e.g., MATCH (n:Memory) RETURN n LIMIT 25">
-                                <button id="executeCypherButton" class="btn btn-primary">
-                                    <i class="bi bi-play-fill"></i> Execute
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="input-group mb-2">
-                                <span class="input-group-text">Natural Language</span>
-                                <input type="text" id="nlQuery" class="form-control" placeholder="e.g., Find all memories about AI">
-                                <button id="executeNLButton" class="btn btn-info">
-                                    <i class="bi bi-chat-dots"></i> Search
-                                </button>
-                            </div>
-                        </div>
-                        <div class="col-md-2">
-                            <button id="refreshButton" class="btn btn-success w-100 mb-2">
-                                <i class="bi bi-arrow-clockwise"></i> Refresh
-                            </button>
-                        </div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-md-12">
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="checkbox" id="showWords" value="true">
-                                <label class="form-check-label" for="showWords">
-                                    Show Word Nodes
-                                </label>
-                            </div>
-                            <div class="form-check form-check-inline">
-                                <input class="form-check-input" type="number" id="nodeLimit" value="100" min="10" max="500" style="width: 80px;">
-                                <label class="form-check-label" for="nodeLimit">
-                                    Node Limit
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row mt-2">
-                        <div class="col-md-12">
-                            <div id="syncStatus" class="alert d-none"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    
-    <div class="row">
         <div class="col-md-9">
             <div class="card">
                 <div class="card-body">
@@ -120,6 +63,140 @@
             </div>
         </div>
     </div>
+    
+    <!-- Graph Controls at the Bottom -->
+    <div class="row">
+        <div class="col-md-12">
+            <div class="card graph-controls-bottom">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Graph Controls</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="cypherQuery" class="form-label mb-0">Cypher Query</label>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="cypherExamplesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-lightbulb"></i> Examples
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="cypherExamplesDropdown" style="max-width: 500px; max-height: 500px; overflow-y: auto; z-index: 1060;">
+                                            <li><h6 class="dropdown-header">Basic Queries</h6></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory) RETURN m LIMIT 25">Get all memories (limit 25)</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory {type: 'reference'}) RETURN m LIMIT 50">Find all reference documents</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory {type: 'how-to'}) RETURN m LIMIT 50">Find all how-to guides</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Keyword Searches</h6></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE w.name IN ['docker', 'kubernetes', 'container'] RETURN DISTINCT m, w LIMIT 50">Find memories about Docker/Kubernetes</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (w:Word) RETURN w ORDER BY w.frequency DESC LIMIT 20">Show most frequent keywords</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m1:Memory)-[:HAS_KEYWORD]->(w:Word)<-[:HAS_KEYWORD]-(m2:Memory) WHERE m1.id <> m2.id WITH m1, m2, COUNT(w) as common_keywords RETURN m1, m2, common_keywords ORDER BY common_keywords DESC LIMIT 20">Find memories with common keywords</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Relationship Queries</h6></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m1:Memory)-[r:RELATES_TO]->(m2:Memory) WHERE r.type = 'extends' RETURN m1, r, m2 LIMIT 30">Find 'extends' relationships</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m1:Memory)-[r:RELATES_TO]->(m2:Memory) WHERE r.type = 'enhanced-version' RETURN m1, r, m2 LIMIT 30">Find enhanced versions</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory)-[r]-(other) WITH m, COUNT(r) as connections WHERE connections > 3 RETURN m, connections ORDER BY connections DESC LIMIT 20">Most connected memories</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Complex Patterns</h6></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH path = (m1:Memory)-[:RELATES_TO*1..3]-(m2:Memory) WHERE m1.type = 'reference' AND m2.type = 'how-to' RETURN path LIMIT 20">Reference to How-To paths</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory) WHERE m.confidence > 0.8 AND size(m.tags) > 3 RETURN m ORDER BY m.createdAt DESC LIMIT 30">High confidence memories with many tags</a></li>
+                                            <li><a class="dropdown-item cypher-example" href="#" data-query="MATCH (m:Memory) WHERE m.title CONTAINS 'SSE' OR m.summary CONTAINS 'Server-Sent' OR 'sse' IN m.tags RETURN m LIMIT 50">Search for SSE/Server-Sent Events</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <textarea id="cypherQuery" class="form-control" rows="3" placeholder="Enter Cypher query...&#10;Example: MATCH (m:Memory) RETURN m LIMIT 25&#10;Press Ctrl+Enter to execute" style="font-family: 'Courier New', monospace; font-size: 13px;"></textarea>
+                                <div class="mt-1">
+                                    <button id="executeCypherButton" class="btn btn-primary">
+                                        <i class="bi bi-play-fill"></i> Execute Cypher
+                                    </button>
+                                    <small class="text-muted ms-2">Press Ctrl+Enter to execute</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-2">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <label for="nlQuery" class="form-label mb-0">Natural Language Search</label>
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="nlExamplesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                            <i class="bi bi-lightbulb"></i> Examples
+                                        </button>
+                                        <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="nlExamplesDropdown" style="max-width: 400px; max-height: 500px; overflow-y: auto; z-index: 1060;">
+                                            <li><h6 class="dropdown-header">Search by Type</h6></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Find all reference documents">Find all reference documents</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Show me how-to guides">Show me how-to guides</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Relationship Searches</h6></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Find memories that extend DDD concepts">Find memories that extend DDD concepts</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Show enhanced versions of existing memories">Show enhanced versions</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Find the most connected memories">Find the most connected memories</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Keyword Searches</h6></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Find memories about Docker or Kubernetes">Find memories about Docker/Kubernetes</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Show memories related to reactive programming">Reactive programming memories</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Find SSE or Server-Sent Events implementations">SSE implementations</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><h6 class="dropdown-header">Analysis Queries</h6></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Show the most frequently used keywords">Most frequent keywords</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Find memories with common keywords">Memories with common keywords</a></li>
+                                            <li><a class="dropdown-item nl-example" href="#" data-query="Show recent high-confidence memories">Recent high-confidence memories</a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                                <textarea id="nlQuery" class="form-control" rows="2" placeholder="Describe what you're looking for in natural language...&#10;Example: Find all memories about reactive programming"></textarea>
+                                <div class="mt-1">
+                                    <button id="executeNLButton" class="btn btn-info">
+                                        <i class="bi bi-chat-dots"></i> Search
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="generatedCypherContainer" class="mt-2 d-none">
+                                <label class="form-label">Generated Cypher Query:</label>
+                                <div class="input-group">
+                                    <textarea id="generatedCypher" class="form-control" rows="2" readonly style="font-family: 'Courier New', monospace; font-size: 12px; background-color: #f8f9fa;"></textarea>
+                                    <button id="copyGeneratedCypher" class="btn btn-outline-secondary" title="Copy to clipboard">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button id="refreshButton" class="btn btn-success w-100 mb-2">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh Graph
+                            </button>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="autoLayout" value="true" checked>
+                                <label class="form-check-label" for="autoLayout">
+                                    Auto Layout
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="showWords" value="true">
+                                <label class="form-check-label" for="showWords">
+                                    Show Word Nodes
+                                </label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="number" id="nodeLimit" value="100" min="10" max="500" style="width: 80px;">
+                                <label class="form-check-label" for="nodeLimit">
+                                    Node Limit
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12">
+                            <div id="syncStatus" class="alert d-none"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -140,6 +217,17 @@
     #graphContainer {
         background: #f8f9fa;
         position: relative;
+        z-index: 1;
+        min-height: 600px;
+    }
+    
+    /* Sticky controls at bottom */
+    .graph-controls-bottom {
+        position: sticky;
+        bottom: 0;
+        background: white;
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        z-index: 50;
     }
     
     .node-tooltip {
@@ -152,6 +240,50 @@
         pointer-events: none;
         z-index: 1000;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    /* Fix dropdown z-index issues */
+    .dropdown {
+        position: relative;
+        z-index: 1050;
+    }
+    
+    .dropdown-menu {
+        z-index: 1055 !important;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    /* Ensure control panel stays above graph */
+    .card {
+        position: relative;
+    }
+    
+    .card-header {
+        position: relative;
+        z-index: 10;
+    }
+    
+    .card-body {
+        position: relative;
+    }
+    
+    /* Control panel card should be above graph */
+    .row:first-child .card {
+        z-index: 100;
+    }
+    
+    /* Ensure dropdowns in control panel are above everything */
+    #cypherExamplesDropdown,
+    #nlExamplesDropdown {
+        position: relative;
+        z-index: 1060;
+    }
+    
+    /* Bootstrap dropdown override for long content */
+    .dropdown-menu.show {
+        position: absolute !important;
+        z-index: 1060 !important;
     }
 </style>
 
@@ -177,14 +309,47 @@
                 executeNaturalLanguageQuery();
             });
             
-            $('#cypherQuery').keypress(function(e) {
-                if (e.which == 13) {
+            // Handle Ctrl+Enter for Cypher query execution
+            $('#cypherQuery').keydown(function(e) {
+                if (e.ctrlKey && e.which == 13) {
+                    e.preventDefault();
                     executeCypherQuery();
                 }
             });
             
+            // Auto-resize textarea
+            $('#cypherQuery, #nlQuery').on('input', function() {
+                this.style.height = 'auto';
+                this.style.height = this.scrollHeight + 'px';
+            });
+            
+            // Handle Cypher examples dropdown
+            $('.cypher-example').click(function(e) {
+                e.preventDefault();
+                const query = $(this).data('query');
+                $('#cypherQuery').val(query).trigger('input');
+            });
+            
+            // Handle Natural Language examples dropdown
+            $('.nl-example').click(function(e) {
+                e.preventDefault();
+                const query = $(this).data('query');
+                $('#nlQuery').val(query).trigger('input');
+            });
+            
+            // Handle copy generated Cypher
+            $('#copyGeneratedCypher').click(function() {
+                const cypherText = $('#generatedCypher').val();
+                navigator.clipboard.writeText(cypherText).then(function() {
+                    showStatus('Cypher query copied to clipboard', 'success');
+                }).catch(function(err) {
+                    showStatus('Failed to copy: ' + err, 'danger');
+                });
+            });
+            
             $('#nlQuery').keypress(function(e) {
-                if (e.which == 13) {
+                if (e.which == 13 && !e.shiftKey) {
+                    e.preventDefault();
                     executeNaturalLanguageQuery();
                 }
             });
@@ -324,48 +489,90 @@
         }
         
         function createNodeTooltip(node) {
+            // Handle both transformed nodes (with .data) and raw search result nodes
+            const nodeData = node.data || node;
+            const nodeType = nodeData.type || node.type || 'Unknown';
+            const nodeSource = nodeData.source || node.source || 'Unknown';
+            const nodeTags = nodeData.tags || node.tags || [];
+            const nodeCreatedAt = nodeData.createdAt || node.createdAt;
+            
+            if (nodeType === 'Word') {
+                return `
+                    <div>
+                        <strong>${node.label || node.title || node.word || 'Unknown'}</strong><br>
+                        Type: Word<br>
+                        Language: ${nodeData.language || 'en'}<br>
+                        Frequency: ${nodeData.frequency || 'N/A'}<br>
+                        ${nodeCreatedAt ? `Created: ${new Date(nodeCreatedAt).toLocaleDateString()}` : ''}
+                    </div>
+                `;
+            }
+            
             return `
                 <div>
-                    <strong>${node.label}</strong><br>
-                    Type: ${node.type}<br>
-                    Source: ${node.data.source}<br>
-                    Tags: ${node.data.tags ? node.data.tags.join(', ') : 'None'}<br>
-                    Created: ${new Date(node.data.createdAt).toLocaleDateString()}
+                    <strong>${node.label || node.title || 'Unknown'}</strong><br>
+                    Type: ${nodeType}<br>
+                    Source: ${nodeSource}<br>
+                    Tags: ${nodeTags.length > 0 ? nodeTags.join(', ') : 'None'}<br>
+                    ${nodeCreatedAt ? `Created: ${new Date(nodeCreatedAt).toLocaleDateString()}` : 'Created: Unknown'}
                 </div>
             `;
         }
         
         function showNodeDetails(nodeId) {
             const node = nodes.get(nodeId);
-            if (node) {
-                const html = `
-                    <h6>${node.label}</h6>
-                    <p><strong>ID:</strong> ${node.id}</p>
-                    <p><strong>Type:</strong> ${node.data.type || 'Unknown'}</p>
-                    <p><strong>Source:</strong> ${node.data.source || 'Unknown'}</p>
-                    <p><strong>Tags:</strong> ${node.data.tags ? node.data.tags.join(', ') : 'None'}</p>
-                    <p><strong>Created:</strong> ${new Date(node.data.createdAt).toLocaleDateString()}</p>
-                    <div class="mt-3">
-                        <a href="/ui/view/${node.id}" class="btn btn-sm btn-primary" target="_blank">
-                            <i class="bi bi-eye"></i> View Details
-                        </a>
-                        <button class="btn btn-sm btn-secondary" onclick="suggestRelationships('${node.id}')">
-                            <i class="bi bi-diagram-3"></i> Suggest Relations
-                        </button>
-                    </div>
-                `;
-                $('#nodeDetails').html(html);
+            if (node && node.data) {
+                let detailsHtml = '';
+                
+                if (node.data.type === 'Word') {
+                    detailsHtml = `
+                        <h6>${node.label}</h6>
+                        <p><strong>Type:</strong> Word</p>
+                        <p><strong>Language:</strong> ${node.data.language || 'en'}</p>
+                        <p><strong>Frequency:</strong> ${node.data.frequency || 'N/A'}</p>
+                        ${node.data.createdAt ? `<p><strong>Created:</strong> ${new Date(node.data.createdAt).toLocaleDateString()}</p>` : ''}
+                    `;
+                } else {
+                    detailsHtml = `
+                        <h6>${node.label}</h6>
+                        <p><strong>ID:</strong> ${node.id}</p>
+                        <p><strong>Type:</strong> ${node.data.type || 'Unknown'}</p>
+                        <p><strong>Source:</strong> ${node.data.source || 'Unknown'}</p>
+                        <p><strong>Tags:</strong> ${node.data.tags && node.data.tags.length > 0 ? node.data.tags.join(', ') : 'None'}</p>
+                        <p><strong>Created:</strong> ${node.data.createdAt ? new Date(node.data.createdAt).toLocaleDateString() : 'Unknown'}</p>
+                        <div class="mt-3">
+                            <a href="/ui/view/${node.id}" class="btn btn-sm btn-primary" target="_blank">
+                                <i class="bi bi-eye"></i> View Details
+                            </a>
+                            <button class="btn btn-sm btn-secondary" onclick="suggestRelationships('${node.id}')">
+                                <i class="bi bi-diagram-3"></i> Suggest Relations
+                            </button>
+                        </div>
+                    `;
+                }
+                
+                $('#nodeDetails').html(detailsHtml);
             }
         }
         
         function executeCypherQuery() {
-            const query = $('#cypherQuery').val();
+            let query = $('#cypherQuery').val().trim();
             if (!query) {
                 showStatus('Please enter a Cypher query', 'warning');
                 return;
             }
             
+            // Apply LIMIT if not already present and limit is set
+            const limit = parseInt($('#nodeLimit').val());
+            if (limit > 0 && !query.match(/\bLIMIT\b/i)) {
+                // Check if query returns nodes or paths
+                if (query.match(/\bRETURN\b.*\b(m|n|node|path|p)\b/i)) {
+                    query += ` LIMIT ${limit}`;
+                }
+            }
+            
             $('#executeCypherButton').prop('disabled', true);
+            const startTime = Date.now();
             showStatus('Executing Cypher query...', 'info');
             
             $.ajax({
@@ -374,11 +581,23 @@
                 contentType: 'application/json',
                 data: JSON.stringify({ query: query }),
                 success: function(response) {
-                    if (response.nodes && response.relationships) {
+                    const executionTime = Date.now() - startTime;
+                    if (response.nodes && response.nodes.length > 0) {
+                        // Update graph visualization with results
                         updateGraphFromSearchResults(response);
-                        showStatus(`Found ${response.nodes.length} nodes and ${response.relationships.length} relationships`, 'success');
+                        showStatus(`Found ${response.nodes.length} nodes and ${response.relationships?.length || 0} relationships (${executionTime}ms)`, 'success');
+                        
+                        // Update statistics
+                        $('#nodeCount').text(response.nodes.length);
+                        $('#edgeCount').text(response.relationships?.length || 0);
                     } else {
                         showStatus('No results found', 'info');
+                        // Clear the graph if no results
+                        nodes.clear();
+                        edges.clear();
+                        $('#nodeCount').text('0');
+                        $('#edgeCount').text('0');
+                        $('#componentCount').text('0');
                     }
                 },
                 error: function(xhr, status, error) {
@@ -392,13 +611,14 @@
         }
         
         function executeNaturalLanguageQuery() {
-            const query = $('#nlQuery').val();
+            const query = $('#nlQuery').val().trim();
             if (!query) {
                 showStatus('Please enter a natural language query', 'warning');
                 return;
             }
             
             $('#executeNLButton').prop('disabled', true);
+            const startTime = Date.now();
             showStatus('Processing natural language query...', 'info');
             
             $.ajax({
@@ -407,16 +627,22 @@
                 contentType: 'application/json',
                 data: JSON.stringify({ query: query }),
                 success: function(response) {
+                    const executionTime = Date.now() - startTime;
                     if (response.nodes && response.relationships) {
                         updateGraphFromSearchResults(response);
-                        showStatus(`Found ${response.nodes.length} nodes and ${response.relationships.length} relationships`, 'success');
+                        showStatus(`Found ${response.nodes.length} nodes and ${response.relationships.length} relationships (${executionTime}ms)`, 'success');
                         
                         // Show the generated Cypher query if available
                         if (response.cypherQuery) {
-                            $('#cypherQuery').val(response.cypherQuery);
+                            $('#generatedCypher').val(response.cypherQuery);
+                            $('#generatedCypherContainer').removeClass('d-none');
                         }
                     } else {
                         showStatus('No results found', 'info');
+                        if (response.cypherQuery) {
+                            $('#generatedCypher').val(response.cypherQuery);
+                            $('#generatedCypherContainer').removeClass('d-none');
+                        }
                     }
                 },
                 error: function(xhr, status, error) {
@@ -437,19 +663,26 @@
             
             const nodeData = searchResults.nodes
                 .filter(node => showWords || node.type !== 'Word')
-                .map(node => ({
-                    id: node.id,
-                    label: node.title || node.word || node.id.substring(0, 8),
-                    title: createNodeTooltip(node),
-                    color: node.type === 'Word' ? '#ef4444' : getColorForType(node.type),
-                    size: node.type === 'Word' ? 8 : (node.confidence ? node.confidence * 20 : 10),
-                    data: {
-                        type: node.type,
-                        source: node.source,
-                        tags: node.tags,
-                        createdAt: node.createdAt
-                    }
-                }));
+                .map(node => {
+                    const mappedNode = {
+                        id: node.id,
+                        label: node.title || node.word || (typeof node.id === 'string' ? node.id.substring(0, 8) : node.id),
+                        color: node.type === 'Word' ? '#ef4444' : getColorForType(node.type),
+                        size: node.type === 'Word' ? 8 : (node.confidence ? node.confidence * 20 : 10),
+                        data: {
+                            type: node.type,
+                            source: node.source || 'Unknown',
+                            tags: node.tags || [],
+                            createdAt: node.createdAt,
+                            // For Word nodes, add additional properties
+                            language: node.language,
+                            frequency: node.frequency
+                        }
+                    };
+                    // Create tooltip after data is set
+                    mappedNode.title = createNodeTooltip(mappedNode);
+                    return mappedNode;
+                });
             
             const edgeData = searchResults.relationships.map(rel => ({
                 from: rel.fromId,

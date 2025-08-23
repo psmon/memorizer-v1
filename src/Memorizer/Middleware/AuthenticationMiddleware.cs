@@ -83,6 +83,7 @@ public class AuthenticationMiddleware
             "/api/memory/types",
             "/api/graph/memories",
             "/api/graph/search",
+            "/api/graph/search/cypher",
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -94,7 +95,7 @@ public class AuthenticationMiddleware
             if (path == publicPath || 
                 (publicPath.EndsWith("/") && path.StartsWith(publicPath)))
             {
-                // For API endpoints, only GET is public
+                // For other API endpoints, only GET is public
                 if (path.StartsWith("/api/") && method != "GET")
                 {
                     return true;

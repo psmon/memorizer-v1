@@ -20,9 +20,9 @@ LLM은 비용이 드는 단점이 있어서 개인연구용은 역시 라이트�
 
 - [GraphDB-Memory](02-GraphDB-Memory.MD)
 - [GraphDB-Upgrade](02-GraphDB-Upgrade.MD)
-- [GraphDB-Upgrade-Fix](02-GraphDB-Upgrade-Fix.MD)
-- [GraphDB-Upgrade3](03-GraphDB-Upgrade.MD)
-- [GraphDB-Upgrade4](04-GraphDB-Upgrade.MD)
+- [GraphDB-Upgrade-Fix](02-GraphDB-Upgrade-FIX.MD)
+- [GraphDB-UX-Upgrade3](03-GraphDB-UX-Upgrade.MD)
+- [GraphDB-UX-Upgrade4](04-GraphDB-UX-Upgrade.MD)
 
 
 ## Version 1.0.2
@@ -30,13 +30,20 @@ LLM은 비용이 드는 단점이 있어서 개인연구용은 역시 라이트�
 관리기능과 MCP에 인증기능 간소화된 인증기능추가, 메모리 웹탐색은 비인증뷰로 개선 
 Public모드로 지식을 공유하고 특정 사용자와 메모리를 함께 관리하고자할때 활용
 
-- [Auth-Upgrade](04-Auth-Upgrade.MD)
+- [Auth-Upgrade](05-Auth-Upgrade.MD)
 
 이 업데이트 이후  MCP-Memorizer를 구축하고, 닷넷/자바 진영의 AKKA를 메모리에 학습시켜 액터모델도 바이브코딩에 이용하고 있습니다.
 컨텐츠는 한글로 작성되어, 영어권에서는 번역이 필요할수도 있습니다.
 
 MCP Memory View - Akka관련 Context를 주로 다룸
 - https://mcp.webnori.com/ui
+
+
+## Version 1.0.3
+
+자연어를 Cypher 쿼리로 변환하는 기능 개선과 쿼리 탐색을 위한 더 나은 UX로 GraphDB 검색 기능 개선
+
+- [GraphDB-Prompt-Upgrade](06-GraphDB-Prompt-Upgrade.MD)
 
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
