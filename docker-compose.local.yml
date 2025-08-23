@@ -130,11 +130,6 @@ services:
       - postgres
       - neo4j
       - ollama-init
-    
-    volumes:
-      - ./migrations:/app/migrations
-
-
 volumes:
   postgres_data:
   neo4j_data:
