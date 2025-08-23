@@ -96,7 +96,7 @@ public class AuthenticationMiddleware
                 (publicPath.EndsWith("/") && path.StartsWith(publicPath)))
             {
                 // For /api/graph/, only POST is public
-                if (path.StartsWith("/api/graph/") && method == "POST")
+                if (path.StartsWith("/api/graph/search") && method == "POST")
                 {
                     return false;
                 }
