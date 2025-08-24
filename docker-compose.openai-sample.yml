@@ -7,10 +7,10 @@ services:
     container_name: memorizer-dev
     environment:
       - ConnectionStrings__Storage=Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      - MEMORIZER_Embeddings__ApiUrl=https://api.openai.com/v1
+      - MEMORIZER_Embeddings__ApiUrl=api.openai.com
       - MEMORIZER_Embeddings__Model=text-embedding-3-small
       - MEMORIZER_Embeddings__ApiKey=...
-      - MEMORIZER_LLM__ApiUrl=https://api.openai.com/v1
+      - MEMORIZER_LLM__ApiUrl=api.openai.com
       - MEMORIZER_LLM__Model=gpt-4o
       - MEMORIZER_LLM__Timeout=00:02:00
       - MEMORIZER_LLM__ApiKey=...
