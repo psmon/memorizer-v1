@@ -51,7 +51,7 @@ Improve GraphDB search functionality with enhanced natural language to Cypher qu
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
-claude mcp add --transport sse memorizer http://localhost:5012/sse
+claude mcp add --transport sse --header "X-API-Key: your-api-key-here" memorizer http://localhost:5012/sse
 
 claude mcp list
 

@@ -49,7 +49,7 @@ MCP Memory View - Akka관련 Context를 주로 다룸
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```
-claude mcp add --transport sse memorizer http://localhost:5012/sse
+claude mcp add --transport sse --header "X-API-Key: your-api-key-here" memorizer http://localhost:5012/sse
 
 claude mcp list
 
