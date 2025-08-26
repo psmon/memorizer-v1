@@ -36,7 +36,7 @@ claude mcp remove memorizer
 
 ## Search Vector With Graph
 
-- stream 으로 연관성 높은 메모리 검색을 먼저한후, 이 문서가 가진 단어(태깅)로 연관 메모리탐색해 요약
+- stream 으로 연관성 높은 메모리 검색을 먼저한후, 이 문서가 가진 단어(태깅)로 연관 메모리탐색해, 스트림 프로그래밍에대해 요약
 
 
 ## Test Prompt for MCPTOOL - EN
