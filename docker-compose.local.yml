@@ -125,7 +125,7 @@ services:
       MEMORIZER_Server__CanonicalUrl: http://localhost:5000
       MEMORIZER_Server__UserName: admin
       MEMORIZER_Server__Password: admin123
-      MEMORIZER_Server__ApiKey: your_api_key_here
+      MEMORIZER_Server__ApiKey: your-api-key-here
     depends_on:
       - postgres
       - neo4j

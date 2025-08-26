@@ -28,7 +28,7 @@ public class AuthenticationMiddleware
 
             if (string.IsNullOrEmpty(apiKey) || !authService.ValidateApiKey(apiKey))
             {
-                _logger.LogWarning("Invalid API key for SSE endpoint access");
+                _logger.LogWarning($"Invalid API key for SSE endpoint access attempt: {apiKey}");
                 context.Response.StatusCode = 401;
                 await context.Response.WriteAsync("Unauthorized: Invalid API Key");
                 return;
