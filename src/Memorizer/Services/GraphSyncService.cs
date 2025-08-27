@@ -11,7 +11,7 @@ public interface IGraphSyncService
     Task<int> SyncMemoriesToGraphAsync(bool fullSync = false);
     Task<bool> CreateGraphRelationshipAsync(Guid fromId, Guid toId, string relationshipType, Dictionary<string, object>? properties = null);
     Task<List<GraphRelationship>> SuggestRelationshipsAsync(Guid memoryId);
-    Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 100);
+    Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 20);
     Task<bool> InitializeGraphSchemaAsync();
     Task CreateOrUpdateGraphNodeAsync(Memory memory);
     Task CreateNodeWordsAndRelationshipsAsync(Memory memory);
@@ -378,20 +378,19 @@ Return as JSON array with format:
         return suggestions;
     }
     
-    public async Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 100)
+    public async Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 20)
     {
         var visualization = new GraphVisualizationData();
         
         try
         {
-            var nodes = await _graphRepository.ExecuteReadAsync(async tx =>
+            // Step 1: Get Memory nodes first (prioritize)
+            var memoryNodes = await _graphRepository.ExecuteReadAsync(async tx =>
             {
-                // Get both Memory and Word nodes
                 var query = @"
-                    MATCH (n)
-                    WHERE n:Memory OR n:Word
-                    RETURN n, labels(n) as labels
-                    ORDER BY n.createdAt DESC
+                    MATCH (m:Memory)
+                    RETURN m
+                    ORDER BY m.createdAt DESC
                     LIMIT $limit";
                 
                 var cursor = await tx.RunAsync(query, new { limit });
@@ -399,50 +398,66 @@ Return as JSON array with format:
                 
                 return results.Select(record =>
                 {
-                    var node = record["n"].As<INode>();
-                    var labels = record["labels"].As<List<string>>();
-                    
-                    if (labels.Contains("Word"))
+                    var node = record["m"].As<INode>();
+                    return new GraphNode
                     {
-                        // Handle Word nodes
-                        var name = node.Properties.ContainsKey("name") ? node["name"].As<string>() : 
-                                  node.Properties.ContainsKey("word") ? node["word"].As<string>() : "unknown";
-                        return new GraphNode
+                        Id = node["id"].As<string>(),
+                        Label = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
+                        Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
+                        Color = GetColorForType(node.Properties.ContainsKey("type") ? node["type"].As<string>() : ""),
+                        Size = (int)(node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() * 20 : 10),
+                        Data = new Dictionary<string, object>
                         {
-                            Id = name, // Use name as ID for Word nodes
-                            Label = name,
-                            Type = "Word",
-                            Color = "#ef4444", // Red for keywords
-                            Size = node.Properties.ContainsKey("frequency") ? 
-                                   Math.Min(20, 5 + node["frequency"].As<int>()) : 8,
-                            Data = new Dictionary<string, object>
-                            {
-                                ["frequency"] = node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1,
-                                ["language"] = node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en",
-                                ["createdAt"] = node.Properties.ContainsKey("createdAt") ? node["createdAt"].As<string>() : DateTime.UtcNow.ToString("o")
-                            }
-                        };
-                    }
-                    else
-                    {
-                        // Handle Memory nodes
-                        return new GraphNode
-                        {
-                            Id = node["id"].As<string>(),
-                            Label = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
-                            Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
-                            Color = GetColorForType(node.Properties.ContainsKey("type") ? node["type"].As<string>() : ""),
-                            Size = (int)(node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() * 20 : 10),
-                            Data = new Dictionary<string, object>
-                            {
-                                ["tags"] = node.Properties.ContainsKey("tags") ? node["tags"].As<List<string>>() ?? new List<string>() : new List<string>(),
-                                ["source"] = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
-                                ["createdAt"] = node.Properties.ContainsKey("createdAt") ? node["createdAt"].As<string>() : DateTime.UtcNow.ToString("o")
-                            }
-                        };
-                    }
+                            ["tags"] = node.Properties.ContainsKey("tags") ? node["tags"].As<List<string>>() ?? new List<string>() : new List<string>(),
+                            ["source"] = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
+                            ["createdAt"] = node.Properties.ContainsKey("createdAt") ? node["createdAt"].As<string>() : DateTime.UtcNow.ToString("o")
+                        }
+                    };
                 }).ToList();
             });
+
+            // Step 2: Get Word nodes connected to these Memory nodes
+            var wordNodes = await _graphRepository.ExecuteReadAsync(async tx =>
+            {
+                if (!memoryNodes.Any()) return new List<GraphNode>();
+                
+                var memoryIds = memoryNodes.Select(n => n.Id).ToList();
+                var query = @"
+                    MATCH (m:Memory)-[r:HAS_KEYWORD]->(w:Word)
+                    WHERE m.id IN $memoryIds
+                    RETURN DISTINCT w
+                    ORDER BY w.createdAt DESC";
+                
+                var cursor = await tx.RunAsync(query, new { memoryIds });
+                var results = await cursor.ToListAsync();
+                
+                return results.Select(record =>
+                {
+                    var node = record["w"].As<INode>();
+                    var name = node.Properties.ContainsKey("name") ? node["name"].As<string>() : 
+                              node.Properties.ContainsKey("word") ? node["word"].As<string>() : "unknown";
+                    return new GraphNode
+                    {
+                        Id = name, // Use name as ID for Word nodes
+                        Label = name,
+                        Type = "Word",
+                        Color = "#ef4444", // Red for keywords
+                        Size = node.Properties.ContainsKey("frequency") ? 
+                               Math.Min(16, 8 + Math.Min(6, node["frequency"].As<int>())) : 12, // Increased size: 8-16 range
+                        Data = new Dictionary<string, object>
+                        {
+                            ["frequency"] = node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1,
+                            ["language"] = node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en",
+                            ["createdAt"] = node.Properties.ContainsKey("createdAt") ? node["createdAt"].As<string>() : DateTime.UtcNow.ToString("o")
+                        }
+                    };
+                }).ToList();
+            });
+
+            // Combine Memory and Word nodes
+            var nodes = new List<GraphNode>();
+            nodes.AddRange(memoryNodes);
+            nodes.AddRange(wordNodes);
             
             var relationships = await _graphRepository.ExecuteReadAsync(async tx =>
             {

@@ -92,3 +92,10 @@ createdAt: 2025-08-22T01:54:37.9541646Z
 type: enhanced-version
 weight: 1.0
 ```
+
+## 최종완료후 후속 개선지침 - Phase1
+
+GetGraphVisualizationAsync 함수에서 limit이 걸려있어서  Word만 조회된 한경우 Memory가 없어서 연결관계가 이후 UX로 되지않으며 Memory가 없게됩니다.
+Memory 만 100개 Limit을 걸고 , Memory가 가진 Word를 표현한후... Relation 처리를 후속으로 진행 해주세요  추가로 Word표현되는 크기가 작은데 약간더 크게해~ Memory보다는 크지않게 표현해주세요
+Relation기능은 잘작동해 개선필요없으며 또한~ Memory개수 Limit 기본값을 20개로 조정해주세요
+

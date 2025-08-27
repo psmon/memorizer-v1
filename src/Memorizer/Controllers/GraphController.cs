@@ -202,7 +202,7 @@ public class GraphController : ControllerBase
     }
     
     [HttpGet("visualization")]
-    public async Task<IActionResult> GetVisualization([FromQuery] int limit = 100)
+    public async Task<IActionResult> GetVisualization([FromQuery] int limit = 20)
     {
         try
         {
