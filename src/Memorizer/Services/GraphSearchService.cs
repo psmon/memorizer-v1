@@ -40,133 +40,44 @@ public class GraphSearchService : IGraphSearchService
             var records = await _graphRepository.RunQueryAsync(cypherQuery);
             
             var nodeIds = new HashSet<string>();
+            var wordNodeIds = new HashSet<string>();
             var relationships = new List<GraphRelationship>();
+            var nodeConnectionCounts = new Dictionary<string, int>();
             
+            // First pass: collect all nodes and relationships
             foreach (var record in records)
             {
                 foreach (var value in record.Values.Values)
                 {
                     if (value is INode node)
                     {
-                        // Handle Word nodes differently
-                        if (node.Labels.Contains("Word"))
-                        {
-                            var word = node["name"].As<string>();
-                            if (!nodeIds.Contains(word))
-                            {
-                                nodeIds.Add(word);
-                                result.Nodes.Add(new GraphMemoryNode
-                                {
-                                    Id = Guid.NewGuid(), // Word nodes don't have GUIDs
-                                    Title = word,
-                                    Type = "Word",
-                                    Source = "keyword",
-                                    Confidence = node.Properties.ContainsKey("frequency") ? node["frequency"].As<double>() / 100.0 : 1.0,
-                                    CreatedAt = node.Properties.ContainsKey("createdAt") 
-                                        ? DateTime.Parse(node["createdAt"].As<string>()) 
-                                        : DateTime.UtcNow,
-                                    Tags = new List<string> { node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en" },
-                                    Summary = $"Keyword appearing {(node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1)} times"
-                                });
-                            }
-                        }
-                        else if (node.Labels.Contains("Memory"))
-                        {
-                            var nodeId = node["id"].As<string>();
-                            if (!nodeIds.Contains(nodeId))
-                            {
-                                nodeIds.Add(nodeId);
-                                result.Nodes.Add(new GraphMemoryNode
-                                {
-                                    Id = Guid.Parse(nodeId),
-                                    Title = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
-                                    Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
-                                    Source = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
-                                    Confidence = node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() : 1.0,
-                                    CreatedAt = node.Properties.ContainsKey("createdAt") 
-                                        ? DateTime.Parse(node["createdAt"].As<string>()) 
-                                        : DateTime.UtcNow,
-                                    Tags = node.Properties.ContainsKey("tags") 
-                                        ? node["tags"].As<List<string>>() ?? new List<string>()
-                                        : new List<string>(),
-                                    Summary = node.Properties.ContainsKey("summary") ? node["summary"].As<string>() : null
-                                });
-                            }
-                        }
+                        await ProcessNode(node, nodeIds, wordNodeIds, result, nodeConnectionCounts);
                     }
                     else if (value is IRelationship relationship)
                     {
-                        var startNode = await GetNodeById(relationship.StartNodeElementId);
-                        var endNode = await GetNodeById(relationship.EndNodeElementId);
-                        
-                        if (startNode != null && endNode != null)
-                        {
-                            relationships.Add(new GraphRelationship
-                            {
-                                FromId = Guid.Parse(startNode["id"].As<string>()),
-                                ToId = Guid.Parse(endNode["id"].As<string>()),
-                                Type = relationship.Properties.ContainsKey("type") 
-                                    ? relationship["type"].As<string>() 
-                                    : relationship.Type,
-                                Weight = relationship.Properties.ContainsKey("weight") 
-                                    ? relationship["weight"].As<double>() 
-                                    : 1.0,
-                                CreatedAt = relationship.Properties.ContainsKey("createdAt")
-                                    ? DateTime.Parse(relationship["createdAt"].As<string>())
-                                    : DateTime.UtcNow
-                            });
-                        }
+                        await ProcessRelationship(relationship, relationships, nodeConnectionCounts);
                     }
                     else if (value is IPath path)
                     {
-                        foreach (var pathNode in path.Nodes)
-                        {
-                            var nodeId = pathNode["id"].As<string>();
-                            if (!nodeIds.Contains(nodeId))
-                            {
-                                nodeIds.Add(nodeId);
-                                result.Nodes.Add(new GraphMemoryNode
-                                {
-                                    Id = Guid.Parse(nodeId),
-                                    Title = pathNode.Properties.ContainsKey("title") ? pathNode["title"].As<string>() : "",
-                                    Type = pathNode.Properties.ContainsKey("type") ? pathNode["type"].As<string>() : "",
-                                    Source = pathNode.Properties.ContainsKey("source") ? pathNode["source"].As<string>() : "",
-                                    Confidence = pathNode.Properties.ContainsKey("confidence") ? pathNode["confidence"].As<double>() : 1.0,
-                                    CreatedAt = pathNode.Properties.ContainsKey("createdAt") 
-                                        ? DateTime.Parse(pathNode["createdAt"].As<string>()) 
-                                        : DateTime.UtcNow,
-                                    Tags = pathNode.Properties.ContainsKey("tags") 
-                                        ? pathNode["tags"].As<List<string>>() ?? new List<string>()
-                                        : new List<string>()
-                                });
-                            }
-                        }
-                        
-                        foreach (var pathRelationship in path.Relationships)
-                        {
-                            var startNode = path.Nodes.FirstOrDefault(n => n.ElementId == pathRelationship.StartNodeElementId);
-                            var endNode = path.Nodes.FirstOrDefault(n => n.ElementId == pathRelationship.EndNodeElementId);
-                            
-                            if (startNode != null && endNode != null)
-                            {
-                                relationships.Add(new GraphRelationship
-                                {
-                                    FromId = Guid.Parse(startNode["id"].As<string>()),
-                                    ToId = Guid.Parse(endNode["id"].As<string>()),
-                                    Type = pathRelationship.Properties.ContainsKey("type") 
-                                        ? pathRelationship["type"].As<string>() 
-                                        : pathRelationship.Type,
-                                    Weight = pathRelationship.Properties.ContainsKey("weight") 
-                                        ? pathRelationship["weight"].As<double>() 
-                                        : 1.0
-                                });
-                            }
-                        }
+                        await ProcessPath(path, nodeIds, wordNodeIds, result, relationships, nodeConnectionCounts);
                     }
                 }
             }
             
+            // Enrich nodes with connection information
+            EnrichNodesWithConnectionData(result.Nodes, nodeConnectionCounts);
+            
+            // If we have nodes, expand to include their direct connections for richer context
+            if (result.Nodes.Count > 0 && result.Nodes.Count < 10)
+            {
+                await ExpandWithDirectConnections(result, nodeIds, wordNodeIds, relationships);
+            }
+            
             result.Relationships = relationships;
+            
+            // Log search metrics
+            _logger.LogInformation("Graph search completed: {NodeCount} nodes, {RelationshipCount} relationships, Query: {Query}", 
+                result.Nodes.Count, result.Relationships.Count, naturalLanguageQuery);
             
             return result;
         }
@@ -175,6 +86,202 @@ public class GraphSearchService : IGraphSearchService
             _logger.LogError(ex, "Error searching graph with query: {Query}", naturalLanguageQuery);
             throw;
         }
+    }
+    
+    private Task ProcessNode(INode node, HashSet<string> nodeIds, HashSet<string> wordNodeIds, 
+        GraphSearchResult result, Dictionary<string, int> connectionCounts)
+    {
+        if (node.Labels.Contains("Word"))
+        {
+            var word = node["name"].As<string>();
+            if (!wordNodeIds.Contains(word))
+            {
+                wordNodeIds.Add(word);
+                var wordNode = new GraphMemoryNode
+                {
+                    Id = Guid.NewGuid(), // Word nodes don't have GUIDs
+                    Title = word,
+                    Type = "Word",
+                    Source = "keyword",
+                    Confidence = node.Properties.ContainsKey("frequency") ? node["frequency"].As<double>() / 100.0 : 1.0,
+                    CreatedAt = node.Properties.ContainsKey("createdAt") 
+                        ? DateTime.Parse(node["createdAt"].As<string>()) 
+                        : DateTime.UtcNow,
+                    Tags = new List<string> { node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en" },
+                    Summary = $"Keyword appearing {(node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1)} times",
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["frequency"] = node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1,
+                        ["language"] = node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en"
+                    }
+                };
+                result.Nodes.Add(wordNode);
+            }
+        }
+        else if (node.Labels.Contains("Memory"))
+        {
+            var nodeId = node["id"].As<string>();
+            if (!nodeIds.Contains(nodeId))
+            {
+                nodeIds.Add(nodeId);
+                var memoryNode = new GraphMemoryNode
+                {
+                    Id = Guid.Parse(nodeId),
+                    Title = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
+                    Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
+                    Source = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
+                    Confidence = node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() : 1.0,
+                    CreatedAt = node.Properties.ContainsKey("createdAt") 
+                        ? DateTime.Parse(node["createdAt"].As<string>()) 
+                        : DateTime.UtcNow,
+                    Tags = node.Properties.ContainsKey("tags") 
+                        ? node["tags"].As<List<string>>() ?? new List<string>()
+                        : new List<string>(),
+                    Summary = node.Properties.ContainsKey("summary") ? node["summary"].As<string>() : null,
+                    Metadata = new Dictionary<string, object>()
+                };
+                
+                // Initialize connection count
+                if (!connectionCounts.ContainsKey(nodeId))
+                    connectionCounts[nodeId] = 0;
+                    
+                result.Nodes.Add(memoryNode);
+            }
+        }
+        return Task.CompletedTask;
+    }
+    
+    private async Task ProcessRelationship(IRelationship relationship, List<GraphRelationship> relationships,
+        Dictionary<string, int> connectionCounts)
+    {
+        var startNode = await GetNodeById(relationship.StartNodeElementId);
+        var endNode = await GetNodeById(relationship.EndNodeElementId);
+        
+        if (startNode != null && endNode != null)
+        {
+            var startId = GetNodeIdString(startNode);
+            var endId = GetNodeIdString(endNode);
+            
+            // Skip Word node relationships for GUID-based relationships
+            if (startNode.Labels.Contains("Memory") && endNode.Labels.Contains("Memory"))
+            {
+                var rel = new GraphRelationship
+                {
+                    FromId = Guid.Parse(startId),
+                    ToId = Guid.Parse(endId),
+                    Type = relationship.Properties.ContainsKey("type") 
+                        ? relationship["type"].As<string>() 
+                        : relationship.Type,
+                    Weight = relationship.Properties.ContainsKey("weight") 
+                        ? relationship["weight"].As<double>() 
+                        : (relationship.Properties.ContainsKey("relevance") 
+                            ? relationship["relevance"].As<double>() 
+                            : 1.0),
+                    CreatedAt = relationship.Properties.ContainsKey("createdAt")
+                        ? DateTime.Parse(relationship["createdAt"].As<string>())
+                        : DateTime.UtcNow,
+                    Metadata = new Dictionary<string, object>()
+                };
+                
+                // Add relationship-specific metadata
+                if (relationship.Type == "RELATES_TO" && relationship.Properties.ContainsKey("type"))
+                {
+                    rel.Metadata["relationshipSubtype"] = relationship["type"].As<string>();
+                }
+                
+                relationships.Add(rel);
+                
+                // Update connection counts
+                if (connectionCounts.ContainsKey(startId))
+                    connectionCounts[startId]++;
+                if (connectionCounts.ContainsKey(endId))
+                    connectionCounts[endId]++;
+            }
+        }
+    }
+    
+    private async Task ProcessPath(IPath path, HashSet<string> nodeIds, HashSet<string> wordNodeIds,
+        GraphSearchResult result, List<GraphRelationship> relationships, Dictionary<string, int> connectionCounts)
+    {
+        foreach (var pathNode in path.Nodes)
+        {
+            await ProcessNode(pathNode, nodeIds, wordNodeIds, result, connectionCounts);
+        }
+        
+        foreach (var pathRelationship in path.Relationships)
+        {
+            await ProcessRelationship(pathRelationship, relationships, connectionCounts);
+        }
+    }
+    
+    private void EnrichNodesWithConnectionData(List<GraphMemoryNode> nodes, Dictionary<string, int> connectionCounts)
+    {
+        foreach (var node in nodes.Where(n => n.Type != "Word"))
+        {
+            var nodeIdStr = node.Id.ToString();
+            if (connectionCounts.ContainsKey(nodeIdStr))
+            {
+                node.Metadata["connectionCount"] = connectionCounts[nodeIdStr];
+                node.Metadata["isHub"] = connectionCounts[nodeIdStr] > 3;
+            }
+        }
+    }
+    
+    private async Task ExpandWithDirectConnections(GraphSearchResult result, HashSet<string> nodeIds,
+        HashSet<string> wordNodeIds, List<GraphRelationship> relationships)
+    {
+        try
+        {
+            // Get IDs of current Memory nodes (not Word nodes)
+            var memoryNodeIds = result.Nodes
+                .Where(n => n.Type != "Word")
+                .Select(n => n.Id.ToString())
+                .Take(5) // Limit expansion to first 5 nodes
+                .ToList();
+            
+            if (memoryNodeIds.Count == 0) return;
+            
+            // Query for direct connections
+            var expandQuery = $@"
+                MATCH (m:Memory)-[r:RELATES_TO]-(connected:Memory)
+                WHERE m.id IN [{string.Join(",", memoryNodeIds.Select(id => $"'{id}'"))}]
+                  AND NOT connected.id IN [{string.Join(",", nodeIds.Select(id => $"'{id}'"))}]
+                RETURN DISTINCT connected, r
+                LIMIT 20";
+            
+            var expandedRecords = await _graphRepository.RunQueryAsync(expandQuery);
+            
+            foreach (var record in expandedRecords)
+            {
+                foreach (var value in record.Values.Values)
+                {
+                    if (value is INode node && node.Labels.Contains("Memory"))
+                    {
+                        await ProcessNode(node, nodeIds, wordNodeIds, result, new Dictionary<string, int>());
+                    }
+                    else if (value is IRelationship relationship)
+                    {
+                        await ProcessRelationship(relationship, relationships, new Dictionary<string, int>());
+                    }
+                }
+            }
+            
+            _logger.LogInformation("Expanded graph with {Count} additional connected nodes", 
+                expandedRecords.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to expand with direct connections, continuing with original results");
+        }
+    }
+    
+    private string GetNodeIdString(INode node)
+    {
+        if (node.Labels.Contains("Word"))
+        {
+            return node["name"].As<string>();
+        }
+        return node["id"].As<string>();
     }
     
     public async Task<string> GenerateCypherQueryAsync(string naturalLanguageQuery)
@@ -224,39 +331,41 @@ public class GraphSearchService : IGraphSearchService
 
 ## Natural Language Query: {naturalLanguageQuery}
 
-## Comprehensive Examples
+## Comprehensive Examples with Relationship Context
 
-### Type-based Searches
-- ""Find all reference documents"" -> MATCH (m:Memory {{type: 'reference'}}) RETURN m LIMIT 50
-- ""Show how-to guides"" -> MATCH (m:Memory {{type: 'how-to'}}) RETURN m LIMIT 50
-- ""Get system memories"" -> MATCH (m:Memory {{type: 'system'}}) RETURN m LIMIT 50
+### Type-based Searches with Connections
+- ""Find all reference documents"" -> MATCH (m:Memory {{type: 'reference'}}) OPTIONAL MATCH (m)-[r:RELATES_TO]-(connected:Memory) RETURN m, r, connected LIMIT 50
+- ""Show how-to guides"" -> MATCH (m:Memory {{type: 'how-to'}}) OPTIONAL MATCH (m)-[:HAS_KEYWORD]->(w:Word) RETURN m, w LIMIT 50
+- ""Get system memories with their relationships"" -> MATCH (m:Memory {{type: 'system'}}) OPTIONAL MATCH (m)-[r]-(other) RETURN m, r, other LIMIT 50
 
-### Keyword and Tag Searches
-- ""Find memories about Docker or Kubernetes"" -> MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE w.name IN ['docker', 'kubernetes', 'container'] RETURN DISTINCT m, w LIMIT 50
-- ""Show memories related to AI"" -> MATCH (m:Memory) WHERE m.title CONTAINS 'AI' OR m.summary CONTAINS 'AI' OR 'ai' IN m.tags OR 'artificial-intelligence' IN m.tags RETURN m LIMIT 50
-- ""Find SSE or Server-Sent Events"" -> MATCH (m:Memory) WHERE m.title CONTAINS 'SSE' OR m.summary CONTAINS 'Server-Sent' OR 'sse' IN m.tags OR m.summary CONTAINS 'server-sent-events' RETURN m LIMIT 50
-- ""Search for reactive programming"" -> MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE w.name CONTAINS 'reactive' OR w.name = 'rxjs' OR w.name = 'reactor' RETURN DISTINCT m, w LIMIT 50
+### Enhanced Keyword and Tag Searches
+- ""Find memories about Docker or Kubernetes"" -> MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE toLower(w.name) IN ['docker', 'kubernetes', 'container', 'k8s', 'containerization'] WITH m, COLLECT(w) as keywords OPTIONAL MATCH (m)-[r:RELATES_TO]-(related:Memory) RETURN m, keywords, r, related LIMIT 50
+- ""Show memories related to AI"" -> MATCH (m:Memory) WHERE toLower(m.title) CONTAINS 'ai' OR toLower(m.summary) CONTAINS 'artificial intelligence' OR ANY(tag IN m.tags WHERE toLower(tag) IN ['ai', 'artificial-intelligence', 'machine-learning', 'ml', 'deep-learning']) OPTIONAL MATCH (m)-[r]-(connected) RETURN m, r, connected LIMIT 50
+- ""Find SSE or Server-Sent Events"" -> MATCH (m:Memory) WHERE toLower(m.title) CONTAINS 'sse' OR toLower(m.summary) CONTAINS 'server-sent' OR ANY(tag IN m.tags WHERE toLower(tag) CONTAINS 'sse' OR toLower(tag) CONTAINS 'server-sent') RETURN m LIMIT 50
+- ""Search for reactive programming"" -> MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE toLower(w.name) CONTAINS 'reactive' OR w.name IN ['rxjs', 'reactor', 'akka', 'flux', 'mono'] WITH m, COLLECT(w) as keywords RETURN m, keywords LIMIT 50
 
-### Relationship Queries
-- ""Find memories that extend DDD concepts"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'extends'}}]->(m2:Memory) WHERE m2.title CONTAINS 'DDD' OR m2.summary CONTAINS 'DDD' OR 'ddd' IN m2.tags RETURN m1, r, m2 LIMIT 50
-- ""Show enhanced versions"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'enhanced-version'}}]->(m2:Memory) RETURN m1, r, m2 LIMIT 50
-- ""Find examples of patterns"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'example-of'}}]->(m2:Memory) WHERE m2.title CONTAINS 'pattern' RETURN m1, r, m2 LIMIT 50
-- ""Show memories that support each other"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'supports'}}]-(m2:Memory) RETURN m1, r, m2 LIMIT 30
+### Rich Relationship Queries
+- ""Find memories that extend DDD concepts"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'extends'}}]->(m2:Memory) WHERE toLower(m2.title) CONTAINS 'ddd' OR toLower(m2.summary) CONTAINS 'domain-driven' OR ANY(tag IN m2.tags WHERE toLower(tag) IN ['ddd', 'domain-driven-design']) WITH m1, r, m2 OPTIONAL MATCH (m1)-[:HAS_KEYWORD]->(w:Word) RETURN m1, r, m2, COLLECT(DISTINCT w) as keywords LIMIT 50
+- ""Show enhanced versions with context"" -> MATCH (original:Memory)<-[r:RELATES_TO {{type: 'enhanced-version'}}]-(enhanced:Memory) WITH original, r, enhanced OPTIONAL MATCH (enhanced)-[:HAS_KEYWORD]->(w:Word) RETURN original, r, enhanced, COLLECT(w) as keywords ORDER BY enhanced.createdAt DESC LIMIT 50
+- ""Find examples of patterns"" -> MATCH (example:Memory)-[r:RELATES_TO {{type: 'example-of'}}]->(pattern:Memory) WHERE toLower(pattern.title) CONTAINS 'pattern' OR toLower(pattern.type) = 'pattern' WITH example, r, pattern OPTIONAL MATCH (example)-[r2]-(other:Memory) WHERE other.id <> pattern.id RETURN example, r, pattern, COLLECT(DISTINCT other) as relatedExamples LIMIT 30
+- ""Show memories that support each other"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'supports'}}]-(m2:Memory) WHERE id(m1) < id(m2) RETURN m1, r, m2 LIMIT 30
 
-### Analysis Queries
-- ""Find the most connected memories"" -> MATCH (m:Memory)-[r]-(other) WITH m, COUNT(r) as connections WHERE connections > 2 RETURN m, connections ORDER BY connections DESC LIMIT 20
-- ""Show most frequent keywords"" -> MATCH (w:Word) RETURN w ORDER BY w.frequency DESC LIMIT 20
-- ""Find memories with common keywords"" -> MATCH (m1:Memory)-[:HAS_KEYWORD]->(w:Word)<-[:HAS_KEYWORD]-(m2:Memory) WHERE m1.id <> m2.id WITH m1, m2, COUNT(DISTINCT w) as common_keywords WHERE common_keywords > 2 RETURN m1, m2, common_keywords ORDER BY common_keywords DESC LIMIT 20
-- ""Recent high-confidence memories"" -> MATCH (m:Memory) WHERE m.confidence > 0.8 RETURN m ORDER BY m.createdAt DESC LIMIT 30
+### Advanced Analysis Queries
+- ""Find the most connected memories"" -> MATCH (m:Memory) WITH m, SIZE([(m)-[]-() | 1]) as degree WHERE degree > 2 OPTIONAL MATCH (m)-[r]-(connected) RETURN m, degree, COLLECT(DISTINCT {{node: connected, relationship: type(r)}}) as connections ORDER BY degree DESC LIMIT 20
+- ""Show most frequent keywords with their memories"" -> MATCH (w:Word)<-[:HAS_KEYWORD]-(m:Memory) WITH w, COUNT(DISTINCT m) as memoryCount, COLLECT(DISTINCT m.title)[..5] as sampleTitles WHERE memoryCount > 1 RETURN w, memoryCount, sampleTitles ORDER BY w.frequency DESC, memoryCount DESC LIMIT 20
+- ""Find memories with common keywords"" -> MATCH (m1:Memory)-[:HAS_KEYWORD]->(w:Word)<-[:HAS_KEYWORD]-(m2:Memory) WHERE id(m1) < id(m2) WITH m1, m2, COLLECT(DISTINCT w.name) as common_keywords, COUNT(DISTINCT w) as keyword_count WHERE keyword_count > 2 RETURN m1, m2, common_keywords, keyword_count ORDER BY keyword_count DESC LIMIT 20
+- ""Recent high-confidence memories with relationships"" -> MATCH (m:Memory) WHERE m.confidence > 0.8 AND m.createdAt > datetime() - duration('P30D') OPTIONAL MATCH (m)-[r:RELATES_TO]-(related:Memory) RETURN m, COLLECT(DISTINCT {{memory: related, type: r.type}}) as relationships ORDER BY m.createdAt DESC LIMIT 30
 
-### Complex Pattern Matching
-- ""Find reference documents with examples"" -> MATCH (ref:Memory {{type: 'reference'}})<-[r:RELATES_TO {{type: 'example-of'}}]-(example:Memory) RETURN ref, r, example LIMIT 30
-- ""Show memories connected through multiple hops"" -> MATCH path = (m1:Memory)-[:RELATES_TO*1..3]-(m2:Memory) WHERE m1.id <> m2.id RETURN path LIMIT 20
-- ""Find hub memories (connected to many keywords)"" -> MATCH (m:Memory)-[r:HAS_KEYWORD]->(w:Word) WITH m, COUNT(DISTINCT w) as keyword_count WHERE keyword_count > 5 RETURN m, keyword_count ORDER BY keyword_count DESC LIMIT 20
+### Complex Graph Patterns
+- ""Find reference documents with examples"" -> MATCH (ref:Memory {{type: 'reference'}})<-[r:RELATES_TO {{type: 'example-of'}}]-(example:Memory) WITH ref, COLLECT(example) as examples OPTIONAL MATCH (ref)-[:HAS_KEYWORD]->(w:Word) RETURN ref, examples, COLLECT(DISTINCT w) as keywords LIMIT 30
+- ""Show knowledge clusters"" -> MATCH path = (m1:Memory)-[:RELATES_TO*1..3]-(m2:Memory) WHERE m1.id <> m2.id WITH m1, m2, path, length(path) as distance RETURN path ORDER BY distance LIMIT 20
+- ""Find hub memories"" -> MATCH (m:Memory) WITH m, SIZE([(m)-[:HAS_KEYWORD]->() | 1]) as keywordCount, SIZE([(m)-[:RELATES_TO]-() | 1]) as relationCount WHERE keywordCount > 5 OR relationCount > 3 RETURN m, keywordCount, relationCount, (keywordCount + relationCount * 2) as hubScore ORDER BY hubScore DESC LIMIT 20
+- ""Trace relationship chains"" -> MATCH path = (start:Memory)-[:RELATES_TO*1..4]->(end:Memory) WHERE start.type = 'reference' AND end.type = 'example' RETURN path LIMIT 10
 
-### Source and Confidence Queries
-- ""Find LLM-generated memories"" -> MATCH (m:Memory {{source: 'LLM'}}) RETURN m ORDER BY m.createdAt DESC LIMIT 50
-- ""Show high confidence recent memories"" -> MATCH (m:Memory) WHERE m.confidence >= 0.9 AND m.createdAt > datetime('{{year}}-{{month}}-01T00:00:00Z') RETURN m ORDER BY m.createdAt DESC LIMIT 30
+### Source and Confidence Analysis
+- ""Find LLM-generated memories with connections"" -> MATCH (m:Memory {{source: 'LLM'}}) OPTIONAL MATCH (m)-[r]-(connected:Memory) WITH m, COLLECT(DISTINCT connected) as connections RETURN m, connections, SIZE(connections) as connectionCount ORDER BY m.createdAt DESC LIMIT 50
+- ""High confidence memory network"" -> MATCH (m:Memory) WHERE m.confidence >= 0.9 OPTIONAL MATCH (m)-[r:RELATES_TO]-(related:Memory) WHERE related.confidence >= 0.8 RETURN m, COLLECT(DISTINCT related) as highConfidenceNetwork ORDER BY m.createdAt DESC LIMIT 30
+- ""Memory evolution over time"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'enhanced-version'}}]->(m2:Memory) WHERE m1.createdAt < m2.createdAt RETURN m1, r, m2, duration.between(m1.createdAt, m2.createdAt) as timeDiff ORDER BY timeDiff LIMIT 20
 
 ## IMPORTANT INSTRUCTIONS
 1. Return ONLY a valid Neo4j Cypher query

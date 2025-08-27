@@ -84,6 +84,7 @@ public class AuthenticationMiddleware
             "/api/graph/memories",
             "/api/graph/search",
             "/api/graph/search/cypher",
+            "/api/graph/sync",
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -95,8 +96,8 @@ public class AuthenticationMiddleware
             if (path == publicPath || 
                 (publicPath.EndsWith("/") && path.StartsWith(publicPath)))
             {
-                // For /api/graph/, only POST is public
-                if (path.StartsWith("/api/graph/search") && method == "POST")
+                // For /api/graph/, POST is public for search and sync
+                if ((path.StartsWith("/api/graph/search") || path == "/api/graph/sync") && method == "POST")
                 {
                     return false;
                 }

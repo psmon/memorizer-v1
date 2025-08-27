@@ -10,6 +10,7 @@ public class GraphMemoryNode
     public DateTime CreatedAt { get; set; }
     public List<string> Tags { get; set; } = new();
     public string? Summary { get; set; }
+    public Dictionary<string, object> Metadata { get; set; } = new();
 }
 
 public class GraphRelationship
@@ -20,6 +21,7 @@ public class GraphRelationship
     public double Weight { get; set; } = 1.0;
     public DateTime CreatedAt { get; set; }
     public Dictionary<string, object> Properties { get; set; } = new();
+    public Dictionary<string, object> Metadata { get; set; } = new();
 }
 
 public class GraphSearchResult

@@ -268,31 +268,75 @@ public class GraphSyncController : Controller
     {
         try
         {
-            // Check if a batch is already running
-            var status = await _graphSyncActor.Ask<GraphSyncStatus>(
-                new GetGraphSyncStatus(), 
-                TimeSpan.FromSeconds(5));
-            
-            if (status.IsRunning)
+            _logger.LogInformation("Starting graph synchronization via API with full sync: {FullSync}, initialize schema: {InitSchema}", 
+                request.FullSync ?? true, request.InitializeSchema ?? false);
+
+            // If actor is available, try to use it
+            if (_graphSyncActor != null)
             {
-                return StatusCode(409, new {
-                    error = "Conflict",
-                    message = "A graph synchronization job is already in progress",
-                    currentStatus = status
-                });
+                try
+                {
+                    // Check if a batch is already running
+                    var status = await _graphSyncActor.Ask<GraphSyncStatus>(
+                        new GetGraphSyncStatus(), 
+                        TimeSpan.FromSeconds(5));
+                    
+                    if (status.IsRunning)
+                    {
+                        return StatusCode(409, new {
+                            error = "Conflict",
+                            message = "A graph synchronization job is already in progress",
+                            currentStatus = status
+                        });
+                    }
+
+                    var syncMessage = new SyncAllMemoriesToGraph(
+                        PageSize: request.PageSize ?? 100,
+                        RequestedBy: User.Identity?.Name ?? "API",
+                        FullSync: request.FullSync ?? true,
+                        InitializeSchema: request.InitializeSchema ?? false
+                    );
+
+                    _graphSyncActor.Tell(syncMessage);
+
+                    return Accepted(new { 
+                        message = "Graph synchronization started",
+                        pageSize = request.PageSize ?? 100,
+                        fullSync = request.FullSync ?? true,
+                        initializeSchema = request.InitializeSchema ?? false
+                    });
+                }
+                catch (Exception actorEx)
+                {
+                    _logger.LogWarning(actorEx, "Actor call failed, falling back to direct service call");
+                }
             }
 
-            var syncMessage = new SyncAllMemoriesToGraph(
-                PageSize: request.PageSize ?? 100,
-                RequestedBy: User.Identity?.Name ?? "API",
-                FullSync: request.FullSync ?? true,
-                InitializeSchema: request.InitializeSchema ?? false
-            );
+            // Fallback to direct service call
+            _logger.LogInformation("Using direct service call for graph synchronization");
 
-            _graphSyncActor.Tell(syncMessage);
+            // Initialize schema if requested
+            if (request.InitializeSchema ?? false)
+            {
+                await _graphSyncService.InitializeGraphSchemaAsync();
+            }
+
+            // Run synchronization in background task
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    var syncedCount = await _graphSyncService.SyncMemoriesToGraphAsync(request.FullSync ?? true);
+                    _logger.LogInformation("Graph synchronization completed. Synced {Count} memories", syncedCount);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error during graph synchronization");
+                }
+            });
 
             return Accepted(new { 
-                message = "Graph synchronization started",
+                message = "Graph synchronization started (direct service)",
                 pageSize = request.PageSize ?? 100,
                 fullSync = request.FullSync ?? true,
                 initializeSchema = request.InitializeSchema ?? false

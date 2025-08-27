@@ -199,6 +199,65 @@
     </div>
 </div>
 
+<!-- Memory Content Modal -->
+<div class="modal fade" id="memoryContentModal" tabindex="-1" aria-labelledby="memoryContentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memoryContentModalLabel">Memory Content</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Type:</strong> <span id="modalType" class="badge bg-primary"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Source:</strong> <span id="modalSource"></span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Confidence:</strong> <span id="modalConfidence"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Created:</strong> <span id="modalCreated"></span>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <strong>Tags:</strong> <span id="modalTags"></span>
+                        </div>
+                    </div>
+                    <div class="row mb-3" id="modalConnectionInfo" style="display: none;">
+                        <div class="col-12">
+                            <strong>Graph Connections:</strong> <span id="modalConnections"></span>
+                        </div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-12">
+                            <div id="modalMarkdownContent" class="markdown-content">
+                                <!-- Markdown content will be rendered here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a id="modalViewFullButton" href="#" class="btn btn-primary" target="_blank">
+                    <i class="bi bi-box-arrow-up-right"></i> View Full Page
+                </a>
+                <button id="modalExpandGraphButton" type="button" class="btn btn-info" onclick="expandNodeConnections()">
+                    <i class="bi bi-diagram-3"></i> Expand Connections
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <style>
     .legend-item {
         display: flex;
@@ -285,12 +344,124 @@
         position: absolute !important;
         z-index: 1060 !important;
     }
+    
+    /* Markdown content styles */
+    .markdown-content {
+        line-height: 1.6;
+        font-size: 14px;
+    }
+    
+    .markdown-content h1,
+    .markdown-content h2,
+    .markdown-content h3,
+    .markdown-content h4,
+    .markdown-content h5,
+    .markdown-content h6 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .markdown-content h1 { 
+        font-size: 1.8rem;
+        border-bottom: 2px solid #e9ecef; 
+        padding-bottom: 0.5rem; 
+    }
+    .markdown-content h2 { 
+        font-size: 1.5rem;
+        border-bottom: 1px solid #e9ecef; 
+        padding-bottom: 0.3rem; 
+    }
+    .markdown-content h3 { font-size: 1.3rem; }
+    .markdown-content h4 { font-size: 1.1rem; }
+    
+    .markdown-content p {
+        margin-bottom: 1rem;
+    }
+    
+    .markdown-content ul,
+    .markdown-content ol {
+        margin-bottom: 1rem;
+        padding-left: 2rem;
+    }
+    
+    .markdown-content li {
+        margin-bottom: 0.25rem;
+    }
+    
+    .markdown-content blockquote {
+        border-left: 4px solid #007bff;
+        padding-left: 1rem;
+        margin: 1rem 0;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .markdown-content code {
+        background-color: #f8f9fa;
+        padding: 0.2rem 0.4rem;
+        border-radius: 0.25rem;
+        font-size: 0.875em;
+        color: #d63384;
+    }
+    
+    .markdown-content pre {
+        background-color: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        overflow-x: auto;
+        margin: 1rem 0;
+    }
+    
+    .markdown-content pre code {
+        background-color: transparent;
+        padding: 0;
+        color: #212529;
+    }
+    
+    .markdown-content table {
+        width: 100%;
+        margin-bottom: 1rem;
+        border-collapse: collapse;
+    }
+    
+    .markdown-content th,
+    .markdown-content td {
+        padding: 0.75rem;
+        border: 1px solid #dee2e6;
+    }
+    
+    .markdown-content th {
+        background-color: #f8f9fa;
+        font-weight: 600;
+    }
+    
+    .markdown-content a {
+        color: #007bff;
+        text-decoration: none;
+    }
+    
+    .markdown-content a:hover {
+        text-decoration: underline;
+    }
+    
+    /* Modal specific styles */
+    .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    #memoryContentModal .modal-dialog {
+        max-width: 90%;
+    }
 </style>
 
 @section Scripts {
     <!-- Vis.js Network -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
+    <!-- Marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     
     <script>
         let network = null;
@@ -533,18 +704,26 @@
                         ${node.data.createdAt ? `<p><strong>Created:</strong> ${new Date(node.data.createdAt).toLocaleDateString()}</p>` : ''}
                     `;
                 } else {
+                    const connectionInfo = node.data.connectionCount > 0 
+                        ? `<p><strong>Connections:</strong> ${node.data.connectionCount}${node.data.isHub ? ' 🌟' : ''}</p>` 
+                        : '';
+                        
                     detailsHtml = `
                         <h6>${node.label}</h6>
-                        <p><strong>ID:</strong> ${node.id}</p>
-                        <p><strong>Type:</strong> ${node.data.type || 'Unknown'}</p>
+                        <p class="small text-muted">${node.id}</p>
+                        <p><strong>Type:</strong> <span class="badge bg-info">${node.data.type || 'Unknown'}</span></p>
                         <p><strong>Source:</strong> ${node.data.source || 'Unknown'}</p>
-                        <p><strong>Tags:</strong> ${node.data.tags && node.data.tags.length > 0 ? node.data.tags.join(', ') : 'None'}</p>
+                        <p><strong>Tags:</strong> ${node.data.tags && node.data.tags.length > 0 ? node.data.tags.map(t => `<span class="badge bg-secondary">${t}</span>`).join(' ') : 'None'}</p>
+                        ${connectionInfo}
                         <p><strong>Created:</strong> ${node.data.createdAt ? new Date(node.data.createdAt).toLocaleDateString() : 'Unknown'}</p>
-                        <div class="mt-3">
-                            <a href="/ui/view/${node.id}" class="btn btn-sm btn-primary" target="_blank">
-                                <i class="bi bi-eye"></i> View Details
+                        <div class="mt-3 d-grid gap-2">
+                            <button class="btn btn-sm btn-primary" onclick="showMemoryModal('${node.id}')">
+                                <i class="bi bi-file-text"></i> View Content
+                            </button>
+                            <a href="/ui/view/${node.id}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                <i class="bi bi-box-arrow-up-right"></i> Full Page
                             </a>
-                            <button class="btn btn-sm btn-secondary" onclick="suggestRelationships('${node.id}')">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="suggestRelationships('${node.id}')">
                                 <i class="bi bi-diagram-3"></i> Suggest Relations
                             </button>
                         </div>
@@ -553,6 +732,85 @@
                 
                 $('#nodeDetails').html(detailsHtml);
             }
+        }
+        
+        let currentModalNodeId = null;
+        
+        async function showMemoryModal(nodeId) {
+            currentModalNodeId = nodeId;
+            const node = nodes.get(nodeId);
+            
+            if (!node || !node.data) return;
+            
+            // Set modal title
+            $('#memoryContentModalLabel').text(node.label || 'Memory Content');
+            
+            // Set basic metadata
+            $('#modalType').text(node.data.type || 'Unknown');
+            $('#modalSource').text(node.data.source || 'Unknown');
+            $('#modalConfidence').text(node.data.confidence ? `${(node.data.confidence * 100).toFixed(0)}%` : '100%');
+            $('#modalCreated').text(node.data.createdAt ? new Date(node.data.createdAt).toLocaleDateString() : 'Unknown');
+            
+            // Set tags
+            if (node.data.tags && node.data.tags.length > 0) {
+                $('#modalTags').html(node.data.tags.map(t => `<span class="badge bg-secondary">${t}</span>`).join(' '));
+            } else {
+                $('#modalTags').html('<span class="text-muted">No tags</span>');
+            }
+            
+            // Set connection info if available
+            if (node.data.connectionCount > 0) {
+                $('#modalConnectionInfo').show();
+                $('#modalConnections').html(`<strong>${node.data.connectionCount}</strong> connections${node.data.isHub ? ' <span class="badge bg-warning">Hub Node</span>' : ''}`);
+            } else {
+                $('#modalConnectionInfo').hide();
+            }
+            
+            // Set view full button
+            $('#modalViewFullButton').attr('href', `/ui/view/${nodeId}`);
+            
+            // Load and render markdown content
+            if (node.data.summary) {
+                // If we have summary in the node data, use it
+                const renderedHtml = marked.parse(node.data.summary);
+                $('#modalMarkdownContent').html(renderedHtml);
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('memoryContentModal'));
+                modal.show();
+            } else {
+                // Fetch full content from API
+                try {
+                    const response = await fetch(`/api/memory/${nodeId}`);
+                    if (response.ok) {
+                        const memory = await response.json();
+                        const content = memory.text || memory.summary || 'No content available';
+                        const renderedHtml = marked.parse(content);
+                        $('#modalMarkdownContent').html(renderedHtml);
+                    } else {
+                        $('#modalMarkdownContent').html('<p class="text-muted">Could not load content</p>');
+                    }
+                } catch (error) {
+                    $('#modalMarkdownContent').html('<p class="text-danger">Error loading content</p>');
+                }
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('memoryContentModal'));
+                modal.show();
+            }
+        }
+        
+        function expandNodeConnections() {
+            if (!currentModalNodeId) return;
+            
+            // Close modal
+            const modal = bootstrap.Modal.getInstance(document.getElementById('memoryContentModal'));
+            modal.hide();
+            
+            // Execute query to expand connections
+            const expandQuery = `MATCH (m:Memory {id: '${currentModalNodeId}'})-[r]-(connected) RETURN m, r, connected LIMIT 30`;
+            $('#cypherQuery').val(expandQuery);
+            executeCypherQuery();
         }
         
         function executeCypherQuery() {
@@ -664,44 +922,161 @@
             const nodeData = searchResults.nodes
                 .filter(node => showWords || node.type !== 'Word')
                 .map(node => {
+                    // Use metadata for enhanced node visualization
+                    const isHub = node.metadata?.isHub || false;
+                    const connectionCount = node.metadata?.connectionCount || 0;
+                    
                     const mappedNode = {
                         id: node.id,
                         label: node.title || node.word || (typeof node.id === 'string' ? node.id.substring(0, 8) : node.id),
                         color: node.type === 'Word' ? '#ef4444' : getColorForType(node.type),
-                        size: node.type === 'Word' ? 8 : (node.confidence ? node.confidence * 20 : 10),
+                        size: node.type === 'Word' ? 8 : calculateNodeSize(node),
+                        borderWidth: isHub ? 3 : 1,
+                        borderWidthSelected: isHub ? 5 : 3,
+                        font: {
+                            size: isHub ? 14 : 12,
+                            bold: isHub
+                        },
                         data: {
                             type: node.type,
                             source: node.source || 'Unknown',
                             tags: node.tags || [],
                             createdAt: node.createdAt,
+                            summary: node.summary,
+                            metadata: node.metadata || {},
                             // For Word nodes, add additional properties
                             language: node.language,
-                            frequency: node.frequency
+                            frequency: node.frequency,
+                            connectionCount: connectionCount,
+                            isHub: isHub
                         }
                     };
                     // Create tooltip after data is set
-                    mappedNode.title = createNodeTooltip(mappedNode);
+                    mappedNode.title = createEnhancedNodeTooltip(mappedNode);
                     return mappedNode;
                 });
             
-            const edgeData = searchResults.relationships.map(rel => ({
-                from: rel.fromId,
-                to: rel.toId,
-                label: rel.type,
-                color: { color: getColorForRelationType(rel.type) },
-                width: Math.max(1, (rel.weight || 1) * 2)
-            }));
+            const edgeData = searchResults.relationships.map(rel => {
+                // Enhanced edge label for RELATES_TO relationships
+                const edgeLabel = rel.type === 'RELATES_TO' && rel.metadata?.relationshipSubtype 
+                    ? rel.metadata.relationshipSubtype 
+                    : rel.type;
+                    
+                return {
+                    from: rel.fromId,
+                    to: rel.toId,
+                    label: edgeLabel,
+                    title: createEdgeTooltip(rel),
+                    color: { color: getColorForRelationType(rel.type, rel.metadata?.relationshipSubtype) },
+                    width: Math.max(1, (rel.weight || 1) * 2),
+                    arrows: {
+                        to: {
+                            enabled: true,
+                            scaleFactor: rel.type === 'RELATES_TO' ? 0.7 : 0.5
+                        }
+                    },
+                    smooth: {
+                        type: 'curvedCW',
+                        roundness: 0.2
+                    }
+                };
+            });
             
             nodes.add(nodeData);
             edges.add(edgeData);
             
+            // Update statistics with enhanced info
             $('#nodeCount').text(nodeData.length);
             $('#edgeCount').text(edgeData.length);
+            
+            const hubNodes = nodeData.filter(n => n.data.isHub).length;
+            if (hubNodes > 0) {
+                $('#nodeCount').append(` (${hubNodes} hubs)`);
+            }
             
             const components = countComponents(nodeData, edgeData);
             $('#componentCount').text(components);
             
+            // Highlight highly connected nodes
+            highlightImportantNodes(nodeData);
+            
             network.fit();
+        }
+        
+        function calculateNodeSize(node) {
+            const baseSize = node.confidence ? node.confidence * 15 : 10;
+            const connectionBonus = (node.metadata?.connectionCount || 0) * 2;
+            return Math.min(30, baseSize + connectionBonus);
+        }
+        
+        function createEnhancedNodeTooltip(node) {
+            const nodeData = node.data || node;
+            const nodeType = nodeData.type || node.type || 'Unknown';
+            
+            if (nodeType === 'Word') {
+                return `
+                    <div style="max-width: 300px; padding: 8px;">
+                        <strong style="font-size: 14px;">${node.label || node.title || node.word || 'Unknown'}</strong><br>
+                        <span style="color: #666;">Type:</span> Word<br>
+                        <span style="color: #666;">Language:</span> ${nodeData.language || 'en'}<br>
+                        <span style="color: #666;">Frequency:</span> ${nodeData.frequency || 'N/A'}<br>
+                        ${nodeData.createdAt ? `<span style="color: #666;">Created:</span> ${new Date(nodeData.createdAt).toLocaleDateString()}` : ''}
+                    </div>
+                `;
+            }
+            
+            const connectionInfo = nodeData.connectionCount > 0 
+                ? `<br><span style="color: #666;">Connections:</span> <strong>${nodeData.connectionCount}</strong>${nodeData.isHub ? ' 🌟 Hub Node' : ''}`
+                : '';
+            
+            const summaryPreview = nodeData.summary 
+                ? `<br><span style="color: #666;">Preview:</span> ${nodeData.summary.substring(0, 150)}${nodeData.summary.length > 150 ? '...' : ''}`
+                : '';
+            
+            return `
+                <div style="max-width: 400px; padding: 8px;">
+                    <strong style="font-size: 14px;">${node.label || node.title || 'Unknown'}</strong><br>
+                    <span style="color: #666;">Type:</span> ${nodeType}<br>
+                    <span style="color: #666;">Source:</span> ${nodeData.source || 'Unknown'}<br>
+                    <span style="color: #666;">Tags:</span> ${nodeData.tags && nodeData.tags.length > 0 ? nodeData.tags.join(', ') : 'None'}<br>
+                    ${nodeData.createdAt ? `<span style="color: #666;">Created:</span> ${new Date(nodeData.createdAt).toLocaleDateString()}` : ''}
+                    ${connectionInfo}
+                    ${summaryPreview}
+                    <br><em style="color: #888; font-size: 11px;">Double-click to view details</em>
+                </div>
+            `;
+        }
+        
+        function createEdgeTooltip(rel) {
+            const relType = rel.metadata?.relationshipSubtype || rel.type;
+            const weight = rel.weight ? `Weight: ${rel.weight.toFixed(2)}` : '';
+            const created = rel.createdAt ? `Created: ${new Date(rel.createdAt).toLocaleDateString()}` : '';
+            
+            return `
+                <div style="padding: 5px;">
+                    <strong>Relationship: ${relType}</strong><br>
+                    ${weight}<br>
+                    ${created}
+                </div>
+            `;
+        }
+        
+        function highlightImportantNodes(nodeData) {
+            // Find and style hub nodes differently
+            nodeData.forEach(node => {
+                if (node.data.isHub) {
+                    nodes.update({
+                        id: node.id,
+                        shadow: {
+                            enabled: true,
+                            color: 'rgba(0, 0, 0, 0.5)',
+                            size: 10,
+                            x: 3,
+                            y: 3
+                        }
+                    });
+                }
+            });
         }
         
         function getColorForType(type) {
@@ -715,16 +1090,24 @@
             return typeColors[type?.toLowerCase()] || '#6b7280';
         }
         
-        function getColorForRelationType(type) {
+        function getColorForRelationType(type, subtype) {
+            // Use subtype for color if it's a RELATES_TO relationship
+            const typeToUse = type === 'RELATES_TO' && subtype ? subtype : type;
+            
             const relColors = {
                 'extends': '#3b82f6',
+                'enhanced-version': '#06b6d4',
                 'supports': '#10b981',
                 'contradicts': '#ef4444',
                 'implements': '#8b5cf6',
                 'references': '#f59e0b',
-                'HAS_KEYWORD': '#ec4899'
+                'example-of': '#a855f7',
+                'explains': '#14b8a6',
+                'related-to': '#6366f1',
+                'HAS_KEYWORD': '#ec4899',
+                'RELATES_TO': '#94a3b8'
             };
-            return relColors[type] || '#94a3b8';
+            return relColors[typeToUse] || '#94a3b8';
         }
         
         function suggestRelationships(nodeId) {

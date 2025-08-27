@@ -451,49 +451,126 @@ public class MemoryTools
             var result = await _graphSearchService.SearchGraphAsync(query);
             
             var sb = new StringBuilder();
-            sb.AppendLine($"Found {result.Nodes.Count} nodes and {result.Relationships.Count} relationships");
+            sb.AppendLine($"🔍 Graph Search Results: {result.Nodes.Count} nodes and {result.Relationships.Count} relationships");
             sb.AppendLine();
+            
+            // Group nodes by type for better organization
+            var nodesByType = result.Nodes.GroupBy(n => n.Type).OrderBy(g => g.Key);
+            var hubNodes = result.Nodes.Where(n => n.Metadata?.ContainsKey("isHub") == true && (bool)n.Metadata["isHub"]).ToList();
+            
+            if (hubNodes.Count > 0)
+            {
+                sb.AppendLine("🌟 Hub Nodes (highly connected):");
+                foreach (var hub in hubNodes.Take(5))
+                {
+                    var connections = hub.Metadata?.ContainsKey("connectionCount") == true ? hub.Metadata["connectionCount"] : 0;
+                    sb.AppendLine($"  • {hub.Title ?? "Untitled"} - {connections} connections (ID: {hub.Id})");
+                }
+                sb.AppendLine();
+            }
             
             if (result.Nodes.Count > 0)
             {
-                sb.AppendLine("Nodes:");
-                foreach (var node in result.Nodes.Take(20))
+                sb.AppendLine("📊 Nodes by Type:");
+                foreach (var typeGroup in nodesByType)
                 {
-                    sb.AppendLine($"  • [{node.Type}] {node.Title ?? "Untitled"} (ID: {node.Id})");
-                    if (node.Tags?.Count > 0)
+                    var nodeType = typeGroup.Key ?? "Unknown";
+                    sb.AppendLine($"\n  [{nodeType.ToUpper()}] ({typeGroup.Count()} nodes):");
+                    
+                    foreach (var node in typeGroup.Take(10))
                     {
-                        sb.AppendLine($"    Tags: {string.Join(", ", node.Tags)}");
+                        var connectionInfo = "";
+                        if (node.Metadata?.ContainsKey("connectionCount") == true && (int)node.Metadata["connectionCount"] > 0)
+                        {
+                            connectionInfo = $" [{node.Metadata["connectionCount"]} connections]";
+                        }
+                        
+                        sb.AppendLine($"    • {node.Title ?? "Untitled"}{connectionInfo}");
+                        sb.AppendLine($"      ID: {node.Id}");
+                        
+                        if (node.Tags?.Count > 0)
+                        {
+                            sb.AppendLine($"      Tags: {string.Join(", ", node.Tags.Take(5))}");
+                        }
+                        
+                        if (!string.IsNullOrEmpty(node.Summary))
+                        {
+                            var summaryPreview = node.Summary.Length > 150 
+                                ? node.Summary.Substring(0, 147) + "..." 
+                                : node.Summary;
+                            sb.AppendLine($"      Summary: {summaryPreview}");
+                        }
+                        
+                        if (node.Metadata?.ContainsKey("frequency") == true && nodeType == "Word")
+                        {
+                            sb.AppendLine($"      Frequency: {node.Metadata["frequency"]}");
+                        }
                     }
-                    if (!string.IsNullOrEmpty(node.Summary))
+                    
+                    if (typeGroup.Count() > 10)
                     {
-                        sb.AppendLine($"    Summary: {node.Summary.Substring(0, Math.Min(100, node.Summary.Length))}...");
+                        sb.AppendLine($"    ... and {typeGroup.Count() - 10} more {nodeType} nodes");
                     }
-                }
-                
-                if (result.Nodes.Count > 20)
-                {
-                    sb.AppendLine($"  ... and {result.Nodes.Count - 20} more nodes");
                 }
             }
             
             if (result.Relationships.Count > 0)
             {
                 sb.AppendLine();
-                sb.AppendLine("Relationships:");
-                foreach (var rel in result.Relationships.Take(20))
-                {
-                    var fromNode = result.Nodes.FirstOrDefault(n => n.Id == rel.FromId);
-                    var toNode = result.Nodes.FirstOrDefault(n => n.Id == rel.ToId);
-                    
-                    var fromTitle = fromNode?.Title ?? rel.FromId.ToString().Substring(0, 8);
-                    var toTitle = toNode?.Title ?? rel.ToId.ToString().Substring(0, 8);
-                    
-                    sb.AppendLine($"  • {fromTitle} --[{rel.Type}]--> {toTitle}");
-                }
+                sb.AppendLine("🔗 Relationships:");
                 
-                if (result.Relationships.Count > 20)
+                // Group relationships by type
+                var relsByType = result.Relationships.GroupBy(r => 
                 {
-                    sb.AppendLine($"  ... and {result.Relationships.Count - 20} more relationships");
+                    if (r.Metadata?.ContainsKey("relationshipSubtype") == true)
+                        return r.Metadata["relationshipSubtype"].ToString();
+                    return r.Type;
+                }).OrderBy(g => g.Key);
+                
+                foreach (var relGroup in relsByType)
+                {
+                    sb.AppendLine($"\n  [{relGroup.Key?.ToUpper() ?? "UNKNOWN"}] ({relGroup.Count()} relationships):");
+                    
+                    foreach (var rel in relGroup.Take(5))
+                    {
+                        var fromNode = result.Nodes.FirstOrDefault(n => n.Id == rel.FromId);
+                        var toNode = result.Nodes.FirstOrDefault(n => n.Id == rel.ToId);
+                        
+                        var fromTitle = fromNode?.Title ?? rel.FromId.ToString().Substring(0, 8) + "...";
+                        var toTitle = toNode?.Title ?? rel.ToId.ToString().Substring(0, 8) + "...";
+                        
+                        var weightInfo = rel.Weight != 1.0 ? $" (weight: {rel.Weight:F2})" : "";
+                        sb.AppendLine($"    • {fromTitle} → {toTitle}{weightInfo}");
+                    }
+                    
+                    if (relGroup.Count() > 5)
+                    {
+                        sb.AppendLine($"    ... and {relGroup.Count() - 5} more {relGroup.Key} relationships");
+                    }
+                }
+            }
+            
+            // Add summary statistics
+            sb.AppendLine();
+            sb.AppendLine("📈 Summary:");
+            sb.AppendLine($"  • Total Nodes: {result.Nodes.Count}");
+            sb.AppendLine($"  • Total Relationships: {result.Relationships.Count}");
+            sb.AppendLine($"  • Node Types: {string.Join(", ", nodesByType.Select(g => $"{g.Key} ({g.Count()})"))}");
+            if (hubNodes.Count > 0)
+            {
+                sb.AppendLine($"  • Hub Nodes: {hubNodes.Count}");
+            }
+            
+            // Add suggestions for further exploration
+            if (result.Nodes.Count > 0 && result.Nodes.Count < 50)
+            {
+                sb.AppendLine();
+                sb.AppendLine("💡 Suggestions:");
+                sb.AppendLine("  • Use GetMany to retrieve full content for specific nodes");
+                sb.AppendLine("  • Search for related memories using common tags or keywords");
+                if (hubNodes.Count > 0)
+                {
+                    sb.AppendLine($"  • Explore hub node '{hubNodes.First().Title}' for rich connections");
                 }
             }
             
