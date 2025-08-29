@@ -11,7 +11,7 @@ public interface IGraphSyncService
     Task<int> SyncMemoriesToGraphAsync(bool fullSync = false);
     Task<bool> CreateGraphRelationshipAsync(Guid fromId, Guid toId, string relationshipType, Dictionary<string, object>? properties = null);
     Task<List<GraphRelationship>> SuggestRelationshipsAsync(Guid memoryId);
-    Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 20);
+    Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 20, bool sortByRecent = true);
     Task<bool> InitializeGraphSchemaAsync();
     Task CreateOrUpdateGraphNodeAsync(Memory memory);
     Task CreateNodeWordsAndRelationshipsAsync(Memory memory);
@@ -378,7 +378,7 @@ Return as JSON array with format:
         return suggestions;
     }
     
-    public async Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 20)
+    public async Task<GraphVisualizationData> GetGraphVisualizationAsync(int limit = 20, bool sortByRecent = true)
     {
         var visualization = new GraphVisualizationData();
         
@@ -387,10 +387,11 @@ Return as JSON array with format:
             // Step 1: Get Memory nodes first (prioritize)
             var memoryNodes = await _graphRepository.ExecuteReadAsync(async tx =>
             {
-                var query = @"
+                var orderBy = sortByRecent ? "ORDER BY m.createdAt DESC" : "ORDER BY m.title ASC";
+                var query = $@"
                     MATCH (m:Memory)
                     RETURN m
-                    ORDER BY m.createdAt DESC
+                    {orderBy}
                     LIMIT $limit";
                 
                 var cursor = await tx.RunAsync(query, new { limit });

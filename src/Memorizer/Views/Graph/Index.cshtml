@@ -186,6 +186,12 @@
                                     Node Limit
                                 </label>
                             </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="checkbox" id="sortByRecent" value="true" checked>
+                                <label class="form-check-label" for="sortByRecent">
+                                    Sort by Recent
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <div class="row mt-2">
@@ -532,6 +538,10 @@
             $('#nodeLimit').change(function() {
                 loadGraphData();
             });
+            
+            $('#sortByRecent').change(function() {
+                loadGraphData();
+            });
         });
         
         function initializeGraph() {
@@ -612,11 +622,12 @@
         
         function loadGraphData() {
             const limit = $('#nodeLimit').val();
+            const sortByRecent = $('#sortByRecent').is(':checked');
             
             $.ajax({
                 url: '/api/graph/visualization',
                 method: 'GET',
-                data: { limit: limit },
+                data: { limit: limit, sortByRecent: sortByRecent },
                 success: function(data) {
                     updateGraph(data);
                 },

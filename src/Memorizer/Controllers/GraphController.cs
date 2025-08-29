@@ -202,11 +202,11 @@ public class GraphController : ControllerBase
     }
     
     [HttpGet("visualization")]
-    public async Task<IActionResult> GetVisualization([FromQuery] int limit = 20)
+    public async Task<IActionResult> GetVisualization([FromQuery] int limit = 20, [FromQuery] bool sortByRecent = true)
     {
         try
         {
-            var data = await _graphSyncService.GetGraphVisualizationAsync(limit);
+            var data = await _graphSyncService.GetGraphVisualizationAsync(limit, sortByRecent);
             return Ok(data);
         }
         catch (Exception ex)
