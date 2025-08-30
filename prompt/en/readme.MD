@@ -54,6 +54,12 @@ Further improvements to GraphDB search and presentation features, and addition o
 - [GraphDB-Prompt-Upgrade2](07-GraphDB-Prompt-Upgrade.MD)
 - [View-Blog-Upgrade](08-View-Blog-Upgrade.MD)
 
+## Version 1.0.4
+
+Blog view UX and performance improvements
+
+- [View-Blog-Upgrade2](09-View-Blog-Upgrade2.MD)
+
 
 ## Claude Cli Setting: Use for Vibe Coding
 

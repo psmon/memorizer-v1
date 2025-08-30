@@ -107,6 +107,29 @@ public interface IStorage
         string[]? filterTags = null,
         CancellationToken cancellationToken = default
     );
+    
+    // Optimized blog filtering methods
+    Task<(List<Memorizer.Models.Memory> Memories, int TotalCount)> GetBlogMemoriesPaginated(
+        int page = 1,
+        int pageSize = 20,
+        string? searchQuery = null,
+        string[]? typeFilters = null,
+        string[]? tagFilters = null,
+        CancellationToken cancellationToken = default
+    );
+    
+    Task<Dictionary<string, int>> GetTagCountsForBlog(
+        string? searchQuery = null,
+        string[]? typeFilters = null,
+        int topCount = 20,
+        CancellationToken cancellationToken = default
+    );
+    
+    Task<Dictionary<string, int>> GetTypeCountsForBlog(
+        string? searchQuery = null,
+        string[]? tagFilters = null,
+        CancellationToken cancellationToken = default
+    );
 }
 
 [AutoRegisterInterfaces(ServiceLifetime.Singleton)]
@@ -1152,5 +1175,219 @@ public class Storage : IStorage
             _logger.LogError(ex, "Error syncing memory to graph: {MemoryId}", memory.Id);
             throw;
         }
+    }
+    
+    // Optimized blog filtering implementations
+    public async Task<(List<Memory> Memories, int TotalCount)> GetBlogMemoriesPaginated(
+        int page = 1,
+        int pageSize = 20,
+        string? searchQuery = null,
+        string[]? typeFilters = null,
+        string[]? tagFilters = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        
+        // Build WHERE clause
+        var whereConditions = new List<string>();
+        var parameters = new Dictionary<string, object>();
+        
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            // Use ILIKE for case-insensitive search with GIN trigram index support
+            whereConditions.Add("(title ILIKE @searchQuery OR text ILIKE @searchQuery)");
+            parameters["searchQuery"] = $"%{searchQuery}%";
+        }
+        
+        if (typeFilters != null && typeFilters.Length > 0)
+        {
+            whereConditions.Add("type = ANY(@typeFilters)");
+            parameters["typeFilters"] = typeFilters;
+        }
+        
+        if (tagFilters != null && tagFilters.Length > 0)
+        {
+            whereConditions.Add("tags && @tagFilters");
+            parameters["tagFilters"] = tagFilters;
+        }
+        
+        string whereClause = whereConditions.Count > 0 
+            ? "WHERE " + string.Join(" AND ", whereConditions) 
+            : "";
+        
+        // Count query
+        string countSql = $"SELECT COUNT(*) FROM memories {whereClause}";
+        await using var countCmd = new NpgsqlCommand(countSql, connection);
+        foreach (var param in parameters)
+        {
+            countCmd.Parameters.AddWithValue(param.Key, param.Value);
+        }
+        var totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(cancellationToken));
+        
+        // Data query with pagination
+        string dataSql = $@"
+            SELECT id, type, content, text, source, embedding, embedding_metadata, tags, confidence, created_at, updated_at, title
+            FROM memories 
+            {whereClause}
+            ORDER BY created_at DESC
+            LIMIT @limit OFFSET @offset";
+        
+        await using var dataCmd = new NpgsqlCommand(dataSql, connection);
+        foreach (var param in parameters)
+        {
+            dataCmd.Parameters.AddWithValue(param.Key, param.Value);
+        }
+        dataCmd.Parameters.AddWithValue("limit", pageSize);
+        dataCmd.Parameters.AddWithValue("offset", (page - 1) * pageSize);
+        
+        var memories = new List<Memory>();
+        var memoryIds = new List<Guid>();
+        
+        await using var reader = await dataCmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var memory = new Memory
+            {
+                Id = reader.GetGuid(0),
+                Type = reader.GetString(1),
+                Content = reader.GetFieldValue<JsonDocument>(2),
+                Text = reader.GetString(3),
+                Source = reader.GetString(4),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[384]) : reader.GetFieldValue<Vector>(5),
+                EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector?>(6),
+                Tags = reader.GetFieldValue<string[]>(7),
+                Confidence = reader.GetDouble(8),
+                CreatedAt = reader.GetDateTime(9),
+                UpdatedAt = reader.GetDateTime(10),
+                Title = reader.IsDBNull(11) ? null : reader.GetString(11)
+            };
+            memories.Add(memory);
+            memoryIds.Add(memory.Id);
+        }
+        
+        // Batch fetch relationships
+        if (memoryIds.Count > 0)
+        {
+            var relationships = await GetRelationshipsForMany(memoryIds, cancellationToken);
+            var relLookup = relationships.GroupBy(r => r.FromMemoryId).ToDictionary(g => g.Key, g => g.ToList());
+            foreach (var memory in memories)
+            {
+                if (relLookup.TryGetValue(memory.Id, out var rels))
+                    memory.Relationships = rels;
+            }
+        }
+        
+        return (memories, totalCount);
+    }
+    
+    public async Task<Dictionary<string, int>> GetTagCountsForBlog(
+        string? searchQuery = null,
+        string[]? typeFilters = null,
+        int topCount = 20,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        
+        // Build WHERE clause
+        var whereConditions = new List<string>();
+        var parameters = new Dictionary<string, object>();
+        
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            // Use ILIKE for case-insensitive search with GIN trigram index support
+            whereConditions.Add("(title ILIKE @searchQuery OR text ILIKE @searchQuery)");
+            parameters["searchQuery"] = $"%{searchQuery}%";
+        }
+        
+        if (typeFilters != null && typeFilters.Length > 0)
+        {
+            whereConditions.Add("type = ANY(@typeFilters)");
+            parameters["typeFilters"] = typeFilters;
+        }
+        
+        string whereClause = whereConditions.Count > 0 
+            ? "WHERE " + string.Join(" AND ", whereConditions) 
+            : "";
+        
+        // Query to get tag counts
+        string sql = $@"
+            SELECT unnest(tags) AS tag, COUNT(*) AS count
+            FROM memories
+            {whereClause}
+            GROUP BY tag
+            ORDER BY count DESC, tag ASC
+            LIMIT @topCount";
+        
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        foreach (var param in parameters)
+        {
+            cmd.Parameters.AddWithValue(param.Key, param.Value);
+        }
+        cmd.Parameters.AddWithValue("topCount", topCount);
+        
+        var tagCounts = new Dictionary<string, int>();
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var tag = reader.GetString(0);
+            var count = Convert.ToInt32(reader.GetInt64(1));
+            tagCounts[tag] = count;
+        }
+        
+        return tagCounts;
+    }
+    
+    public async Task<Dictionary<string, int>> GetTypeCountsForBlog(
+        string? searchQuery = null,
+        string[]? tagFilters = null,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        
+        // Build WHERE clause
+        var whereConditions = new List<string>();
+        var parameters = new Dictionary<string, object>();
+        
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            // Use ILIKE for case-insensitive search with GIN trigram index support
+            whereConditions.Add("(title ILIKE @searchQuery OR text ILIKE @searchQuery)");
+            parameters["searchQuery"] = $"%{searchQuery}%";
+        }
+        
+        if (tagFilters != null && tagFilters.Length > 0)
+        {
+            whereConditions.Add("tags && @tagFilters");
+            parameters["tagFilters"] = tagFilters;
+        }
+        
+        string whereClause = whereConditions.Count > 0 
+            ? "WHERE " + string.Join(" AND ", whereConditions) 
+            : "";
+        
+        // Query to get type counts
+        string sql = $@"
+            SELECT type, COUNT(*) AS count
+            FROM memories
+            {whereClause}
+            GROUP BY type
+            ORDER BY type ASC";
+        
+        await using var cmd = new NpgsqlCommand(sql, connection);
+        foreach (var param in parameters)
+        {
+            cmd.Parameters.AddWithValue(param.Key, param.Value);
+        }
+        
+        var typeCounts = new Dictionary<string, int>();
+        await using var reader = await cmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var type = reader.GetString(0);
+            var count = Convert.ToInt32(reader.GetInt64(1));
+            typeCounts[type] = count;
+        }
+        
+        return typeCounts;
     }
 }

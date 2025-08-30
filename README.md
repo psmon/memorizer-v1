@@ -145,6 +145,6 @@ MIT
 
 ## 💖 Attribution
 
-Made with ❤️ by [Petabridge](https://petabridge.com/)
+Made with ❤️ by [psmon](https://wiki.webnori.com/display/AKKA/Akka-Home/)
 
-Originally forked from [Dario Griffo](https://dario.griffo.io/)'s [`postg-mem`](https://github.com/dariogriffo/postg-mem) server
+Originally forked from [Petabridge](https://github.com/Aaronontheweb/memorizer-v1)

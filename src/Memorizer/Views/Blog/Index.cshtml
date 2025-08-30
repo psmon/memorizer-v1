@@ -49,18 +49,22 @@
                         <h6 class="text-muted mb-2">
                             <i class="fas fa-filter me-2"></i>Filter by Type
                         </h6>
-                        <div id="typeFilters" class="d-flex flex-wrap gap-2">
-                            <!-- Type filter buttons will be dynamically added here -->
+                        <div class="filter-scroll-container">
+                            <div id="typeFilters" class="filter-buttons">
+                                <!-- Type filter buttons will be dynamically added here -->
+                            </div>
                         </div>
                     </div>
 
                     <!-- Tag Filters -->
                     <div>
                         <h6 class="text-muted mb-2">
-                            <i class="fas fa-tags me-2"></i>Filter by Tags
+                            <i class="fas fa-tags me-2"></i>Filter by Tags (Top 20)
                         </h6>
-                        <div id="tagFilters" class="d-flex flex-wrap gap-2">
-                            <!-- Tag filter buttons will be dynamically added here -->
+                        <div class="filter-scroll-container">
+                            <div id="tagFilters" class="filter-buttons">
+                                <!-- Tag filter buttons will be dynamically added here -->
+                            </div>
                         </div>
                     </div>
 
@@ -419,13 +423,13 @@ function updateTypeFilters() {
     allTypes.forEach(type => {
         const count = typeCounts[type] || 0;
         const isActive = selectedTypes.includes(type);
-        const btnClass = isActive ? 'btn-primary' : 'btn-outline-primary';
+        const btnClass = isActive ? 'filter-pill-active' : 'filter-pill';
         
         container.innerHTML += `
-            <button class="btn ${btnClass} btn-sm" 
+            <button class="${btnClass}" 
                     onclick="toggleTypeFilter('${escapeHtml(type)}')"
                     data-type="${escapeHtml(type)}">
-                ${escapeHtml(type)} (${count})
+                ${escapeHtml(type)} <span class="filter-count">${count}</span>
             </button>
         `;
     });
@@ -436,16 +440,17 @@ function updateTagFilters() {
     const container = document.getElementById('tagFilters');
     container.innerHTML = '';
     
+    // Sort tags by count and take top 20 (already done on server)
     allTags.forEach(tag => {
         const count = tagCounts[tag] || 0;
         const isActive = selectedTags.includes(tag);
-        const btnClass = isActive ? 'btn-success' : 'btn-outline-success';
+        const btnClass = isActive ? 'filter-pill-active filter-pill-tag' : 'filter-pill filter-pill-tag';
         
         container.innerHTML += `
-            <button class="btn ${btnClass} btn-sm" 
+            <button class="${btnClass}" 
                     onclick="toggleTagFilter('${escapeHtml(tag)}')"
                     data-tag="${escapeHtml(tag)}">
-                ${escapeHtml(tag)} (${count})
+                ${escapeHtml(tag)} <span class="filter-count">${count}</span>
             </button>
         `;
     });
@@ -600,6 +605,128 @@ function escapeHtml(text) {
 
 .btn-close-white:hover {
     opacity: 1;
+}
+
+/* Filter scroll container styles */
+.filter-scroll-container {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 #f7fafc;
+    padding-bottom: 8px;
+}
+
+.filter-scroll-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.filter-scroll-container::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 3px;
+}
+
+.filter-scroll-container::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.filter-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* Filter buttons container */
+.filter-buttons {
+    display: flex;
+    gap: 0.5rem;
+    padding: 2px 0;
+    white-space: nowrap;
+}
+
+/* Pill-style filter buttons */
+.filter-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 1.5rem;
+    border: 1px solid #dee2e6;
+    background-color: white;
+    color: #495057;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    outline: none;
+}
+
+.filter-pill:hover {
+    background-color: #f8f9fa;
+    border-color: #adb5bd;
+    transform: translateY(-1px);
+}
+
+.filter-pill-active {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border-radius: 1.5rem;
+    border: 1px solid #0d6efd;
+    background-color: #0d6efd;
+    color: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    outline: none;
+}
+
+.filter-pill-active:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+/* Tag-specific pill colors */
+.filter-pill-tag.filter-pill-active {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.filter-pill-tag.filter-pill-active:hover {
+    background-color: #157347;
+    border-color: #146c43;
+}
+
+/* Filter count badge */
+.filter-count {
+    display: inline-block;
+    margin-left: 0.25rem;
+    padding: 0.125rem 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 0.75rem;
+}
+
+.filter-pill-active .filter-count {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Mobile optimizations */
+@@media (max-width: 768px) {
+    .filter-scroll-container {
+        margin-left: -1rem;
+        margin-right: -1rem;
+        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+    
+    .filter-pill,
+    .filter-pill-active {
+        padding: 0.5rem 0.875rem;
+        font-size: 0.9rem;
+    }
 }
 </style>
 }

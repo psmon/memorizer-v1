@@ -52,6 +52,12 @@ GraphDB 검색 및 표현 기능 추가 개선, Blog Memories 페이지 추가
 - [GraphDB-Prompt-Upgrade2](07-GraphDB-Prompt-Upgrade.MD)
 - [View-Blog-Upgrade](08-View-Blog-Upgrade.MD)
 
+## Version 1.0.4
+
+블로그 뷰 UX 및 성능 개선
+
+- [View-Blog-Upgrade2](09-View-Blog-Upgrade2.MD)
+
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 

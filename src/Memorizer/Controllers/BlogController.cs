@@ -53,35 +53,19 @@ public class BlogController : Controller
                 ? null 
                 : tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
 
-            // Get filtered and paginated memories
-            var (memories, totalCount) = await GetFilteredMemories(
+            // Get filtered and paginated memories using optimized database queries
+            var (memories, totalCount) = await _storage.GetBlogMemoriesPaginated(
                 page, 
                 pageSize, 
                 searchQuery, 
                 typeFilters, 
                 tagFilters);
 
-            // Get all distinct types and tags for filter buttons
+            // Get all distinct types and tags with counts using optimized queries
             var allTypes = await _storage.GetDistinctMemoryTypes();
-            var allTags = await GetAllDistinctTags();
-
-            // Count memories for each type and tag
-            var typeCounts = new Dictionary<string, int>();
-            var tagCounts = new Dictionary<string, int>();
-
-            foreach (var type in allTypes)
-            {
-                var (_, count) = await GetFilteredMemories(
-                    1, 1, searchQuery, new[] { type }, tagFilters);
-                typeCounts[type] = count;
-            }
-
-            foreach (var tag in allTags)
-            {
-                var (_, count) = await GetFilteredMemories(
-                    1, 1, searchQuery, typeFilters, new[] { tag });
-                tagCounts[tag] = count;
-            }
+            var typeCounts = await _storage.GetTypeCountsForBlog(searchQuery, tagFilters);
+            var tagCounts = await _storage.GetTagCountsForBlog(searchQuery, typeFilters, 20);
+            var allTags = tagCounts.Keys.OrderBy(t => t).ToList();
 
             return Ok(new BlogMemoryListResponse
             {
@@ -118,70 +102,8 @@ public class BlogController : Controller
         return Ok(memory);
     }
 
-    private async Task<(List<Memory> Memories, int TotalCount)> GetFilteredMemories(
-        int page, 
-        int pageSize, 
-        string? searchQuery, 
-        string[]? typeFilters, 
-        string[]? tagFilters)
-    {
-        // Get all memories first (in production, this should be optimized with proper SQL filtering)
-        var (allMemories, _) = await _storage.GetMemoriesPaginated(1, 10000);
-
-        // Apply filters
-        var filtered = allMemories.AsEnumerable();
-
-        // Apply search query filter (title and content)
-        if (!string.IsNullOrWhiteSpace(searchQuery))
-        {
-            var query = searchQuery.ToLower();
-            filtered = filtered.Where(m => 
-                (m.Title != null && m.Title.ToLower().Contains(query)) ||
-                (m.Text != null && m.Text.ToLower().Contains(query)));
-        }
-
-        // Apply type filter
-        if (typeFilters != null && typeFilters.Length > 0)
-        {
-            filtered = filtered.Where(m => typeFilters.Contains(m.Type));
-        }
-
-        // Apply tag filter
-        if (tagFilters != null && tagFilters.Length > 0)
-        {
-            filtered = filtered.Where(m => 
-                m.Tags != null && m.Tags.Any(t => tagFilters.Contains(t)));
-        }
-
-        // Order by creation date (newest first)
-        filtered = filtered.OrderByDescending(m => m.CreatedAt);
-
-        // Get total count before pagination
-        var totalCount = filtered.Count();
-
-        // Apply pagination
-        var pagedMemories = filtered
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
-        return (pagedMemories, totalCount);
-    }
-
-    private async Task<List<string>> GetAllDistinctTags()
-    {
-        // Get all memories to extract distinct tags
-        var (allMemories, _) = await _storage.GetMemoriesPaginated(1, 10000);
-        
-        var allTags = allMemories
-            .Where(m => m.Tags != null)
-            .SelectMany(m => m.Tags!)
-            .Distinct()
-            .OrderBy(t => t)
-            .ToList();
-
-        return allTags;
-    }
+    // Note: These methods have been replaced with optimized database queries in IStorage
+    // The filtering, searching, and counting is now done at the database level for better performance
 }
 
 public class BlogMemoryListResponse : MemoryListResponse
