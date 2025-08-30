@@ -1,0 +1,605 @@
+@{
+    ViewData["Title"] = "Blog Memories";
+}
+
+<div class="container-fluid px-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-blog me-2 text-primary"></i>
+                Blog Memories
+            </h1>
+            <p class="text-muted">Browse and explore memories in a blog-style format</p>
+        </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="fas fa-search"></i>
+                        </span>
+                        <input type="text" 
+                               id="searchInput" 
+                               class="form-control form-control-lg" 
+                               placeholder="Search memories by title or content..."
+                               autocomplete="off">
+                        <button class="btn btn-primary" type="button" onclick="performSearch()">
+                            Search
+                        </button>
+                        <button class="btn btn-outline-secondary" type="button" onclick="clearSearch()">
+                            Clear
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <!-- Type Filters -->
+                    <div class="mb-3">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-filter me-2"></i>Filter by Type
+                        </h6>
+                        <div id="typeFilters" class="d-flex flex-wrap gap-2">
+                            <!-- Type filter buttons will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Tag Filters -->
+                    <div>
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-tags me-2"></i>Filter by Tags
+                        </h6>
+                        <div id="tagFilters" class="d-flex flex-wrap gap-2">
+                            <!-- Tag filter buttons will be dynamically added here -->
+                        </div>
+                    </div>
+
+                    <!-- Active Filters Display -->
+                    <div id="activeFilters" class="mt-3 d-none">
+                        <h6 class="text-muted mb-2">
+                            <i class="fas fa-check-circle me-2"></i>Active Filters
+                        </h6>
+                        <div id="activeFiltersList" class="d-flex flex-wrap gap-2">
+                            <!-- Active filters will be shown here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Blog Posts Container -->
+    <div id="blogPosts" class="row">
+        <!-- Blog posts will be dynamically loaded here -->
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center py-5 d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2 text-muted">Loading more memories...</p>
+    </div>
+
+    <!-- No More Posts Message -->
+    <div id="noMorePosts" class="text-center py-5 d-none">
+        <p class="text-muted">
+            <i class="fas fa-check-circle me-2"></i>
+            You've reached the end of all memories
+        </p>
+    </div>
+</div>
+
+<!-- Memory Detail Modal -->
+<div class="modal fade" id="memoryModal" tabindex="-1" aria-labelledby="memoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memoryModalLabel">Memory Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="memoryModalBody">
+                <!-- Memory content will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+let currentPage = 1;
+let isLoading = false;
+let hasMorePages = true;
+let searchQuery = '';
+let selectedTypes = [];
+let selectedTags = [];
+let allTypes = [];
+let allTags = [];
+let typeCounts = {};
+let tagCounts = {};
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', function() {
+    loadMemories();
+    setupInfiniteScroll();
+    setupSearchInput();
+});
+
+// Setup infinite scroll
+function setupInfiniteScroll() {
+    window.addEventListener('scroll', function() {
+        if (isLoading || !hasMorePages) return;
+        
+        const scrollPosition = window.innerHeight + window.scrollY;
+        const documentHeight = document.documentElement.offsetHeight;
+        
+        // Load more when user is 200px from bottom
+        if (scrollPosition >= documentHeight - 200) {
+            currentPage++;
+            loadMemories(true);
+        }
+    });
+}
+
+// Setup search input
+function setupSearchInput() {
+    const searchInput = document.getElementById('searchInput');
+    searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            performSearch();
+        }
+    });
+}
+
+// Perform search
+function performSearch() {
+    searchQuery = document.getElementById('searchInput').value.trim();
+    resetAndReload();
+}
+
+// Clear search
+function clearSearch() {
+    document.getElementById('searchInput').value = '';
+    searchQuery = '';
+    resetAndReload();
+}
+
+// Reset and reload
+function resetAndReload() {
+    currentPage = 1;
+    hasMorePages = true;
+    document.getElementById('blogPosts').innerHTML = '';
+    loadMemories();
+}
+
+// Load memories
+async function loadMemories(append = false) {
+    if (isLoading) return;
+    
+    isLoading = true;
+    
+    if (!append) {
+        document.getElementById('loadingIndicator').classList.remove('d-none');
+    }
+    
+    try {
+        // Build query string
+        const params = new URLSearchParams({
+            page: currentPage,
+            pageSize: 10
+        });
+        
+        if (searchQuery) {
+            params.append('searchQuery', searchQuery);
+        }
+        
+        if (selectedTypes.length > 0) {
+            params.append('types', selectedTypes.join(','));
+        }
+        
+        if (selectedTags.length > 0) {
+            params.append('tags', selectedTags.join(','));
+        }
+        
+        const response = await fetch(`/ui/blog/api/memories?${params}`);
+        const data = await response.json();
+        
+        if (!append) {
+            // Update filter buttons with counts
+            allTypes = data.allTypes || [];
+            allTags = data.allTags || [];
+            typeCounts = data.typeCounts || {};
+            tagCounts = data.tagCounts || {};
+            updateFilterButtons();
+        }
+        
+        displayMemories(data.memories, append);
+        
+        hasMorePages = currentPage < data.totalPages;
+        
+        if (!hasMorePages) {
+            document.getElementById('noMorePosts').classList.remove('d-none');
+        }
+        
+    } catch (error) {
+        console.error('Error loading memories:', error);
+        showError('Failed to load memories. Please try again.');
+    } finally {
+        isLoading = false;
+        document.getElementById('loadingIndicator').classList.add('d-none');
+    }
+}
+
+// Display memories
+function displayMemories(memories, append = false) {
+    const container = document.getElementById('blogPosts');
+    
+    if (!append) {
+        container.innerHTML = '';
+    }
+    
+    if (memories.length === 0 && !append) {
+        container.innerHTML = `
+            <div class="col-12 text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No memories found</h5>
+                <p class="text-muted">Try adjusting your filters or search query</p>
+            </div>
+        `;
+        return;
+    }
+    
+    memories.forEach(memory => {
+        const postCard = createBlogPostCard(memory);
+        container.insertAdjacentHTML('beforeend', postCard);
+    });
+}
+
+// Create blog post card
+function createBlogPostCard(memory) {
+    const title = escapeHtml(memory.title || 'Untitled Memory');
+    const preview = createPreview(memory.text || '', 300);
+    const tags = memory.tags ? memory.tags.map(tag => 
+        `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`
+    ).join('') : '';
+    
+    const date = new Date(memory.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+    
+    return `
+        <div class="col-12 mb-4">
+            <article class="card shadow-sm h-100 blog-post-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div>
+                            <h3 class="h4 mb-2">${title}</h3>
+                            <div class="text-muted small mb-2">
+                                <i class="fas fa-calendar me-2"></i>${date}
+                                <span class="mx-2">•</span>
+                                <i class="fas fa-user me-2"></i>${escapeHtml(memory.source)}
+                                <span class="mx-2">•</span>
+                                <span class="badge bg-primary">${escapeHtml(memory.type)}</span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="badge bg-info">
+                                <i class="fas fa-chart-line me-1"></i>
+                                ${(memory.confidence * 100).toFixed(0)}%
+                            </span>
+                        </div>
+                    </div>
+                    
+                    <div class="blog-content mb-3">
+                        <div class="preview-text">${preview}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        ${tags}
+                    </div>
+                    
+                    <button class="btn btn-outline-primary" onclick="viewMemory('${memory.id}')">
+                        <i class="fas fa-book-open me-2"></i>
+                        View More
+                    </button>
+                </div>
+            </article>
+        </div>
+    `;
+}
+
+// Create preview text (300 characters)
+function createPreview(text, maxChars = 300) {
+    if (!text) return '';
+    
+    // Truncate to maxChars
+    let preview = text.length > maxChars 
+        ? text.substring(0, maxChars) + '...' 
+        : text;
+    
+    // Convert markdown to HTML for preview
+    try {
+        preview = marked.parse(preview);
+    } catch (e) {
+        preview = escapeHtml(preview).replace(/\\n/g, '<br>');
+    }
+    
+    return preview;
+}
+
+// View full memory in modal
+async function viewMemory(id) {
+    const modal = new bootstrap.Modal(document.getElementById('memoryModal'));
+    const modalBody = document.getElementById('memoryModalBody');
+    const modalTitle = document.getElementById('memoryModalLabel');
+    
+    modalBody.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    
+    modal.show();
+    
+    try {
+        const response = await fetch(`/ui/blog/api/memory/${id}`);
+        const memory = await response.json();
+        
+        modalTitle.textContent = memory.title || 'Untitled Memory';
+        
+        const content = memory.text ? marked.parse(memory.text) : '<p>No content available</p>';
+        const tags = memory.tags ? memory.tags.map(tag => 
+            `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`
+        ).join('') : '';
+        
+        modalBody.innerHTML = `
+            <div class="memory-details">
+                <div class="mb-3">
+                    <strong>Type:</strong> <span class="badge bg-primary">${escapeHtml(memory.type)}</span>
+                    <span class="ms-3"><strong>Source:</strong> ${escapeHtml(memory.source)}</span>
+                    <span class="ms-3"><strong>Confidence:</strong> ${(memory.confidence * 100).toFixed(0)}%</span>
+                </div>
+                
+                <div class="mb-3">
+                    <strong>Created:</strong> ${new Date(memory.createdAt).toLocaleString()}
+                    ${memory.updatedAt ? `<span class="ms-3"><strong>Updated:</strong> ${new Date(memory.updatedAt).toLocaleString()}</span>` : ''}
+                </div>
+                
+                ${tags ? `<div class="mb-3">${tags}</div>` : ''}
+                
+                <hr>
+                
+                <div class="memory-content">
+                    ${content}
+                </div>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading memory:', error);
+        modalBody.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load memory details. Please try again.
+            </div>
+        `;
+    }
+}
+
+// Update filter buttons
+function updateFilterButtons() {
+    updateTypeFilters();
+    updateTagFilters();
+    updateActiveFilters();
+}
+
+// Update type filters
+function updateTypeFilters() {
+    const container = document.getElementById('typeFilters');
+    container.innerHTML = '';
+    
+    allTypes.forEach(type => {
+        const count = typeCounts[type] || 0;
+        const isActive = selectedTypes.includes(type);
+        const btnClass = isActive ? 'btn-primary' : 'btn-outline-primary';
+        
+        container.innerHTML += `
+            <button class="btn ${btnClass} btn-sm" 
+                    onclick="toggleTypeFilter('${escapeHtml(type)}')"
+                    data-type="${escapeHtml(type)}">
+                ${escapeHtml(type)} (${count})
+            </button>
+        `;
+    });
+}
+
+// Update tag filters
+function updateTagFilters() {
+    const container = document.getElementById('tagFilters');
+    container.innerHTML = '';
+    
+    allTags.forEach(tag => {
+        const count = tagCounts[tag] || 0;
+        const isActive = selectedTags.includes(tag);
+        const btnClass = isActive ? 'btn-success' : 'btn-outline-success';
+        
+        container.innerHTML += `
+            <button class="btn ${btnClass} btn-sm" 
+                    onclick="toggleTagFilter('${escapeHtml(tag)}')"
+                    data-tag="${escapeHtml(tag)}">
+                ${escapeHtml(tag)} (${count})
+            </button>
+        `;
+    });
+}
+
+// Update active filters display
+function updateActiveFilters() {
+    const container = document.getElementById('activeFilters');
+    const list = document.getElementById('activeFiltersList');
+    
+    if (selectedTypes.length === 0 && selectedTags.length === 0) {
+        container.classList.add('d-none');
+        return;
+    }
+    
+    container.classList.remove('d-none');
+    list.innerHTML = '';
+    
+    selectedTypes.forEach(type => {
+        list.innerHTML += `
+            <span class="badge bg-primary">
+                ${escapeHtml(type)}
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        onclick="removeTypeFilter('${escapeHtml(type)}')"
+                        aria-label="Remove filter"></button>
+            </span>
+        `;
+    });
+    
+    selectedTags.forEach(tag => {
+        list.innerHTML += `
+            <span class="badge bg-success">
+                ${escapeHtml(tag)}
+                <button type="button" class="btn-close btn-close-white ms-1" 
+                        onclick="removeTagFilter('${escapeHtml(tag)}')"
+                        aria-label="Remove filter"></button>
+            </span>
+        `;
+    });
+}
+
+// Toggle type filter
+function toggleTypeFilter(type) {
+    const index = selectedTypes.indexOf(type);
+    if (index > -1) {
+        selectedTypes.splice(index, 1);
+    } else {
+        selectedTypes.push(type);
+    }
+    resetAndReload();
+}
+
+// Toggle tag filter
+function toggleTagFilter(tag) {
+    const index = selectedTags.indexOf(tag);
+    if (index > -1) {
+        selectedTags.splice(index, 1);
+    } else {
+        selectedTags.push(tag);
+    }
+    resetAndReload();
+}
+
+// Remove type filter
+function removeTypeFilter(type) {
+    const index = selectedTypes.indexOf(type);
+    if (index > -1) {
+        selectedTypes.splice(index, 1);
+        resetAndReload();
+    }
+}
+
+// Remove tag filter
+function removeTagFilter(tag) {
+    const index = selectedTags.indexOf(tag);
+    if (index > -1) {
+        selectedTags.splice(index, 1);
+        resetAndReload();
+    }
+}
+
+// Show error message
+function showError(message) {
+    const container = document.getElementById('blogPosts');
+    container.innerHTML = `
+        <div class="col-12">
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        </div>
+    `;
+}
+
+// Escape HTML
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+</script>
+
+<style>
+.blog-post-card {
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.blog-post-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+
+.preview-text {
+    line-height: 1.6;
+    color: #333;
+}
+
+.preview-text p {
+    margin-bottom: 0.5rem;
+}
+
+.memory-content {
+    line-height: 1.8;
+    font-size: 1.05rem;
+}
+
+.memory-content pre {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 0.25rem;
+    overflow-x: auto;
+}
+
+.memory-content code {
+    background-color: #f8f9fa;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.2rem;
+    color: #e83e8c;
+}
+
+.btn-close-white {
+    filter: invert(1);
+    opacity: 0.8;
+    width: 0.5em;
+    height: 0.5em;
+}
+
+.btn-close-white:hover {
+    opacity: 1;
+}
+</style>
+}

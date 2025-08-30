@@ -38,6 +38,13 @@
                             </a>
                         </li>
                         <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Blog" ? "active" : "")" 
+                               href="/ui/blog">
+                                <i class="fas fa-blog me-2"></i>
+                                Blog Memories
+                            </a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "GraphView" ? "active" : "")" 
                                href="/ui/graph">
                                 <i class="fas fa-project-diagram me-2"></i>
