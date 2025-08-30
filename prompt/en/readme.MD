@@ -4,7 +4,7 @@ Fork Origin Version : https://github.com/Aaronontheweb/memorizer-v1
 
 This project starts from the original open source and attempts feature upgrades using Claude Code.
 
-## Version 1.0.0
+## Version 0.0.9
 
 Note: The base version uses embedded Ollama, and you can choose OpenAI API to improve embedding/LLM performance.
 Since LLM incurs costs, using lightweight on-device Ollama is recommended for personal research.
@@ -12,7 +12,7 @@ Since LLM incurs costs, using lightweight on-device Ollama is recommended for pe
 - [OpenAI-Upgrade](01-OpenAI-Upgrade.MD)
 
 
-## Version 1.0.1
+## Version 1.0.0
 
 Note: From this version, program updates are attempted by utilizing the memory provided by this project together to load necessary context,
 and advanced features are added to find memory using GraphDB.
@@ -26,7 +26,7 @@ Prompt engineering may be required to convert natural language to Cypher queries
 
 
 
-## Version 1.0.2
+## Version 1.0.1
 
 Add simplified authentication features for management functions and MCP, improve memory web exploration to non-authenticated view
 Use when sharing knowledge in Public mode and wanting to manage memory together with specific users
@@ -41,11 +41,18 @@ MCP Memory View – Mainly covers Akka-related context
 https://mcp.webnori.com/ui
 
 
-## Version 1.0.3
+## Version 1.0.2
 
 Improve GraphDB search functionality with enhanced natural language to Cypher query conversion and better UX for query exploration
 
 - [GraphDB-Prompt-Upgrade](06-GraphDB-Prompt-Upgrade.MD)
+
+## Version 1.0.3
+
+Further improvements to GraphDB search and presentation features, and addition of Blog Memories page
+
+- [GraphDB-Prompt-Upgrade2](07-GraphDB-Prompt-Upgrade.MD)
+- [View-Blog-Upgrade](08-View-Blog-Upgrade.MD)
 
 
 ## Claude Cli Setting: Use for Vibe Coding

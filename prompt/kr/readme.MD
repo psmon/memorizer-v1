@@ -4,7 +4,7 @@ Fork Origin Version : https://github.com/Aaronontheweb/memorizer-v1
 
 원본 오픈소스에서 출발해 Claude코드를 활용해 기능 업그레이드 시도하는 프로젝트입니다.
 
-## Version 1.0.0
+## Version 0.0.9
 
 노트 : 기본버전이 임베디드 Ollama를 활용하고 있으며, 임베딩/LLM성능을 높이기위해 OpenAI API를 선택할수 있습니다.
 LLM은 비용이 드는 단점이 있어서 개인연구용은 역시 라이트웨이한 온디바이스 Ollama를 활용하는것이 추천합니다.
@@ -12,7 +12,7 @@ LLM은 비용이 드는 단점이 있어서 개인연구용은 역시 라이트�
 - [OpenAI-Upgrade](01-OpenAI-Upgrade.MD)
 
 
-## Version 1.0.1
+## Version 1.0.0
 
 노트 : 이 버전부터 이 프로젝트가 제공하는 메모리를 함께활용해 필요한 컨텍스트를 할습시킨후 프로그램업데이트 
 개선시도되며  GraphDB를 활용해 메모리를 찾을수 있는 고급기능을 추가합니다. 
@@ -25,7 +25,7 @@ LLM은 비용이 드는 단점이 있어서 개인연구용은 역시 라이트�
 - [GraphDB-UX-Upgrade4](04-GraphDB-UX-Upgrade.MD)
 
 
-## Version 1.0.2
+## Version 1.0.1
 
 관리기능과 MCP에 인증기능 간소화된 인증기능추가, 메모리 웹탐색은 비인증뷰로 개선 
 Public모드로 지식을 공유하고 특정 사용자와 메모리를 함께 관리하고자할때 활용
@@ -39,11 +39,18 @@ MCP Memory View - Akka관련 Context를 주로 다룸
 - https://mcp.webnori.com/ui
 
 
-## Version 1.0.3
+## Version 1.0.2
 
 자연어를 Cypher 쿼리로 변환하는 기능 개선과 쿼리 탐색을 위한 더 나은 UX로 GraphDB 검색 기능 개선
 
 - [GraphDB-Prompt-Upgrade](06-GraphDB-Prompt-Upgrade.MD)
+
+## Version 1.0.3
+
+GraphDB 검색 및 표현 기능 추가 개선, Blog Memories 페이지 추가
+
+- [GraphDB-Prompt-Upgrade2](07-GraphDB-Prompt-Upgrade.MD)
+- [View-Blog-Upgrade](08-View-Blog-Upgrade.MD)
 
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
