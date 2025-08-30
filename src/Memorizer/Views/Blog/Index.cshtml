@@ -124,6 +124,8 @@
 
 @section Scripts {
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script>
 let currentPage = 1;
 let isLoading = false;
@@ -138,10 +140,155 @@ let tagCounts = {};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
+    // Configure marked with syntax highlighting
+    marked.setOptions({
+        highlight: function(code, lang) {
+            const language = lang || 'plaintext';
+            if (language && hljs.getLanguage(language)) {
+                try {
+                    return `<code class="language-${language}">${hljs.highlight(code, { language: language }).value}</code>`;
+                } catch (e) {}
+            }
+            const result = hljs.highlightAuto(code);
+            return `<code class="language-${result.language || 'plaintext'}">${result.value}</code>`;
+        },
+        breaks: true,
+        gfm: true,
+        langPrefix: 'language-'
+    });
+    
     loadMemories();
     setupInfiniteScroll();
     setupSearchInput();
 });
+
+// Add copy button and language label to code blocks
+function addCopyButtons(container) {
+    const codeBlocks = container.querySelectorAll('pre');
+    codeBlocks.forEach(pre => {
+        // Skip if button already exists
+        if (pre.querySelector('.copy-code-button')) return;
+        
+        // Create wrapper div
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(pre);
+        
+        // Detect language from code block
+        const codeElement = pre.querySelector('code');
+        let language = 'plaintext';
+        
+        if (codeElement) {
+            // Check for hljs language class
+            const classList = codeElement.className.split(' ');
+            const langClass = classList.find(cls => cls.startsWith('language-') || cls.startsWith('hljs-'));
+            
+            if (langClass) {
+                language = langClass.replace('language-', '').replace('hljs-', '');
+            } else if (codeElement.className.includes('hljs')) {
+                // Try to detect from highlight.js detected language
+                const detected = hljs.highlightAuto(codeElement.textContent);
+                if (detected.language) {
+                    language = detected.language;
+                }
+            }
+        }
+        
+        // Format language display name
+        const languageNames = {
+            'js': 'JavaScript',
+            'javascript': 'JavaScript',
+            'ts': 'TypeScript',
+            'typescript': 'TypeScript',
+            'py': 'Python',
+            'python': 'Python',
+            'cs': 'C#',
+            'csharp': 'C#',
+            'cpp': 'C++',
+            'c++': 'C++',
+            'java': 'Java',
+            'html': 'HTML',
+            'css': 'CSS',
+            'scss': 'SCSS',
+            'sql': 'SQL',
+            'json': 'JSON',
+            'xml': 'XML',
+            'yaml': 'YAML',
+            'yml': 'YAML',
+            'bash': 'Bash',
+            'shell': 'Shell',
+            'sh': 'Shell',
+            'powershell': 'PowerShell',
+            'ps1': 'PowerShell',
+            'dockerfile': 'Dockerfile',
+            'docker': 'Docker',
+            'md': 'Markdown',
+            'markdown': 'Markdown',
+            'plaintext': 'Plain Text',
+            'text': 'Plain Text',
+            'go': 'Go',
+            'rust': 'Rust',
+            'ruby': 'Ruby',
+            'rb': 'Ruby',
+            'php': 'PHP',
+            'swift': 'Swift',
+            'kotlin': 'Kotlin',
+            'r': 'R',
+            'scala': 'Scala',
+            'lua': 'Lua',
+            'perl': 'Perl',
+            'vim': 'Vim Script',
+            'nginx': 'Nginx',
+            'apache': 'Apache',
+            'ini': 'INI',
+            'toml': 'TOML',
+            'jsx': 'JSX',
+            'tsx': 'TSX',
+            'vue': 'Vue',
+            'svelte': 'Svelte'
+        };
+        
+        const displayLanguage = languageNames[language.toLowerCase()] || language.charAt(0).toUpperCase() + language.slice(1);
+        
+        // Create toolbar div
+        const toolbar = document.createElement('div');
+        toolbar.className = 'code-block-toolbar';
+        
+        // Create language label
+        const langLabel = document.createElement('span');
+        langLabel.className = 'code-language-label';
+        langLabel.innerHTML = `<i class="fas fa-code"></i> ${displayLanguage}`;
+        
+        // Create copy button
+        const button = document.createElement('button');
+        button.className = 'copy-code-button';
+        button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+        button.onclick = function() {
+            const code = pre.querySelector('code');
+            const text = code ? code.textContent : pre.textContent;
+            
+            navigator.clipboard.writeText(text).then(() => {
+                button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                button.classList.add('copied');
+                setTimeout(() => {
+                    button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                    button.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                button.innerHTML = '<i class="fas fa-times"></i> Failed';
+                setTimeout(() => {
+                    button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                }, 2000);
+            });
+        };
+        
+        toolbar.appendChild(langLabel);
+        toolbar.appendChild(button);
+        wrapper.appendChild(toolbar);
+    });
+}
 
 // Setup infinite scroll
 function setupInfiniteScroll() {
@@ -337,9 +484,18 @@ function createPreview(text, maxChars = 300) {
         ? text.substring(0, maxChars) + '...' 
         : text;
     
-    // Convert markdown to HTML for preview
+    // Convert markdown to HTML for preview with syntax highlighting
     try {
         preview = marked.parse(preview);
+        // Apply syntax highlighting and copy buttons to code blocks in preview
+        setTimeout(() => {
+            document.querySelectorAll('.preview-text pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            document.querySelectorAll('.blog-content').forEach(content => {
+                addCopyButtons(content);
+            });
+        }, 0);
     } catch (e) {
         preview = escapeHtml(preview).replace(/\\n/g, '<br>');
     }
@@ -396,6 +552,14 @@ async function viewMemory(id) {
                 </div>
             </div>
         `;
+        
+        // Apply syntax highlighting and copy buttons to code blocks in modal
+        setTimeout(() => {
+            modalBody.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+            addCopyButtons(modalBody);
+        }, 0);
         
     } catch (error) {
         console.error('Error loading memory:', error);
@@ -559,13 +723,24 @@ function escapeHtml(text) {
 </script>
 
 <style>
+/* Main container constraints */
+.container-fluid {
+    overflow-x: hidden;
+    max-width: 100%;
+}
+
 .blog-post-card {
     transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
 }
 
 .blog-post-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important;
+}
+
+.card-body {
+    overflow-x: hidden;
 }
 
 .preview-text {
@@ -580,20 +755,166 @@ function escapeHtml(text) {
 .memory-content {
     line-height: 1.8;
     font-size: 1.05rem;
+    overflow-x: hidden;
+    word-wrap: break-word;
 }
 
-.memory-content pre {
-    background-color: #f8f9fa;
+/* Code block wrapper for copy button */
+.code-block-wrapper {
+    position: relative;
+    margin: 1rem 0;
+}
+
+/* Dark theme for code blocks */
+.memory-content pre,
+.preview-text pre,
+.blog-content pre {
+    background-color: #0d1117;
     padding: 1rem;
+    padding-top: 2.5rem;
     border-radius: 0.25rem;
     overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid #30363d;
+    margin: 0;
 }
 
-.memory-content code {
-    background-color: #f8f9fa;
+.memory-content pre code,
+.preview-text pre code,
+.blog-content pre code {
+    background-color: transparent;
+    color: #e6edf3;
+    padding: 0;
+}
+
+/* Code block toolbar */
+.code-block-toolbar {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    z-index: 10;
+}
+
+/* Language label styling */
+.code-language-label {
+    padding: 0.25rem 0.75rem;
+    background-color: rgba(110, 118, 129, 0.2);
+    color: #8b949e;
+    border: 1px solid #30363d;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.code-language-label i {
+    margin-right: 0.375rem;
+    font-size: 0.75rem;
+}
+
+/* Copy button styling */
+.copy-code-button {
+    padding: 0.25rem 0.75rem;
+    background-color: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: inline-flex;
+    align-items: center;
+}
+
+.copy-code-button:hover {
+    background-color: #30363d;
+    color: #f0f6fc;
+    border-color: #8b949e;
+}
+
+.copy-code-button.copied {
+    background-color: #238636;
+    border-color: #2ea043;
+    color: #ffffff;
+}
+
+.copy-code-button i {
+    margin-right: 0.25rem;
+    font-size: 0.875rem;
+}
+
+/* Mobile responsive */
+@@media (max-width: 576px) {
+    .code-block-toolbar {
+        top: 0.25rem;
+        right: 0.25rem;
+        gap: 0.25rem;
+    }
+    
+    .code-language-label,
+    .copy-code-button {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.8rem;
+    }
+    
+    .code-language-label i,
+    .copy-code-button i {
+        font-size: 0.7rem;
+    }
+}
+
+/* Inline code styling */
+.memory-content code:not(pre code) {
+    background-color: rgba(110, 118, 129, 0.4);
     padding: 0.2rem 0.4rem;
     border-radius: 0.2rem;
-    color: #e83e8c;
+    color: #ff7b72;
+    font-size: 0.9em;
+}
+
+/* Prevent horizontal scroll in blog content */
+.blog-content,
+.preview-text {
+    overflow-x: hidden;
+    word-wrap: break-word;
+    word-break: break-word;
+}
+
+.blog-content img,
+.memory-content img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Table responsive */
+.memory-content table {
+    display: block;
+    overflow-x: auto;
+    max-width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.memory-content table th,
+.memory-content table td {
+    padding: 0.5rem;
+    border: 1px solid #30363d;
+}
+
+.memory-content table th {
+    background-color: #161b22;
+    color: #f0f6fc;
+    font-weight: 600;
+}
+
+.memory-content table tr:nth-child(even) {
+    background-color: rgba(110, 118, 129, 0.1);
 }
 
 .btn-close-white {

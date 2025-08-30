@@ -15,3 +15,9 @@ Execute the instructions using the following reference information:
 - Unit test files are in "src/Memorizer.IntegrationTests/"
 - "src/Memorizer/Services/Memory.cs" contains the service code for querying and managing memory storage
 - Postgres schemas are in "src/Memorizer/migrations" and manage actual schema migrations according to numbering order. Reading them in sequence will provide complete schema understanding.
+
+## Additional Upgrade Instructions
+- Fix horizontal scrolling in the content view to prevent it from moving left and right, and instead implement dark mode for markdown code views with proper language-specific styling, using JS libraries if necessary.
+- Add copy functionality to code blocks in the code view.
+- Display the programming language to the left of the copy button.
+- Redirect root URL access to /ui/blog.

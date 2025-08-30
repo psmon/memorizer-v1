@@ -171,6 +171,17 @@ app.UseStaticFiles();
 // Add session middleware
 app.UseSession();
 
+// Add root redirect middleware before routing
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/" && context.Request.Method == "GET")
+    {
+        context.Response.Redirect("/ui/blog");
+        return;
+    }
+    await next();
+});
+
 // Add authentication middleware
 app.UseMiddleware<AuthenticationMiddleware>();
 
@@ -233,16 +244,6 @@ app.MapGet("/sse-test", async (HttpContext context) =>
         sseLogger.LogError(ex, "SSE test failed: {Error}", ex.Message);
         throw;
     }
-});
-
-// Add root redirect to login
-app.MapGet("/", (HttpContext context) =>
-{
-    if (context.Session.GetString("IsAuthenticated") == "true")
-    {
-        return Results.Redirect("/ui");
-    }
-    return Results.Redirect("/auth/login");
 });
 
 // Configure default MVC routing

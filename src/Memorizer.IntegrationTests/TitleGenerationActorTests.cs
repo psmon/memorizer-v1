@@ -156,6 +156,15 @@ public class TitleGenerationActorTests : TestKit
 
         public Task<(List<Memory> FullResults, List<Memory> MetadataResults)> CompareSearchMethods(string query, int limit = 10, double minSimilarity = 0.7, string[]? filterTags = null, CancellationToken cancellationToken = default)
             => throw new NotImplementedException("Test mock");
+        
+        public Task<(List<Memory> Memories, int TotalCount)> GetBlogMemoriesPaginated(int page = 1, int pageSize = 20, string? searchQuery = null, string[]? typeFilters = null, string[]? tagFilters = null, CancellationToken cancellationToken = default)
+            => Task.FromResult((new List<Memory>(), 0));
+        
+        public Task<Dictionary<string, int>> GetTagCountsForBlog(string? searchQuery = null, string[]? typeFilters = null, int topCount = 20, CancellationToken cancellationToken = default)
+            => Task.FromResult(new Dictionary<string, int>());
+        
+        public Task<Dictionary<string, int>> GetTypeCountsForBlog(string? searchQuery = null, string[]? tagFilters = null, CancellationToken cancellationToken = default)
+            => Task.FromResult(new Dictionary<string, int>());
     }
 
     /// <summary>
