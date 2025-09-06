@@ -5,6 +5,8 @@ namespace Memorizer.Settings;
 /// </summary>
 public sealed class LlmSettings
 {
+    public string Type { get; set; } = "Ollama";
+    
     /// <summary>
     /// API URL for the LLM service (e.g., Ollama)
     /// </summary>

@@ -4,29 +4,18 @@ using Memorizer.Settings;
 
 namespace Memorizer.Services;
 
-public interface IEmbeddingService
-{
-    Task<float[]> Generate(
-        string text,
-        CancellationToken cancellationToken = default
-    );
 
-    Task<float[]> Generate(
-        JsonDocument document,
-        CancellationToken cancellationToken = default
-    );
-}
 
-public class EmbeddingService : IEmbeddingService
+public class OllamaEmbeddingService : IEmbeddingService
 {
     private readonly HttpClient _httpClient;
     private readonly EmbeddingSettings _settings ;
-    private readonly ILogger<EmbeddingService> _logger;
+    private readonly ILogger<OllamaEmbeddingService> _logger;
 
-    public EmbeddingService(
+    public OllamaEmbeddingService(
         HttpClient httpClient,
         EmbeddingSettings settings,
-        ILogger<EmbeddingService> logger)
+        ILogger<OllamaEmbeddingService> logger)
     {
         _httpClient = httpClient;
         _settings = settings;

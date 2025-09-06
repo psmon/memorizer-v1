@@ -53,8 +53,8 @@ public class GraphSyncTests : IAsyncLifetime
             Model = "all-minilm"
         };
         var httpClient = new HttpClient { BaseAddress = new Uri(_fixture.OllamaApiUrl) };
-        var embeddingService = new EmbeddingService(httpClient, embeddingSettings, new TestLogger<EmbeddingService>());
-        var llmService = new TestLlmService();
+        var embeddingService = new OllamaEmbeddingService(httpClient, embeddingSettings, new TestLogger<OllamaEmbeddingService>());
+        var llmService = new TestOllamaLlmService();
         var graphSyncLogger = new TestLogger<GraphSyncService>();
         
         _graphSyncService = new GraphSyncService(
@@ -316,7 +316,7 @@ public class TestNeo4jDriverFactory : INeo4jDriverFactory, IDisposable
     }
 }
 
-public class TestLlmService : ILlmService, IDisposable
+public class TestOllamaLlmService : ILlmService, IDisposable
 {
     public Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default)
     {

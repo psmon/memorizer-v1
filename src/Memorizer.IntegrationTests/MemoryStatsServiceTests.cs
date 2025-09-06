@@ -37,7 +37,7 @@ public class MemoryStatsServiceTests : TestKit
             .Build());
 
         // Add HTTP client for embedding service
-        services.AddHttpClient<IEmbeddingService, EmbeddingService>(client =>
+        services.AddHttpClient<IEmbeddingService, OllamaEmbeddingService>(client =>
         {
             client.BaseAddress = new Uri(_fixture.OllamaApiUrl);
             client.Timeout = TimeSpan.FromMinutes(1);

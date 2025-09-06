@@ -9,16 +9,16 @@ namespace Memorizer.Services;
 /// <summary>
 /// Service for LLM-based text analysis using OllamaSharp
 /// </summary>
-public sealed class LlmService : ILlmService
+public sealed class OllamaLlmService : ILlmService
 {
     private readonly OllamaApiClient _ollamaClient;
     private readonly LlmSettings _settings;
-    private readonly ILogger<LlmService> _logger;
+    private readonly ILogger<OllamaLlmService> _logger;
 
-    public LlmService(
+    public OllamaLlmService(
         HttpClient httpClient,
         LlmSettings settings,
-        ILogger<LlmService> logger)
+        ILogger<OllamaLlmService> logger)
     {
         _settings = settings;
         _logger = logger;
