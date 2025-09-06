@@ -36,25 +36,35 @@ public static class ServiceCollectionExtensions
                 sp.GetRequiredService<IConfiguration>().GetSection("Embeddings").Get<EmbeddingSettings>() ??
                 throw new ArgumentNullException("Embeddings Settings"));
 
-        // Check if we should use OpenAI or Ollama based on the API URL
+        // Check if we should use OpenAI, Custom, or Ollama based on the Type setting
         services.AddSingleton<IEmbeddingService>(sp =>
         {
             var settings = sp.GetRequiredService<EmbeddingSettings>();
             var logger = sp.GetRequiredService<ILoggerFactory>();
             
-            // If the API URL contains "api.openai.com", use OpenAI service
-            if (settings.ApiUrl.ToString().Contains("api.openai.com", StringComparison.OrdinalIgnoreCase))
+            string apiType = settings.Type.ToLower();
+            
+            if (apiType.Equals("openai"))
             {
                 return new OpenAIEmbeddingService(settings, logger.CreateLogger<OpenAIEmbeddingService>());
             }
-            else
+            else if (apiType.Equals("custom"))
             {
-                // Otherwise, use Ollama service
+                // Use Custom internal network API
                 var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
                 var httpClient = httpClientFactory.CreateClient();
                 httpClient.BaseAddress = settings.ApiUrl;
                 httpClient.Timeout = settings.Timeout;
-                return new EmbeddingService(httpClient, settings, logger.CreateLogger<EmbeddingService>());
+                return new CustomEmbeddingService(httpClient, settings, logger.CreateLogger<CustomEmbeddingService>());
+            }
+            else
+            {
+                // Default to Ollama service
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new OllamaEmbeddingService(httpClient, settings, logger.CreateLogger<OllamaEmbeddingService>());
             }
         });
 
@@ -83,26 +93,37 @@ public static class ServiceCollectionExtensions
                 return llmSettings;
             });
 
-        // Check if we should use OpenAI or Ollama based on the API URL
+        // Check if we should use OpenAI, Custom, or Ollama based on the Type setting
         services.AddSingleton<ILlmService>(sp =>
         {
             var settings = sp.GetRequiredService<LlmSettings>();
             var logger = sp.GetRequiredService<ILoggerFactory>();
             
-            // If the API URL contains "api.openai.com", use OpenAI service
-            if (settings.ApiUrl.ToString().Contains("api.openai.com", StringComparison.OrdinalIgnoreCase))
+            string apiType = settings.Type.ToLower();
+            
+            if (apiType.Equals("openai"))
             {
                 return new OpenAILlmService(settings, logger.CreateLogger<OpenAILlmService>());
             }
-            else
+            else if (apiType.Equals("custom"))
             {
-                // Otherwise, use Ollama service
+                // Use Custom internal network API
                 var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
                 var httpClient = httpClientFactory.CreateClient();
                 httpClient.BaseAddress = settings.ApiUrl;
                 httpClient.Timeout = settings.Timeout;
-                return new LlmService(httpClient, settings, logger.CreateLogger<LlmService>());
+                return new CustomLlmService(httpClient, settings, logger.CreateLogger<CustomLlmService>());
             }
+            else
+            {
+                // Default to Ollama service
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new OllamaLlmService(httpClient, settings, logger.CreateLogger<OllamaLlmService>());
+            }
+            
         });
 
         return services;

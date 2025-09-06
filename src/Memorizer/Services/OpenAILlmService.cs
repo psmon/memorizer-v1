@@ -2,6 +2,7 @@ using System.ClientModel;
 using System.Text;
 using System.Text.Json;
 using Memorizer.Models;
+using Memorizer.Prompts;
 using Memorizer.Settings;
 using OpenAI;
 using OpenAI.Chat;
@@ -44,7 +45,7 @@ public sealed class OpenAILlmService : ILlmService
             _logger.LogDebug("Generating title for content: length={Length}, type={Type}", 
                 content.Length, contentType);
 
-            var prompt = CreateTitleGenerationPrompt(content, contentType, existingTags, maxTitleLength);
+            var prompt = PromptTemplates.CreateTitleGenerationPrompt(content, contentType, existingTags, maxTitleLength);
             
             _logger.LogDebug("Sending title generation request to OpenAI model {Model}", _settings.Model);
             
@@ -164,7 +165,7 @@ public sealed class OpenAILlmService : ILlmService
     {
         var messages = new List<ChatMessage>
         {
-            ChatMessage.CreateSystemMessage("You are an expert at creating concise, descriptive titles for various types of content."),
+            ChatMessage.CreateSystemMessage(PromptTemplates.TitleGenerationSystemMessage),
             ChatMessage.CreateUserMessage(prompt)
         };
 
@@ -192,48 +193,6 @@ public sealed class OpenAILlmService : ILlmService
         return responseText;
     }
 
-    private static string CreateTitleGenerationPrompt(
-        string content,
-        string contentType,
-        string[]? existingTags,
-        int maxTitleLength)
-    {
-        var prompt = new StringBuilder();
-        
-        prompt.AppendLine("TASK: Generate a clear, descriptive title for the provided content that captures its main topic and purpose.");
-        prompt.AppendLine();
-        prompt.AppendLine("GUIDELINES:");
-        prompt.AppendLine($"- Maximum title length: {maxTitleLength} characters");
-        prompt.AppendLine("- Make it descriptive and searchable");
-        prompt.AppendLine("- Capture the main topic or purpose");
-        prompt.AppendLine("- Use natural language, avoid generic phrases");
-        prompt.AppendLine("- Consider the content type and existing tags for context");
-        prompt.AppendLine();
-        prompt.AppendLine("CONTENT DETAILS:");
-        prompt.AppendLine($"- Type: {contentType}");
-        if (existingTags?.Length > 0)
-        {
-            prompt.AppendLine($"- Tags: {string.Join(", ", existingTags)}");
-        }
-        prompt.AppendLine($"- Length: {content.Length} characters");
-        prompt.AppendLine();
-        prompt.AppendLine("CONTENT TO ANALYZE:");
-        prompt.AppendLine("```");
-        // Truncate content if it's very long to avoid token limits
-        var truncatedContent = content.Length > 2000 ? content[..2000] + "..." : content;
-        prompt.AppendLine(truncatedContent);
-        prompt.AppendLine("```");
-        prompt.AppendLine();
-        prompt.AppendLine("RESPOND WITH VALID JSON in this exact format:");
-        prompt.AppendLine("""
-        {
-          "title": "Generated title here",
-          "reasoning": "Brief explanation of why this title was chosen"
-        }
-        """);
-
-        return prompt.ToString();
-    }
 
     private static string ParseTitleResponse(string response, int maxTitleLength)
     {
@@ -316,13 +275,13 @@ public sealed class OpenAILlmService : ILlmService
             _logger.LogDebug("Extracting keywords from content: length={Length}, type={Type}", 
                 content.Length, contentType);
 
-            var prompt = CreateKeywordExtractionPrompt(content, contentType, maxKeywords);
+            var prompt = PromptTemplates.CreateKeywordExtractionPrompt(content, contentType, maxKeywords);
             
             _logger.LogDebug("Sending keyword extraction request to OpenAI model {Model}", _settings.Model);
             
             var messages = new List<ChatMessage>
             {
-                ChatMessage.CreateSystemMessage("You are an expert at extracting meaningful keywords from text content."),
+                ChatMessage.CreateSystemMessage(PromptTemplates.KeywordExtractionSystemMessage),
                 ChatMessage.CreateUserMessage(prompt)
             };
 
@@ -356,45 +315,6 @@ public sealed class OpenAILlmService : ILlmService
         }
     }
 
-    private static string CreateKeywordExtractionPrompt(
-        string content,
-        string contentType,
-        int maxKeywords)
-    {
-        var prompt = new StringBuilder();
-        
-        prompt.AppendLine("TASK: Extract the most important and relevant keywords from the provided content.");
-        prompt.AppendLine();
-        prompt.AppendLine("GUIDELINES:");
-        prompt.AppendLine($"- Extract up to {maxKeywords} keywords");
-        prompt.AppendLine("- Focus on technical terms, concepts, and significant entities");
-        prompt.AppendLine("- Include both single words and meaningful multi-word phrases");
-        prompt.AppendLine("- Prioritize domain-specific terminology");
-        prompt.AppendLine("- Normalize keywords to lowercase");
-        prompt.AppendLine("- Avoid common stop words unless they are part of technical terms");
-        prompt.AppendLine("- Consider the content type for appropriate keyword selection");
-        prompt.AppendLine();
-        prompt.AppendLine("CONTENT DETAILS:");
-        prompt.AppendLine($"- Type: {contentType}");
-        prompt.AppendLine($"- Length: {content.Length} characters");
-        prompt.AppendLine();
-        prompt.AppendLine("CONTENT TO ANALYZE:");
-        prompt.AppendLine("```");
-        // Truncate content if it's very long to avoid token limits
-        var truncatedContent = content.Length > 3000 ? content[..3000] + "..." : content;
-        prompt.AppendLine(truncatedContent);
-        prompt.AppendLine("```");
-        prompt.AppendLine();
-        prompt.AppendLine("RESPOND WITH VALID JSON in this exact format:");
-        prompt.AppendLine("""
-        {
-          "keywords": ["keyword1", "keyword2", "keyword3"],
-          "reasoning": "Brief explanation of keyword selection strategy"
-        }
-        """);
-
-        return prompt.ToString();
-    }
 
     private static List<string> ParseKeywordsResponse(string response)
     {

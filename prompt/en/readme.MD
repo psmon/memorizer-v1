@@ -20,7 +20,7 @@ Prompt engineering may be required to convert natural language to Cypher queries
 
 - [GraphDB-Memory](02-GraphDB-Memory.MD)
 - [GraphDB-Upgrade](02-GraphDB-Upgrade.MD)
-- [GraphDB-Upgrade-Fix](02-GraphDB-Upgrade-Fix.MD)
+- [GraphDB-Upgrade-Fix](02-GraphDB-Upgrade-FIX.MD)
 - [GraphDB-Upgrade3](03-GraphDB-UX-Upgrade.MD)
 - [GraphDB-Upgrade4](04-GraphDB-UX-Upgrade.MD)
 
