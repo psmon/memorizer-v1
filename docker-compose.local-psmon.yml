@@ -31,7 +31,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - /mnt/d/data/postgres/mcp_ver1:/var/lib/postgresql/data
+      - /mnt/d/data/postgres/mcp_ver2:/var/lib/postgresql/data
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
   memorizer:

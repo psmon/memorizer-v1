@@ -1,4 +1,5 @@
 using Memorizer.Models;
+using Memorizer.Prompts;
 using Neo4j.Driver;
 using Npgsql;
 using NpgsqlTypes;
@@ -311,25 +312,13 @@ public class GraphSyncService : IGraphSyncService
             
             if (candidates.Any())
             {
-                var prompt = $@"Analyze the following memory and suggest relationships to other memories.
-Source Memory:
-Title: {sourceMemory.Title}
-Type: {sourceMemory.Type}
-Content: {sourceMemory.Text?.Substring(0, Math.Min(500, sourceMemory.Text.Length))}
-
-Candidate Memories:
-{string.Join("\n", candidates.Select((c, i) => $"{i + 1}. Title: {c.title}, Type: {c.type}, Similarity: {c.similarity:F2}"))}
-
-For each relevant relationship, suggest a type from: 
-- extends (extends concepts)
-- supports (provides supporting evidence)
-- contradicts (presents opposing view)
-- implements (practical implementation)
-- references (direct reference)
-- related-to (general relation)
-
-Return as JSON array with format:
-[{{""targetIndex"": 1, ""type"": ""extends"", ""confidence"": 0.8}}]";
+                // Use centralized prompt template for relationship analysis
+                var candidateList = candidates.Select(c => (c.id, c.title, c.type, c.similarity)).ToList();
+                var prompt = PromptTemplates.CreateRelationshipAnalysisPrompt(
+                    sourceMemory.Title ?? "",
+                    sourceMemory.Type,
+                    sourceMemory.Text ?? "",
+                    candidateList);
 
                 var llmResponse = await _llmService.CompleteAsync(prompt);
                 

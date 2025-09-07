@@ -1,6 +1,7 @@
 
 using Neo4j.Driver;
 using Memorizer.Models;
+using Memorizer.Prompts;
 using System.Text.Json;
 
 namespace Memorizer.Services;
@@ -286,96 +287,9 @@ public class GraphSearchService : IGraphSearchService
     
     public async Task<string> GenerateCypherQueryAsync(string naturalLanguageQuery)
     {
-        var prompt = $@"You are a Neo4j Cypher query expert. Convert the following natural language query to a precise Cypher query.
-
-## Graph Database Schema
-
-### Nodes
-1. **Memory Node**
-   - id: string (UUID) - unique identifier
-   - type: string - values: 'reference', 'how-to', 'system', 'conversation', 'document'
-   - source: string - origin of memory (e.g., 'LLM', 'user', 'system')
-   - title: string - descriptive title
-   - summary: string - detailed content/description
-   - tags: string[] - array of keyword tags
-   - confidence: double (0.0-1.0) - confidence score
-   - createdAt: string (ISO datetime) - creation timestamp
-
-2. **Word Node**
-   - name: string - the keyword/word
-   - language: string - language code (e.g., 'en', 'ko')
-   - frequency: int - usage frequency count
-   - createdAt: string (ISO datetime)
-   - updatedAt: string (ISO datetime)
-
-### Relationships
-1. **RELATES_TO** (Memory -> Memory)
-   - type: string - relationship subtype
-   - Common types: 'extends', 'enhanced-version', 'supports', 'contradicts', 'implements', 'references', 'related-to', 'example-of', 'explains'
-   - weight: double (0.0-1.0) - relationship strength
-   - createdAt: string (ISO datetime)
-
-2. **HAS_KEYWORD** (Memory -> Word)
-   - relevance: double (0.0-1.0) - keyword relevance to memory
-   - createdAt: string (ISO datetime)
-
-## Query Guidelines
-1. Use case-insensitive matching with CONTAINS for text searches
-2. Always include LIMIT clause (default 50 unless specified)
-3. Return nodes and relationships when traversing paths
-4. Use DISTINCT when necessary to avoid duplicates
-5. For keyword searches, utilize the Word nodes and HAS_KEYWORD relationships
-6. Consider multiple search patterns (title, summary, tags) for comprehensive results
-7. Use WITH clauses for complex aggregations
-8. Order results by relevance when applicable
-
-## Natural Language Query: {naturalLanguageQuery}
-
-## Comprehensive Examples with Relationship Context
-
-### Type-based Searches with Connections
-- ""Find all reference documents"" -> MATCH (m:Memory {{type: 'reference'}}) OPTIONAL MATCH (m)-[r:RELATES_TO]-(connected:Memory) RETURN m, r, connected LIMIT 50
-- ""Show how-to guides"" -> MATCH (m:Memory {{type: 'how-to'}}) OPTIONAL MATCH (m)-[:HAS_KEYWORD]->(w:Word) RETURN m, w LIMIT 50
-- ""Get system memories with their relationships"" -> MATCH (m:Memory {{type: 'system'}}) OPTIONAL MATCH (m)-[r]-(other) RETURN m, r, other LIMIT 50
-
-### Enhanced Keyword and Tag Searches
-- ""Find memories about Docker or Kubernetes"" -> MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE toLower(w.name) IN ['docker', 'kubernetes', 'container', 'k8s', 'containerization'] WITH m, COLLECT(w) as keywords OPTIONAL MATCH (m)-[r:RELATES_TO]-(related:Memory) RETURN m, keywords, r, related LIMIT 50
-- ""Show memories related to AI"" -> MATCH (m:Memory) WHERE toLower(m.title) CONTAINS 'ai' OR toLower(m.summary) CONTAINS 'artificial intelligence' OR ANY(tag IN m.tags WHERE toLower(tag) IN ['ai', 'artificial-intelligence', 'machine-learning', 'ml', 'deep-learning']) OPTIONAL MATCH (m)-[r]-(connected) RETURN m, r, connected LIMIT 50
-- ""Find SSE or Server-Sent Events"" -> MATCH (m:Memory) WHERE toLower(m.title) CONTAINS 'sse' OR toLower(m.summary) CONTAINS 'server-sent' OR ANY(tag IN m.tags WHERE toLower(tag) CONTAINS 'sse' OR toLower(tag) CONTAINS 'server-sent') RETURN m LIMIT 50
-- ""Search for reactive programming"" -> MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word) WHERE toLower(w.name) CONTAINS 'reactive' OR w.name IN ['rxjs', 'reactor', 'akka', 'flux', 'mono'] WITH m, COLLECT(w) as keywords RETURN m, keywords LIMIT 50
-
-### Rich Relationship Queries
-- ""Find memories that extend DDD concepts"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'extends'}}]->(m2:Memory) WHERE toLower(m2.title) CONTAINS 'ddd' OR toLower(m2.summary) CONTAINS 'domain-driven' OR ANY(tag IN m2.tags WHERE toLower(tag) IN ['ddd', 'domain-driven-design']) WITH m1, r, m2 OPTIONAL MATCH (m1)-[:HAS_KEYWORD]->(w:Word) RETURN m1, r, m2, COLLECT(DISTINCT w) as keywords LIMIT 50
-- ""Show enhanced versions with context"" -> MATCH (original:Memory)<-[r:RELATES_TO {{type: 'enhanced-version'}}]-(enhanced:Memory) WITH original, r, enhanced OPTIONAL MATCH (enhanced)-[:HAS_KEYWORD]->(w:Word) RETURN original, r, enhanced, COLLECT(w) as keywords ORDER BY enhanced.createdAt DESC LIMIT 50
-- ""Find examples of patterns"" -> MATCH (example:Memory)-[r:RELATES_TO {{type: 'example-of'}}]->(pattern:Memory) WHERE toLower(pattern.title) CONTAINS 'pattern' OR toLower(pattern.type) = 'pattern' WITH example, r, pattern OPTIONAL MATCH (example)-[r2]-(other:Memory) WHERE other.id <> pattern.id RETURN example, r, pattern, COLLECT(DISTINCT other) as relatedExamples LIMIT 30
-- ""Show memories that support each other"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'supports'}}]-(m2:Memory) WHERE id(m1) < id(m2) RETURN m1, r, m2 LIMIT 30
-
-### Advanced Analysis Queries
-- ""Find the most connected memories"" -> MATCH (m:Memory) WITH m, SIZE([(m)-[]-() | 1]) as degree WHERE degree > 2 OPTIONAL MATCH (m)-[r]-(connected) RETURN m, degree, COLLECT(DISTINCT {{node: connected, relationship: type(r)}}) as connections ORDER BY degree DESC LIMIT 20
-- ""Show most frequent keywords with their memories"" -> MATCH (w:Word)<-[:HAS_KEYWORD]-(m:Memory) WITH w, COUNT(DISTINCT m) as memoryCount, COLLECT(DISTINCT m.title)[..5] as sampleTitles WHERE memoryCount > 1 RETURN w, memoryCount, sampleTitles ORDER BY w.frequency DESC, memoryCount DESC LIMIT 20
-- ""Find memories with common keywords"" -> MATCH (m1:Memory)-[:HAS_KEYWORD]->(w:Word)<-[:HAS_KEYWORD]-(m2:Memory) WHERE id(m1) < id(m2) WITH m1, m2, COLLECT(DISTINCT w.name) as common_keywords, COUNT(DISTINCT w) as keyword_count WHERE keyword_count > 2 RETURN m1, m2, common_keywords, keyword_count ORDER BY keyword_count DESC LIMIT 20
-- ""Recent high-confidence memories with relationships"" -> MATCH (m:Memory) WHERE m.confidence > 0.8 AND m.createdAt > datetime() - duration('P30D') OPTIONAL MATCH (m)-[r:RELATES_TO]-(related:Memory) RETURN m, COLLECT(DISTINCT {{memory: related, type: r.type}}) as relationships ORDER BY m.createdAt DESC LIMIT 30
-
-### Complex Graph Patterns
-- ""Find reference documents with examples"" -> MATCH (ref:Memory {{type: 'reference'}})<-[r:RELATES_TO {{type: 'example-of'}}]-(example:Memory) WITH ref, COLLECT(example) as examples OPTIONAL MATCH (ref)-[:HAS_KEYWORD]->(w:Word) RETURN ref, examples, COLLECT(DISTINCT w) as keywords LIMIT 30
-- ""Show knowledge clusters"" -> MATCH path = (m1:Memory)-[:RELATES_TO*1..3]-(m2:Memory) WHERE m1.id <> m2.id WITH m1, m2, path, length(path) as distance RETURN path ORDER BY distance LIMIT 20
-- ""Find hub memories"" -> MATCH (m:Memory) WITH m, SIZE([(m)-[:HAS_KEYWORD]->() | 1]) as keywordCount, SIZE([(m)-[:RELATES_TO]-() | 1]) as relationCount WHERE keywordCount > 5 OR relationCount > 3 RETURN m, keywordCount, relationCount, (keywordCount + relationCount * 2) as hubScore ORDER BY hubScore DESC LIMIT 20
-- ""Trace relationship chains"" -> MATCH path = (start:Memory)-[:RELATES_TO*1..4]->(end:Memory) WHERE start.type = 'reference' AND end.type = 'example' RETURN path LIMIT 10
-
-### Source and Confidence Analysis
-- ""Find LLM-generated memories with connections"" -> MATCH (m:Memory {{source: 'LLM'}}) OPTIONAL MATCH (m)-[r]-(connected:Memory) WITH m, COLLECT(DISTINCT connected) as connections RETURN m, connections, SIZE(connections) as connectionCount ORDER BY m.createdAt DESC LIMIT 50
-- ""High confidence memory network"" -> MATCH (m:Memory) WHERE m.confidence >= 0.9 OPTIONAL MATCH (m)-[r:RELATES_TO]-(related:Memory) WHERE related.confidence >= 0.8 RETURN m, COLLECT(DISTINCT related) as highConfidenceNetwork ORDER BY m.createdAt DESC LIMIT 30
-- ""Memory evolution over time"" -> MATCH (m1:Memory)-[r:RELATES_TO {{type: 'enhanced-version'}}]->(m2:Memory) WHERE m1.createdAt < m2.createdAt RETURN m1, r, m2, duration.between(m1.createdAt, m2.createdAt) as timeDiff ORDER BY timeDiff LIMIT 20
-
-## IMPORTANT INSTRUCTIONS
-1. Return ONLY a valid Neo4j Cypher query
-2. Do NOT include any explanations, comments, or markdown
-3. Do NOT include backticks or code blocks
-4. Do NOT include any text before or after the query
-5. The response must be directly executable in Neo4j
-
-Generate the Cypher query now:";
-
+        // Use centralized prompt template for Cypher query generation
+        var prompt = PromptTemplates.CreateGraphQueryPrompt(naturalLanguageQuery);
+        
         var cypherQuery = await _llmService.CompleteAsync(prompt);
         
         // Clean up the response

@@ -82,7 +82,7 @@ public sealed class OpenAILlmService : ILlmService
             // Try a simple test request to verify connectivity and model availability
             var messages = new List<ChatMessage>
             {
-                ChatMessage.CreateSystemMessage("You are a helpful assistant."),
+                ChatMessage.CreateSystemMessage(PromptTemplates.HealthCheckSystemMessage),
                 ChatMessage.CreateUserMessage("Test")
             };
 
