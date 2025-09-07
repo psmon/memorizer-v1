@@ -82,6 +82,7 @@ public interface IStorage
     Task<int> CountMemoriesWithoutMetadataEmbeddings(CancellationToken cancellationToken = default);
     Task<List<Memorizer.Models.Memory>> GetMemoriesWithoutMetadataEmbeddings(int limit, bool includeExisting = false, CancellationToken cancellationToken = default);
     Task UpdateMemoryMetadataEmbedding(Guid memoryId, Vector embedding, CancellationToken cancellationToken = default);
+    Task UpdateMemoryBothEmbeddings(Guid memoryId, Vector fullEmbedding, Vector metadataEmbedding, CancellationToken cancellationToken = default);
     
     // Dual embedding comparison methods for PoC
     Task<List<Memorizer.Models.Memory>> SearchWithFullEmbedding(
@@ -335,7 +336,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -411,7 +412,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -464,7 +465,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -622,7 +623,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -800,7 +801,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 Tags = reader.GetFieldValue<string[]>(6),
                 Confidence = reader.GetDouble(7),
                 CreatedAt = reader.GetDateTime(8),
@@ -877,7 +878,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -969,7 +970,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -1070,7 +1071,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.IsDBNull(5) ? new Vector(new float[384]) : reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector?>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),
@@ -1108,6 +1109,24 @@ public class Storage : IStorage
         await using var command = new NpgsqlCommand(sql, connection);
         command.Parameters.AddWithValue("id", memoryId);
         command.Parameters.AddWithValue("embedding", embedding);
+        
+        await command.ExecuteNonQueryAsync(cancellationToken);
+    }
+
+    public async Task UpdateMemoryBothEmbeddings(Guid memoryId, Vector fullEmbedding, Vector metadataEmbedding, CancellationToken cancellationToken = default)
+    {
+        const string sql = @"
+            UPDATE memories 
+            SET embedding = @fullEmbedding, 
+                embedding_metadata = @metadataEmbedding, 
+                updated_at = NOW() 
+            WHERE id = @id";
+        
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+        await using var command = new NpgsqlCommand(sql, connection);
+        command.Parameters.AddWithValue("id", memoryId);
+        command.Parameters.AddWithValue("fullEmbedding", fullEmbedding);
+        command.Parameters.AddWithValue("metadataEmbedding", metadataEmbedding);
         
         await command.ExecuteNonQueryAsync(cancellationToken);
     }
@@ -1253,7 +1272,7 @@ public class Storage : IStorage
                 Content = reader.GetFieldValue<JsonDocument>(2),
                 Text = reader.GetString(3),
                 Source = reader.GetString(4),
-                Embedding = reader.IsDBNull(5) ? new Vector(new float[384]) : reader.GetFieldValue<Vector>(5),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
                 EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector?>(6),
                 Tags = reader.GetFieldValue<string[]>(7),
                 Confidence = reader.GetDouble(8),

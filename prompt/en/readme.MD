@@ -60,11 +60,23 @@ Blog view UX and performance improvements
 
 - [View-Blog-Upgrade2](09-View-Blog-Upgrade2.MD)
 
+## Version 1.0.5
+
+Custom LLM/Embedding service implementation and configuration improvements
+
+- [CustomLLM-New](10-CustomLLM-New.MD)
+
+## Version 1.0.6
+
+Vector synchronization bug fix for embedding dimension changes
+
+- [VectorSync-Fix01](11-VectorSync-Fix01.MD)
+
 
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
-claude mcp add --transport sse --header "X-API-Key: your-api-key-here" memorizer http://localhost:5012/sse
+claude mcp add memorizer http://localhost:5012/sse --transport sse --header "X-API-Key: your-api-key-here"
 
 claude mcp list
 

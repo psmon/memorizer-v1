@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: memorizer-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_PLUGINS=["apoc", "graph-data-science"]
+      - NEO4J_dbms_memory_pagecache_size=1G
+      - NEO4J_dbms_memory_heap_initial__size=1G
+      - NEO4J_dbms_memory_heap_max__size=2G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+  
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    container_name: postgmem-postgres
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgmem
+    ports:
+      - "5432:5432"
+    volumes:
+      - /mnt/d/data/postgres/mcp_ver1:/var/lib/postgresql/data
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
+  memorizer:
+    build:
+      context: .
+      dockerfile: src/Memorizer/Dockerfile
+    container_name: memorizer-app
+    ports:
+      - "5012:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Storage: Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
+      # Custom configuration for external embedding and LLM services
+      MEMORIZER_Embeddings__Type: Custom
+      MEMORIZER_Embeddings__ApiUrl: http://192.168.0.50:1234
+      ## 384 dimensions
+      #MEMORIZER_Embeddings__Model: text-embedding-all-minilm-l12-v2
+      ## 768 dimensions
+      MEMORIZER_Embeddings__Model: text-embedding-nomic-embed-text-v1.5      
+      # Custom LLM configuration
+      MEMORIZER_LLM__Type: Custom
+      MEMORIZER_LLM__ApiUrl: http://192.168.0.50:1234
+      MEMORIZER_LLM__Chunking__MinCharactersForChunking: '2000'
+      MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
+      MEMORIZER_LLM__Model: openai/gpt-oss-20b
+      MEMORIZER_LLM__Timeout: 00:02:00
+      # Neo4j configuration
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__User: neo4j
+      Neo4j__Password: password
+      Neo4j__Database: neo4j
+      # Server settings
+      MEMORIZER_Server__CanonicalUrl: http://localhost:5000
+      MEMORIZER_Server__UserName: admin
+      MEMORIZER_Server__Password: admin123
+      MEMORIZER_Server__ApiKey: your-api-key-here
+    depends_on:
+      - postgres
+      - neo4j      
+volumes:  
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:

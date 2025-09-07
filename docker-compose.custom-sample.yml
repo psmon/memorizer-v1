@@ -10,18 +10,18 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Storage: Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      
+      # Custom configuration for external embedding and LLM services
       MEMORIZER_Embeddings__Type: Custom
       MEMORIZER_Embeddings__ApiUrl: http://192.168.0.50:1234
       MEMORIZER_Embeddings__Model: text-embedding-all-minilm-l12-v2      
-      
+      # Custom LLM configuration
       MEMORIZER_LLM__Type: Custom
       MEMORIZER_LLM__ApiUrl: http://192.168.0.50:1234
       MEMORIZER_LLM__Chunking__MinCharactersForChunking: '2000'
       MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
       MEMORIZER_LLM__Model: openai/gpt-oss-20b
       MEMORIZER_LLM__Timeout: 00:02:00      
-      
+      # Neo4j configuration
       Neo4j__Uri: bolt://neo4j:7687
       Neo4j__User: neo4j
       Neo4j__Password: password

@@ -100,6 +100,7 @@ public sealed class MetadataEmbeddingActor : ReceiveActor
                 memory.Id,
                 memory.Title ?? "Untitled",
                 memory.Tags ?? [],
+                memory.Text ?? "",
                 _batch.RequestedBy
             ));
         }
@@ -111,10 +112,18 @@ public sealed class MetadataEmbeddingActor : ReceiveActor
         if (_batch == null) return;
         try
         {
+            // Generate metadata embedding (title + tags)
             var metadataText = CreateMetadataText(msg.Title, msg.Tags);
-            var embeddingArray = await _embeddingService.Generate(metadataText);
-            var embedding = new Vector(embeddingArray);
-            await _storage.UpdateMemoryMetadataEmbedding(msg.MemoryId, embedding);
+            var metadataEmbeddingArray = await _embeddingService.Generate(metadataText);
+            var metadataEmbedding = new Vector(metadataEmbeddingArray);
+            
+            // Generate full content embedding (title + text)
+            var fullContentText = string.IsNullOrWhiteSpace(msg.Text) ? msg.Title : msg.Title + " " + msg.Text;
+            var fullEmbeddingArray = await _embeddingService.Generate(fullContentText);
+            var fullEmbedding = new Vector(fullEmbeddingArray);
+            
+            // Update both embeddings in a single transaction
+            await _storage.UpdateMemoryBothEmbeddings(msg.MemoryId, fullEmbedding, metadataEmbedding);
             _batch.Success++;
         }
         catch (Exception ex)

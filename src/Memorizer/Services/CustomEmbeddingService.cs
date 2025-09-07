@@ -17,7 +17,7 @@ public class CustomEmbeddingService : IEmbeddingService
 
     // Custom API specific settings
     private const string DefaultModel = "text-embedding-all-minilm-l12-v2";
-    private const int EmbeddingDimensions = 384;
+    static private int EmbeddingDimensions = 384;
 
     public CustomEmbeddingService(
         HttpClient httpClient,
@@ -56,6 +56,8 @@ public class CustomEmbeddingService : IEmbeddingService
             var embedding = await GenerateEmbeddingInternal(text, cancellationToken);
 
             _logger.LogDebug("Successfully generated embedding with {Dimensions} dimensions using Custom API", embedding.Length);
+            
+            EmbeddingDimensions = embedding.Length;
 
             return embedding;
         }
@@ -250,6 +252,11 @@ public class CustomEmbeddingService : IEmbeddingService
         }
 
         return embedding;
+    }
+    
+    public int GetEmbeddingDimensions()
+    {
+        return EmbeddingDimensions;
     }
 
     // Response models for Custom API

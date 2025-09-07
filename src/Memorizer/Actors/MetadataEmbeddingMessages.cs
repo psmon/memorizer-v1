@@ -15,6 +15,7 @@ public record GenerateMetadataEmbeddingForMemory(
     Guid MemoryId,
     string Title,
     string[] Tags,
+    string Text,
     string RequestedBy
 );
 

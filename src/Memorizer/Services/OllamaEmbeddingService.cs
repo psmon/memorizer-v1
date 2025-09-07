@@ -11,6 +11,7 @@ public class OllamaEmbeddingService : IEmbeddingService
     private readonly HttpClient _httpClient;
     private readonly EmbeddingSettings _settings ;
     private readonly ILogger<OllamaEmbeddingService> _logger;
+    private int _embeddingDimensions = 384; // Default, will be updated dynamically
 
     public OllamaEmbeddingService(
         HttpClient httpClient,
@@ -52,6 +53,9 @@ public class OllamaEmbeddingService : IEmbeddingService
             }
 
             _logger.LogDebug("Successfully generated embedding with {Dimensions} dimensions", result.Embedding.Length);
+            
+            // Update dimensions dynamically
+            _embeddingDimensions = result.Embedding.Length;
 
             return result.Embedding;
         }
@@ -62,7 +66,7 @@ public class OllamaEmbeddingService : IEmbeddingService
             // Fallback to a random embedding in case of error
             _logger.LogWarning("Falling back to random embedding generation");
             Random random = new();
-            float[] embedding = new float[384];
+            float[] embedding = new float[_embeddingDimensions];
             for (int i = 0; i < embedding.Length; i++)
             {
                 embedding[i] = (float)random.NextDouble();
@@ -92,5 +96,10 @@ public class OllamaEmbeddingService : IEmbeddingService
     {
         string jsonString = document.RootElement.ToString();
         return await Generate(jsonString, cancellationToken);
+    }
+    
+    public int GetEmbeddingDimensions()
+    {
+        return _embeddingDimensions;
     }
 }

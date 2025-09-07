@@ -9,7 +9,7 @@ public class Memory
     public string Type { get; init; } = string.Empty;
     public JsonDocument Content { get; init; } = JsonDocument.Parse("{}");
     public string Source { get; init; } = string.Empty;
-    public Vector Embedding { get; init; } = new(new float[384]);
+    public Vector Embedding { get; init; } = new(new float[0]); // Size determined dynamically by embedding service
     public Vector? EmbeddingMetadata { get; init; } = null;
     public string[]? Tags { get; init; }
     public double Confidence { get; init; }

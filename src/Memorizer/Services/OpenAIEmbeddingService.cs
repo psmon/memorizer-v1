@@ -14,6 +14,7 @@ public class OpenAIEmbeddingService : IEmbeddingService
     private readonly EmbeddingClient _embeddingClient;
     private readonly EmbeddingSettings _settings;
     private readonly ILogger<OpenAIEmbeddingService> _logger;
+    private int _embeddingDimensions = 1536; // Default for OpenAI, will be updated dynamically
 
     public OpenAIEmbeddingService(
         EmbeddingSettings settings,
@@ -51,6 +52,9 @@ public class OpenAIEmbeddingService : IEmbeddingService
             var embedding = response.Value.ToFloats().ToArray();
 
             _logger.LogDebug("Successfully generated embedding with {Dimensions} dimensions using OpenAI", embedding.Length);
+            
+            // Update dimensions dynamically
+            _embeddingDimensions = embedding.Length;
 
             return embedding;
         }
@@ -61,7 +65,7 @@ public class OpenAIEmbeddingService : IEmbeddingService
             // Fallback to a random embedding in case of error
             _logger.LogWarning("Falling back to random embedding generation");
             Random random = new();
-            float[] embedding = new float[1536]; // OpenAI's text-embedding-3-small default dimension
+            float[] embedding = new float[_embeddingDimensions];
             for (int i = 0; i < embedding.Length; i++)
             {
                 embedding[i] = (float)random.NextDouble();
@@ -90,5 +94,10 @@ public class OpenAIEmbeddingService : IEmbeddingService
     {
         string jsonString = document.RootElement.ToString();
         return await Generate(jsonString, cancellationToken);
+    }
+    
+    public int GetEmbeddingDimensions()
+    {
+        return _embeddingDimensions;
     }
 }

@@ -13,4 +13,6 @@ public interface IEmbeddingService
         JsonDocument document,
         CancellationToken cancellationToken = default
     );
+    
+    int GetEmbeddingDimensions();
 }
