@@ -133,97 +133,16 @@
 </div>
 
 @section Styles {
-<style>
-.markdown-content {
-    line-height: 1.6;
-}
-
-.markdown-content h1,
-.markdown-content h2,
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5,
-.markdown-content h6 {
-    margin-top: 1.5rem;
-    margin-bottom: 1rem;
-    font-weight: 600;
-}
-
-.markdown-content h1 { border-bottom: 2px solid #e9ecef; padding-bottom: 0.5rem; }
-.markdown-content h2 { border-bottom: 1px solid #e9ecef; padding-bottom: 0.3rem; }
-
-.markdown-content p {
-    margin-bottom: 1rem;
-}
-
-.markdown-content ul,
-.markdown-content ol {
-    margin-bottom: 1rem;
-    padding-left: 2rem;
-}
-
-.markdown-content li {
-    margin-bottom: 0.25rem;
-}
-
-.markdown-content blockquote {
-    border-left: 4px solid #007bff;
-    padding-left: 1rem;
-    margin: 1rem 0;
-    color: #6c757d;
-    font-style: italic;
-}
-
-.markdown-content code {
-    background-color: #f8f9fa;
-    padding: 0.2rem 0.4rem;
-    border-radius: 0.25rem;
-    font-size: 0.875em;
-}
-
-.markdown-content pre {
-    background-color: #f8f9fa;
-    padding: 1rem;
-    border-radius: 0.5rem;
-    overflow-x: auto;
-    margin: 1rem 0;
-}
-
-.markdown-content pre code {
-    background-color: transparent;
-    padding: 0;
-}
-
-.markdown-content table {
-    width: 100%;
-    margin-bottom: 1rem;
-    border-collapse: collapse;
-}
-
-.markdown-content th,
-.markdown-content td {
-    padding: 0.75rem;
-    border: 1px solid #dee2e6;
-}
-
-.markdown-content th {
-    background-color: #f8f9fa;
-    font-weight: 600;
-}
-
-.markdown-content a {
-    color: #007bff;
-    text-decoration: none;
-}
-
-.markdown-content a:hover {
-    text-decoration: underline;
-}
-</style>
+    <!-- Markdown styles are now in common CSS file -->
 }
 
 @section Scripts {
+<!-- Markdown rendering libraries -->
 <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- Mermaid for diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 <script>
 let memoryId = '@(ViewBag.MemoryId?.ToString() ?? "")';
 let isAuthenticated = @(isAuthenticated ? "true" : "false");
@@ -314,14 +233,34 @@ function populateMemoryView(memory) {
             tagsContainer.innerHTML = '<span class="text-muted">No tags</span>';
         }
         
-        // Render markdown content
+        // Render markdown content with enhanced features
         const content = memory.text || 'No content available';
-        const renderedHtml = marked.parse(content);
-        document.getElementById('renderedContent').innerHTML = renderedHtml;
+        const targetElement = document.getElementById('renderedContent');
         
-        // Highlight code blocks
-        if (typeof Prism !== 'undefined') {
-            Prism.highlightAll();
+        console.log('Rendering content, text length:', content.length);
+        console.log('Content preview:', content.substring(0, 200));
+        
+        // Use the enhanced markdown renderer if available
+        if (typeof renderMarkdownContent === 'function') {
+            renderMarkdownContent(content, targetElement).then(() => {
+                console.log('Markdown content rendered with enhancements');
+                // Check what was actually rendered
+                const renderedMermaid = targetElement.querySelectorAll('.mermaid-wrapper');
+                console.log('Rendered mermaid diagrams:', renderedMermaid.length);
+            }).catch(error => {
+                console.error('Error rendering markdown:', error);
+                // Fallback to basic rendering
+                targetElement.innerHTML = marked.parse(content);
+            });
+        } else {
+            // Fallback to basic rendering
+            targetElement.innerHTML = marked.parse(content);
+            // Apply syntax highlighting
+            if (typeof hljs !== 'undefined') {
+                targetElement.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+            }
         }
         
         // Handle related memories

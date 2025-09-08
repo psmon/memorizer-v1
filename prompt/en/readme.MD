@@ -72,6 +72,18 @@ Vector synchronization bug fix for embedding dimension changes
 
 - [VectorSync-Fix01](11-VectorSync-Fix01.MD)
 
+## Version 1.0.7
+
+Prompt improvement for duplicate prompts with same purpose but differences
+
+- [PROMPT-Improve](12.PROMPT-Improve.md)
+
+## Version 1.0.8
+
+Content view enhancement with markdown rendering improvements
+
+- [ContentView-Upgrade](13-ContentView-Upgrade.MD)
+
 
 ## Claude Cli Setting: Use for Vibe Coding
 

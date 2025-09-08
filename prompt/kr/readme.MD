@@ -58,6 +58,30 @@ GraphDB 검색 및 표현 기능 추가 개선, Blog Memories 페이지 추가
 
 - [View-Blog-Upgrade2](09-View-Blog-Upgrade2.MD)
 
+## Version 1.0.5
+
+Custom LLM/Embedding 서비스 구현 및 설정 개선
+
+- [CustomLLM-New](10-CustomLLM-New.MD)
+
+## Version 1.0.6
+
+임베딩 차원 변경에 대한 벡터 동기화 버그 수정
+
+- [VectorSync-Fix01](11-VectorSync-Fix01.MD)
+
+## Version 1.0.7
+
+동일 목적이지만 차이가 있는 중복 프롬프트 개선
+
+- [PROMPT-Improve](12.PROMPT-Improve.md)
+
+## Version 1.0.8
+
+마크다운 렌더링 개선을 통한 콘텐츠 뷰 향상
+
+- [ContentView-Upgrade](13-ContentView-Upgrade.MD)
+
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 

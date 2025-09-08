@@ -123,9 +123,12 @@
 </div>
 
 @section Scripts {
+<!-- Markdown rendering libraries -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<!-- Mermaid for diagrams -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 <script>
 let currentPage = 1;
 let isLoading = false;
@@ -140,22 +143,38 @@ let tagCounts = {};
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function() {
-    // Configure marked with syntax highlighting
-    marked.setOptions({
-        highlight: function(code, lang) {
-            const language = lang || 'plaintext';
-            if (language && hljs.getLanguage(language)) {
-                try {
-                    return `<code class="language-${language}">${hljs.highlight(code, { language: language }).value}</code>`;
-                } catch (e) {}
-            }
-            const result = hljs.highlightAuto(code);
-            return `<code class="language-${result.language || 'plaintext'}">${result.value}</code>`;
-        },
-        breaks: true,
-        gfm: true,
-        langPrefix: 'language-'
-    });
+    // Configure marked and mermaid using common renderer
+    if (typeof configureMarked === 'function') {
+        configureMarked();
+    } else {
+        // Fallback configuration
+        marked.setOptions({
+            highlight: function(code, lang) {
+                // Skip mermaid blocks from syntax highlighting
+                if (lang && lang.toLowerCase() === 'mermaid') {
+                    return code;
+                }
+                const language = lang || 'plaintext';
+                if (language && hljs.getLanguage(language)) {
+                    try {
+                        return `<code class="language-${language}">${hljs.highlight(code, { language: language }).value}</code>`;
+                    } catch (e) {}
+                }
+                const result = hljs.highlightAuto(code);
+                return `<code class="language-${result.language || 'plaintext'}">${result.value}</code>`;
+            },
+            breaks: true,
+            gfm: true,
+            langPrefix: 'language-'
+        });
+    }
+    
+    // Initialize mermaid if available
+    if (typeof initializeMermaid === 'function') {
+        initializeMermaid();
+    } else if (typeof mermaid !== 'undefined') {
+        mermaid.initialize({ startOnLoad: false, theme: 'default' });
+    }
     
     loadMemories();
     setupInfiniteScroll();
@@ -475,27 +494,28 @@ function createBlogPostCard(memory) {
     `;
 }
 
-// Create preview text (300 characters)
+// Create preview text (300 characters) - Simple preview without code styling or mermaid
 function createPreview(text, maxChars = 300) {
     if (!text) return '';
     
-    // Truncate to maxChars
+    // Truncate text first
     let preview = text.length > maxChars 
         ? text.substring(0, maxChars) + '...' 
         : text;
     
-    // Convert markdown to HTML for preview with syntax highlighting
+    // Remove mermaid blocks from preview
+    preview = preview.replace(/```mermaid[\s\S]*?```/g, '[Diagram]');
+    
+    // Simple markdown parsing without enhancements
     try {
+        // Configure marked for simple preview
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            // No syntax highlighting in preview
+            highlight: null
+        });
         preview = marked.parse(preview);
-        // Apply syntax highlighting and copy buttons to code blocks in preview
-        setTimeout(() => {
-            document.querySelectorAll('.preview-text pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
-            document.querySelectorAll('.blog-content').forEach(content => {
-                addCopyButtons(content);
-            });
-        }, 0);
     } catch (e) {
         preview = escapeHtml(preview).replace(/\\n/g, '<br>');
     }
@@ -505,7 +525,8 @@ function createPreview(text, maxChars = 300) {
 
 // View full memory in modal
 async function viewMemory(id) {
-    const modal = new bootstrap.Modal(document.getElementById('memoryModal'));
+    const modalElement = document.getElementById('memoryModal');
+    const modal = new bootstrap.Modal(modalElement);
     const modalBody = document.getElementById('memoryModalBody');
     const modalTitle = document.getElementById('memoryModalLabel');
     
@@ -517,6 +538,24 @@ async function viewMemory(id) {
         </div>
     `;
     
+    // Add one-time event listener for when modal is shown
+    modalElement.addEventListener('shown.bs.modal', function onModalShown() {
+        // Resize any pan-zoom instances after modal animation completes
+        if (typeof svgPanZoom !== 'undefined') {
+            const mermaidWrappers = modalBody.querySelectorAll('.mermaid-wrapper');
+            mermaidWrappers.forEach(wrapper => {
+                if (wrapper.panZoomInstance) {
+                    console.log('Resizing pan-zoom instance in modal');
+                    wrapper.panZoomInstance.resize();
+                    wrapper.panZoomInstance.fit();
+                    wrapper.panZoomInstance.center();
+                }
+            });
+        }
+        // Remove listener after use
+        modalElement.removeEventListener('shown.bs.modal', onModalShown);
+    });
+    
     modal.show();
     
     try {
@@ -525,7 +564,6 @@ async function viewMemory(id) {
         
         modalTitle.textContent = memory.title || 'Untitled Memory';
         
-        const content = memory.text ? marked.parse(memory.text) : '<p>No content available</p>';
         const tags = memory.tags ? memory.tags.map(tag => 
             `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`
         ).join('') : '';
@@ -547,19 +585,78 @@ async function viewMemory(id) {
                 
                 <hr>
                 
-                <div class="memory-content">
-                    ${content}
+                <div class="memory-content markdown-content" id="modalMemoryContent">
+                    <!-- Content will be rendered here -->
                 </div>
             </div>
         `;
         
-        // Apply syntax highlighting and copy buttons to code blocks in modal
-        setTimeout(() => {
-            modalBody.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
-            });
-            addCopyButtons(modalBody);
-        }, 0);
+        // Apply enhanced markdown rendering to modal content
+        const modalContentElement = document.getElementById('modalMemoryContent');
+        
+        console.log('Modal: Rendering content for:', memory.title);
+        console.log('Modal: Text exists:', !!memory.text);
+        console.log('Modal: Text length:', memory.text ? memory.text.length : 0);
+        
+        if (typeof renderMarkdownContent === 'function' && memory.text) {
+            try {
+                // Clear any existing content first
+                modalContentElement.innerHTML = '';
+                
+                // Wait a bit for modal to be fully shown
+                setTimeout(async () => {
+                    // Render markdown with full enhancements (including mermaid)
+                    await renderMarkdownContent(memory.text, modalContentElement);
+                    
+                    // Verify what was rendered
+                    const renderedMermaid = modalContentElement.querySelectorAll('.mermaid-wrapper');
+                    const renderedCode = modalContentElement.querySelectorAll('.code-block-wrapper');
+                    console.log(`Modal: Rendered ${renderedMermaid.length} mermaid diagrams, ${renderedCode.length} code blocks`);
+                    
+                    // Force resize of any pan-zoom instances after modal is shown
+                    if (typeof svgPanZoom !== 'undefined') {
+                        renderedMermaid.forEach(wrapper => {
+                            if (wrapper.panZoomInstance) {
+                                // Resize and re-center after modal is fully visible
+                                wrapper.panZoomInstance.resize();
+                                wrapper.panZoomInstance.fit();
+                                wrapper.panZoomInstance.center();
+                            }
+                        });
+                    }
+                }, 200); // Give modal time to fully render
+                
+            } catch (error) {
+                console.error('Error rendering with enhancements:', error);
+                // Fallback to basic rendering
+                modalContentElement.innerHTML = marked.parse(memory.text || '');
+                
+                // Apply basic enhancements
+                setTimeout(() => {
+                    modalBody.querySelectorAll('pre code').forEach((block) => {
+                        if (!block.classList.contains('language-mermaid')) {
+                            hljs.highlightElement(block);
+                        }
+                    });
+                    addCopyButtons(modalBody);
+                }, 200);
+            }
+        } else {
+            console.log('Modal: Using fallback rendering');
+            // Fallback: render with basic marked
+            const content = memory.text ? marked.parse(memory.text) : '<p>No content available</p>';
+            modalContentElement.innerHTML = content;
+            
+            // Apply syntax highlighting and copy buttons
+            setTimeout(() => {
+                modalBody.querySelectorAll('pre code').forEach((block) => {
+                    if (!block.classList.contains('language-mermaid')) {
+                        hljs.highlightElement(block);
+                    }
+                });
+                addCopyButtons(modalBody);
+            }, 0);
+        }
         
     } catch (error) {
         console.error('Error loading memory:', error);

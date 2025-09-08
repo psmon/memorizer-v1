@@ -22,11 +22,8 @@ docker build --no-cache -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build
 docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:latest
 docker push psmon/mcp-memorizer:latest
 
-
-docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.0.5-sam
-docker push psmon/mcp-memorizer:v1.0.5-sam
-
-
+docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.0.8
+docker push psmon/mcp-memorizer:v1.0.8
 
 ```
 

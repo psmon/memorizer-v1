@@ -1,0 +1,455 @@
+/* Markdown Content Styles - Common for all markdown views */
+
+/* Base markdown content styling */
+.markdown-content {
+    line-height: 1.6;
+    color: #24292f;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.markdown-content h1 { 
+    font-size: 2em;
+    border-bottom: 2px solid #e9ecef; 
+    padding-bottom: 0.5rem; 
+}
+
+.markdown-content h2 { 
+    font-size: 1.5em;
+    border-bottom: 1px solid #e9ecef; 
+    padding-bottom: 0.3rem; 
+}
+
+.markdown-content h3 { font-size: 1.25em; }
+.markdown-content h4 { font-size: 1em; }
+.markdown-content h5 { font-size: 0.875em; }
+.markdown-content h6 { font-size: 0.85em; color: #57606a; }
+
+.markdown-content p {
+    margin-bottom: 1rem;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+}
+
+.markdown-content li {
+    margin-bottom: 0.25rem;
+}
+
+.markdown-content blockquote {
+    border-left: 4px solid #007bff;
+    padding-left: 1rem;
+    margin: 1rem 0;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Inline code styling */
+.markdown-content code:not(pre code) {
+    background-color: rgba(175, 184, 193, 0.2);
+    padding: 0.2em 0.4em;
+    border-radius: 6px;
+    font-size: 85%;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* Code block wrapper for toolbar */
+.code-block-wrapper {
+    position: relative;
+    margin: 1rem 0;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+/* Dark theme code blocks - GitHub Dark style */
+.markdown-content pre,
+.code-block-wrapper pre {
+    background-color: #0d1117;
+    padding: 1rem;
+    padding-top: 3rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    max-width: 100%;
+    border: 1px solid #30363d;
+    margin: 0;
+    font-size: 85%;
+    line-height: 1.45;
+}
+
+.markdown-content pre code,
+.code-block-wrapper pre code {
+    background-color: transparent;
+    color: #e6edf3;
+    padding: 0;
+    font-size: inherit;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* Code block toolbar */
+.code-block-toolbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 1rem;
+    background-color: #161b22;
+    border-bottom: 1px solid #30363d;
+    z-index: 10;
+}
+
+/* Language label styling */
+.code-language-label {
+    padding: 0.25rem 0.75rem;
+    background-color: rgba(110, 118, 129, 0.1);
+    color: #8b949e;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.code-language-label i {
+    margin-right: 0.375rem;
+    font-size: 0.75rem;
+}
+
+/* Copy button styling */
+.copy-code-button {
+    padding: 0.25rem 0.75rem;
+    background-color: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    display: inline-flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.copy-code-button:hover {
+    background-color: #30363d;
+    color: #f0f6fc;
+    border-color: #8b949e;
+}
+
+.copy-code-button.copied {
+    background-color: #238636;
+    border-color: #2ea043;
+    color: #ffffff;
+}
+
+.copy-code-button i {
+    margin-right: 0.25rem;
+    font-size: 0.75rem;
+}
+
+/* Mermaid diagram container */
+.mermaid-wrapper {
+    margin: 1rem 0;
+    padding: 1rem;
+    background-color: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 6px;
+    overflow: hidden; /* Changed from overflow-x: auto to prevent scrollbars */
+    text-align: center;
+    position: relative; /* For absolute positioning of controls */
+    min-height: 400px; /* Ensure minimum height */
+}
+
+.mermaid-wrapper .mermaid {
+    display: block; /* Changed from inline-block to block */
+    width: 100%; /* Use full width */
+    max-width: 100%;
+    height: 100%;
+}
+
+/* Ensure SVG uses full width */
+.mermaid-wrapper svg {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: 400px;
+}
+
+.mermaid-wrapper.dark {
+    background-color: #0d1117;
+    border-color: #30363d;
+}
+
+/* Mermaid error state */
+.mermaid-error {
+    padding: 1rem;
+    background-color: #ffebe9;
+    border: 1px solid #ff8182;
+    border-radius: 6px;
+    color: #cf222e;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace;
+    font-size: 0.875rem;
+}
+
+.mermaid-error pre {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin: 0.5rem 0 0 0;
+    color: inherit;
+}
+
+/* Mermaid zoom/pan controls */
+.mermaid-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    gap: 5px;
+    z-index: 10;
+    background: rgba(255, 255, 255, 0.95);
+    padding: 5px;
+    border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mermaid-control-btn {
+    padding: 6px 10px;
+    background: #ffffff;
+    border: 1px solid #d0d7de;
+    border-radius: 4px;
+    cursor: pointer;
+    color: #57606a;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 32px;
+    min-height: 32px;
+}
+
+.mermaid-control-btn:hover {
+    background: #f6f8fa;
+    border-color: #8b949e;
+    color: #24292f;
+}
+
+.mermaid-control-btn:active {
+    background: #e9ecef;
+    transform: scale(0.95);
+}
+
+.mermaid-control-btn i {
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* Dark mode support for mermaid controls */
+.mermaid-wrapper.dark .mermaid-controls {
+    background: rgba(13, 17, 23, 0.95);
+}
+
+.mermaid-wrapper.dark .mermaid-control-btn {
+    background: #21262d;
+    border-color: #30363d;
+    color: #8b949e;
+}
+
+.mermaid-wrapper.dark .mermaid-control-btn:hover {
+    background: #30363d;
+    border-color: #58a6ff;
+    color: #c9d1d9;
+}
+
+/* Tables */
+.markdown-content table {
+    display: block;
+    width: 100%;
+    width: max-content;
+    max-width: 100%;
+    overflow: auto;
+    border-spacing: 0;
+    border-collapse: collapse;
+    margin: 1rem 0;
+}
+
+.markdown-content table th,
+.markdown-content table td {
+    padding: 6px 13px;
+    border: 1px solid #d0d7de;
+}
+
+.markdown-content table th {
+    font-weight: 600;
+    background-color: #f6f8fa;
+}
+
+.markdown-content table tr {
+    background-color: #ffffff;
+}
+
+.markdown-content table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+}
+
+/* Images */
+.markdown-content img {
+    max-width: 100%;
+    height: auto;
+    box-sizing: content-box;
+    background-color: #ffffff;
+}
+
+/* Links */
+.markdown-content a {
+    color: #0969da;
+    text-decoration: none;
+}
+
+.markdown-content a:hover {
+    text-decoration: underline;
+}
+
+/* Horizontal rule */
+.markdown-content hr {
+    height: 0.25em;
+    padding: 0;
+    margin: 24px 0;
+    background-color: #d0d7de;
+    border: 0;
+}
+
+/* Task lists */
+.markdown-content .task-list-item {
+    list-style-type: none;
+}
+
+.markdown-content .task-list-item input[type="checkbox"] {
+    margin: 0 0.2em 0.25em -1.6em;
+    vertical-align: middle;
+}
+
+/* Mobile responsive */
+@media (max-width: 576px) {
+    .code-block-toolbar {
+        padding: 0.25rem 0.5rem;
+    }
+    
+    .code-language-label,
+    .copy-code-button {
+        padding: 0.2rem 0.5rem;
+        font-size: 0.7rem;
+    }
+    
+    .code-language-label i,
+    .copy-code-button i {
+        font-size: 0.65rem;
+        margin-right: 0.25rem;
+    }
+    
+    .markdown-content pre,
+    .code-block-wrapper pre {
+        padding-top: 2.5rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* Syntax highlighting color overrides for better contrast */
+.hljs-comment,
+.hljs-quote {
+    color: #8b949e;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+    color: #ff7b72;
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag .hljs-attr {
+    color: #79c0ff;
+}
+
+.hljs-string,
+.hljs-doctag {
+    color: #a5d6ff;
+}
+
+.hljs-title,
+.hljs-section,
+.hljs-selector-id {
+    color: #7ee83f;
+}
+
+.hljs-type,
+.hljs-class .hljs-title {
+    color: #ffa657;
+}
+
+.hljs-tag,
+.hljs-name,
+.hljs-attribute {
+    color: #7ee83f;
+}
+
+.hljs-regexp,
+.hljs-link {
+    color: #a5d6ff;
+}
+
+.hljs-symbol,
+.hljs-bullet {
+    color: #ffa657;
+}
+
+.hljs-built_in,
+.hljs-builtin-name {
+    color: #ffa657;
+}
+
+.hljs-meta {
+    color: #79c0ff;
+}
+
+.hljs-deletion {
+    color: #ffdcd7;
+    background-color: #67060c;
+}
+
+.hljs-addition {
+    color: #aff5b4;
+    background-color: #033a16;
+}
+
+.hljs-emphasis {
+    font-style: italic;
+}
+
+.hljs-strong {
+    font-weight: bold;
+}
