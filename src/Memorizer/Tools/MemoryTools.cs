@@ -7,6 +7,8 @@ using System.Diagnostics;
 using Memorizer.Services;
 using Memorizer.Telemetry;
 using Microsoft.Extensions.Logging;
+using Neo4j.Driver;
+using Memorizer.Models;
 
 namespace PostgMem.Tools;
 
@@ -426,9 +428,45 @@ public class MemoryTools
         return $"Relationship created: {rel.Id} from {rel.FromMemoryId} to {rel.ToMemoryId} (type: {rel.Type})";
     }
     
-    [McpServerTool, Description("Search the graph database using natural language queries. This uses LLM to convert natural language to Cypher queries for Neo4j graph traversal. Use this to find complex relationships, patterns, and connections between memories.")]
+    [McpServerTool, Description(@"Search the graph database using natural language queries. This uses LLM to convert natural language to Cypher queries for Neo4j graph traversal.
+
+## Supported Query Types:
+### Memory Type Searches:
+- 'Find all reference documents' - retrieves memories of type 'reference'
+- 'Show how-to guides' - finds all how-to type memories
+- 'Get system memories' - fetches system configuration memories
+
+### Keyword and Tag Searches:
+- 'Find memories about Docker or Kubernetes' - searches by keywords
+- 'Show memories related to AI' - finds AI-related content by title, summary, or tags
+- 'Search for reactive programming' - discovers content with reactive programming keywords
+
+### Relationship Exploration:
+- 'Find memories that extend DDD concepts' - discovers extension relationships
+- 'Show enhanced versions' - finds memories with enhanced-version relationships
+- 'Find examples of patterns' - locates example-of relationships
+- 'Show memories that support each other' - finds supporting relationships
+
+### Advanced Analysis:
+- 'Find the most connected memories' - identifies hub nodes with many connections
+- 'Show most frequent keywords' - analyzes keyword usage patterns
+- 'Find memories with common keywords' - discovers related content through shared keywords
+- 'Recent high-confidence memories' - filters by confidence and recency
+
+### Graph Patterns:
+- 'Find reference documents with examples' - explores reference-example relationships
+- 'Show knowledge clusters' - identifies connected memory groups
+- 'Find hub memories' - locates highly connected nodes
+- 'Trace relationship chains' - follows relationship paths
+
+### Source and Confidence:
+- 'Find LLM-generated memories' - filters by source
+- 'High confidence memory network' - filters by confidence scores
+- 'Memory evolution over time' - tracks memory enhancements
+
+Returns nodes with their properties (id, title, type, tags, summary) and relationships with types (extends, enhanced-version, supports, contradicts, implements, references, related-to, example-of, explains).")]
     public async Task<string> SearchGraph(
-        [Description("Natural language query to search the graph (e.g., 'Find all memories that extend DDD concepts', 'Show the most connected memories', 'Find reference documents related to AI')")] string query,
+        [Description("Natural language query to search the graph. Examples: 'Find all reference documents with examples', 'Show the most connected memories about Docker', 'Find memories that extend domain-driven design concepts', 'Show hub memories with high confidence', 'Find knowledge clusters about AI'")] string query,
         CancellationToken cancellationToken = default
     )
     {
@@ -582,6 +620,365 @@ public class MemoryTools
         {
             _logger.LogError(ex, "Error executing graph search: {Query}", query);
             return $"Error executing graph search: {ex.Message}";
+        }
+    }
+    
+    [McpServerTool, Description(@"Execute a direct Cypher query on the Neo4j graph database. This tool allows advanced users to write custom Cypher queries for complex graph traversals and analysis.
+
+## Graph Schema:
+### Nodes:
+1. **Memory Node**
+   - id: string (UUID) - unique identifier
+   - type: string - values: 'reference', 'how-to', 'system', 'conversation', 'document'
+   - source: string - origin (e.g., 'LLM', 'user', 'system')
+   - title: string - descriptive title
+   - summary: string - detailed content
+   - tags: string[] - keyword tags
+   - confidence: double (0.0-1.0)
+   - createdAt: string (ISO datetime)
+
+2. **Word Node**
+   - name: string - the keyword
+   - language: string - language code
+   - frequency: int - usage count
+   - createdAt/updatedAt: string (ISO datetime)
+
+### Relationships:
+1. **RELATES_TO** (Memory -> Memory)
+   - type: string - subtype (extends, enhanced-version, supports, contradicts, implements, references, related-to, example-of, explains)
+   - weight: double (0.0-1.0)
+   - createdAt: string (ISO datetime)
+
+2. **HAS_KEYWORD** (Memory -> Word)
+   - relevance: double (0.0-1.0)
+   - createdAt: string (ISO datetime)
+
+## Query Guidelines:
+- Use MATCH for pattern matching
+- Use WHERE for filtering conditions
+- Use RETURN to specify output
+- Use OPTIONAL MATCH for optional patterns
+- Use LIMIT to restrict results (recommended: max 100)
+- Use ORDER BY for sorting
+- Use WITH for query chaining
+- Use COLLECT() for aggregations
+- Use DISTINCT to avoid duplicates
+
+## Example Queries:
+### Basic Patterns:
+```cypher
+# Find all reference documents
+MATCH (m:Memory {type: 'reference'}) RETURN m LIMIT 50
+
+# Find memories with specific tag
+MATCH (m:Memory) WHERE 'docker' IN m.tags RETURN m
+
+# Find memories by keyword
+MATCH (m:Memory)-[:HAS_KEYWORD]->(w:Word {name: 'kubernetes'}) RETURN m, w
+```
+
+### Relationship Queries:
+```cypher
+# Find extension relationships
+MATCH (m1:Memory)-[r:RELATES_TO {type: 'extends'}]->(m2:Memory) RETURN m1, r, m2 LIMIT 30
+
+# Find memories with examples
+MATCH (ref:Memory {type: 'reference'})<-[:RELATES_TO {type: 'example-of'}]-(example:Memory) RETURN ref, example
+
+# Find connected memory clusters
+MATCH path = (m1:Memory)-[:RELATES_TO*1..3]-(m2:Memory) RETURN path LIMIT 20
+```
+
+### Advanced Analysis:
+```cypher
+# Find hub nodes (highly connected)
+MATCH (m:Memory)
+WITH m, SIZE([(m)-[]-() | 1]) as degree
+WHERE degree > 3
+RETURN m, degree ORDER BY degree DESC LIMIT 20
+
+# Find memories with common keywords
+MATCH (m1:Memory)-[:HAS_KEYWORD]->(w:Word)<-[:HAS_KEYWORD]-(m2:Memory)
+WHERE id(m1) < id(m2)
+WITH m1, m2, COLLECT(DISTINCT w.name) as common_keywords
+WHERE SIZE(common_keywords) > 2
+RETURN m1, m2, common_keywords
+
+# Recent high-confidence memories
+MATCH (m:Memory)
+WHERE m.confidence > 0.8 AND m.createdAt > datetime() - duration('P30D')
+RETURN m ORDER BY m.createdAt DESC LIMIT 30
+```
+
+## IMPORTANT:
+- This tool executes READ-ONLY queries
+- Avoid queries that modify data (CREATE, MERGE, SET, DELETE)
+- Complex queries may impact performance
+- Always include LIMIT clause for large result sets
+- Results are formatted as nodes and relationships")]
+    public async Task<string> SearchGraphByCypher(
+        [Description(@"The Cypher query to execute. Must be a valid Neo4j Cypher query. Example: 'MATCH (m:Memory {type: ""reference""}) RETURN m LIMIT 10'. Use single quotes for string literals in WHERE clauses, double quotes for property values in node patterns.")] string cypherQuery,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (_graphSearchService == null)
+        {
+            return "Graph search is not available. Neo4j integration may not be configured.";
+        }
+        
+        try
+        {
+            using var activity = TelemetryConfig.ActivitySource.StartActivity("MemoryTools.SearchGraphByCypher");
+            
+            // Basic validation to ensure it's a read-only query
+            var queryUpper = cypherQuery.ToUpperInvariant();
+            var modifyingKeywords = new[] { "CREATE", "MERGE", "SET", "DELETE", "REMOVE", "DROP", "DETACH" };
+            
+            foreach (var keyword in modifyingKeywords)
+            {
+                if (queryUpper.Contains(keyword))
+                {
+                    _logger.LogWarning("Attempted to execute modifying Cypher query: {Query}", cypherQuery);
+                    return $"Error: This tool only supports read-only queries. Modifying operations ({keyword}) are not allowed.";
+                }
+            }
+            
+            // Add a default LIMIT if not present to prevent overwhelming results
+            if (!queryUpper.Contains("LIMIT"))
+            {
+                cypherQuery = cypherQuery.TrimEnd(';', ' ') + " LIMIT 100";
+                _logger.LogInformation("Added default LIMIT 100 to query without limit clause");
+            }
+            
+            activity?.AddEvent(new ActivityEvent("query.details", DateTimeOffset.UtcNow, new ActivityTagsCollection
+            {
+                {"query.cypher", cypherQuery}
+            }));
+            
+            _logger.LogInformation("Executing direct Cypher query: {Query}", cypherQuery);
+            
+            // Execute the query directly through GraphRepository
+            var records = await _graphSearchService.ExecuteRawCypherQuery(cypherQuery);
+            
+            var result = new GraphSearchResult();
+            var nodeIds = new HashSet<string>();
+            var wordNodeIds = new HashSet<string>();
+            var relationships = new List<GraphRelationship>();
+            var nodeConnectionCounts = new Dictionary<string, int>();
+            
+            // Process the results similar to SearchGraphAsync
+            foreach (var record in records)
+            {
+                foreach (var value in record.Values.Values)
+                {
+                    if (value is INode node)
+                    {
+                        await ProcessNodeForCypher(node, nodeIds, wordNodeIds, result, nodeConnectionCounts);
+                    }
+                    else if (value is IRelationship relationship)
+                    {
+                        await ProcessRelationshipForCypher(relationship, relationships, nodeConnectionCounts);
+                    }
+                    else if (value is IPath path)
+                    {
+                        await ProcessPathForCypher(path, nodeIds, wordNodeIds, result, relationships, nodeConnectionCounts);
+                    }
+                }
+            }
+            
+            result.Relationships = relationships;
+            
+            // Format the results
+            var sb = new StringBuilder();
+            sb.AppendLine($"🔍 Direct Cypher Query Results: {result.Nodes.Count} nodes and {result.Relationships.Count} relationships");
+            sb.AppendLine();
+            
+            if (result.Nodes.Count > 0)
+            {
+                // Group nodes by type
+                var nodesByType = result.Nodes.GroupBy(n => n.Type).OrderBy(g => g.Key);
+                
+                sb.AppendLine("📊 Nodes by Type:");
+                foreach (var typeGroup in nodesByType)
+                {
+                    var nodeType = typeGroup.Key ?? "Unknown";
+                    sb.AppendLine($"\n  [{nodeType.ToUpper()}] ({typeGroup.Count()} nodes):");
+                    
+                    foreach (var node in typeGroup.Take(20))
+                    {
+                        sb.AppendLine($"    • {node.Title ?? "Untitled"}");
+                        sb.AppendLine($"      ID: {node.Id}");
+                        
+                        if (node.Tags?.Count > 0)
+                        {
+                            sb.AppendLine($"      Tags: {string.Join(", ", node.Tags.Take(5))}");
+                        }
+                        
+                        if (!string.IsNullOrEmpty(node.Summary))
+                        {
+                            var summaryPreview = node.Summary.Length > 150 
+                                ? node.Summary.Substring(0, 147) + "..." 
+                                : node.Summary;
+                            sb.AppendLine($"      Summary: {summaryPreview}");
+                        }
+                    }
+                    
+                    if (typeGroup.Count() > 20)
+                    {
+                        sb.AppendLine($"    ... and {typeGroup.Count() - 20} more {nodeType} nodes");
+                    }
+                }
+            }
+            
+            if (result.Relationships.Count > 0)
+            {
+                sb.AppendLine();
+                sb.AppendLine("🔗 Relationships:");
+                
+                var relsByType = result.Relationships.GroupBy(r => r.Type).OrderBy(g => g.Key);
+                
+                foreach (var relGroup in relsByType)
+                {
+                    sb.AppendLine($"\n  [{relGroup.Key?.ToUpper() ?? "UNKNOWN"}] ({relGroup.Count()} relationships):");
+                    
+                    foreach (var rel in relGroup.Take(10))
+                    {
+                        sb.AppendLine($"    • {rel.FromId} → {rel.ToId}");
+                    }
+                    
+                    if (relGroup.Count() > 10)
+                    {
+                        sb.AppendLine($"    ... and {relGroup.Count() - 10} more {relGroup.Key} relationships");
+                    }
+                }
+            }
+            
+            if (result.Nodes.Count == 0 && result.Relationships.Count == 0)
+            {
+                sb.AppendLine("No results found for the given query.");
+            }
+            
+            activity?.SetStatus(ActivityStatusCode.Ok, $"Found {result.Nodes.Count} nodes, {result.Relationships.Count} relationships");
+            
+            return sb.ToString();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing Cypher query: {Query}", cypherQuery);
+            return $"Error executing Cypher query: {ex.Message}\nPlease ensure your query syntax is valid and follows Neo4j Cypher conventions.";
+        }
+    }
+    
+    // Helper methods for SearchGraphByCypher
+    private Task ProcessNodeForCypher(INode node, HashSet<string> nodeIds, HashSet<string> wordNodeIds, 
+        GraphSearchResult result, Dictionary<string, int> connectionCounts)
+    {
+        if (node.Labels.Contains("Word"))
+        {
+            var word = node["name"].As<string>();
+            if (!wordNodeIds.Contains(word))
+            {
+                wordNodeIds.Add(word);
+                var wordNode = new GraphMemoryNode
+                {
+                    Id = Guid.NewGuid(),
+                    Title = word,
+                    Type = "Word",
+                    Source = "keyword",
+                    Confidence = node.Properties.ContainsKey("frequency") ? node["frequency"].As<double>() / 100.0 : 1.0,
+                    CreatedAt = node.Properties.ContainsKey("createdAt") 
+                        ? DateTime.Parse(node["createdAt"].As<string>()) 
+                        : DateTime.UtcNow,
+                    Tags = new List<string> { node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en" },
+                    Summary = $"Keyword appearing {(node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1)} times",
+                    Metadata = new Dictionary<string, object>
+                    {
+                        ["frequency"] = node.Properties.ContainsKey("frequency") ? node["frequency"].As<int>() : 1,
+                        ["language"] = node.Properties.ContainsKey("language") ? node["language"].As<string>() : "en"
+                    }
+                };
+                result.Nodes.Add(wordNode);
+            }
+        }
+        else if (node.Labels.Contains("Memory"))
+        {
+            var nodeId = node["id"].As<string>();
+            if (!nodeIds.Contains(nodeId))
+            {
+                nodeIds.Add(nodeId);
+                var memoryNode = new GraphMemoryNode
+                {
+                    Id = Guid.Parse(nodeId),
+                    Title = node.Properties.ContainsKey("title") ? node["title"].As<string>() : "",
+                    Type = node.Properties.ContainsKey("type") ? node["type"].As<string>() : "",
+                    Source = node.Properties.ContainsKey("source") ? node["source"].As<string>() : "",
+                    Confidence = node.Properties.ContainsKey("confidence") ? node["confidence"].As<double>() : 1.0,
+                    CreatedAt = node.Properties.ContainsKey("createdAt") 
+                        ? DateTime.Parse(node["createdAt"].As<string>()) 
+                        : DateTime.UtcNow,
+                    Tags = node.Properties.ContainsKey("tags") 
+                        ? node["tags"].As<List<string>>() ?? new List<string>()
+                        : new List<string>(),
+                    Summary = node.Properties.ContainsKey("summary") ? node["summary"].As<string>() : null,
+                    Metadata = new Dictionary<string, object>()
+                };
+                
+                if (!connectionCounts.ContainsKey(nodeId))
+                    connectionCounts[nodeId] = 0;
+                    
+                result.Nodes.Add(memoryNode);
+            }
+        }
+        return Task.CompletedTask;
+    }
+    
+    private Task ProcessRelationshipForCypher(IRelationship relationship, List<GraphRelationship> relationships,
+        Dictionary<string, int> connectionCounts)
+    {
+        try
+        {
+            // For Cypher queries, we might not have access to GetNodeById, so we'll create simplified relationships
+            var rel = new GraphRelationship
+            {
+                // We'll use placeholder GUIDs if we can't resolve the actual node IDs
+                FromId = Guid.NewGuid(),
+                ToId = Guid.NewGuid(),
+                Type = relationship.Type,
+                Weight = relationship.Properties.ContainsKey("weight") 
+                    ? relationship["weight"].As<double>() 
+                    : 1.0,
+                CreatedAt = relationship.Properties.ContainsKey("createdAt")
+                    ? DateTime.Parse(relationship["createdAt"].As<string>())
+                    : DateTime.UtcNow,
+                Metadata = new Dictionary<string, object>()
+            };
+            
+            if (relationship.Properties.ContainsKey("type"))
+            {
+                rel.Metadata["relationshipSubtype"] = relationship["type"].As<string>();
+            }
+            
+            relationships.Add(rel);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to process relationship in Cypher query result");
+        }
+        
+        return Task.CompletedTask;
+    }
+    
+    private async Task ProcessPathForCypher(IPath path, HashSet<string> nodeIds, HashSet<string> wordNodeIds,
+        GraphSearchResult result, List<GraphRelationship> relationships, Dictionary<string, int> connectionCounts)
+    {
+        foreach (var pathNode in path.Nodes)
+        {
+            await ProcessNodeForCypher(pathNode, nodeIds, wordNodeIds, result, connectionCounts);
+        }
+        
+        foreach (var pathRelationship in path.Relationships)
+        {
+            await ProcessRelationshipForCypher(pathRelationship, relationships, connectionCounts);
         }
     }
 }

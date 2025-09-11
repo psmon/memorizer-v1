@@ -2,6 +2,11 @@
     ViewData["Title"] = "Graph Visualization";
 }
 
+@section Styles {
+    <!-- Include markdown styles for code blocks and mermaid -->
+    <link href="~/css/markdown-styles.css" rel="stylesheet">
+}
+
 <div class="container-fluid">
     <h1>Memory Graph Visualization</h1>
     
@@ -466,8 +471,12 @@
     <!-- Vis.js Network -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.6/dist/vis-network.min.css" rel="stylesheet">
-    <!-- Marked.js for Markdown rendering -->
+    <!-- Markdown rendering libraries -->
     <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <!-- Mermaid for diagrams -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
     
     <script>
         let network = null;
@@ -750,6 +759,7 @@
         async function showMemoryModal(nodeId) {
             currentModalNodeId = nodeId;
             const node = nodes.get(nodeId);
+            const modalElement = document.getElementById('memoryContentModal');
             
             if (!node || !node.data) return;
             
@@ -780,34 +790,86 @@
             // Set view full button
             $('#modalViewFullButton').attr('href', `/ui/view/${nodeId}`);
             
-            // Load and render markdown content
-            if (node.data.summary) {
-                // If we have summary in the node data, use it
-                const renderedHtml = marked.parse(node.data.summary);
-                $('#modalMarkdownContent').html(renderedHtml);
-                
-                // Show modal
-                const modal = new bootstrap.Modal(document.getElementById('memoryContentModal'));
-                modal.show();
-            } else {
-                // Fetch full content from API
-                try {
-                    const response = await fetch(`/api/memory/${nodeId}`);
-                    if (response.ok) {
-                        const memory = await response.json();
-                        const content = memory.text || memory.summary || 'No content available';
-                        const renderedHtml = marked.parse(content);
-                        $('#modalMarkdownContent').html(renderedHtml);
-                    } else {
-                        $('#modalMarkdownContent').html('<p class="text-muted">Could not load content</p>');
-                    }
-                } catch (error) {
-                    $('#modalMarkdownContent').html('<p class="text-danger">Error loading content</p>');
+            // Add event listener for modal shown to resize pan-zoom
+            modalElement.addEventListener('shown.bs.modal', function onModalShown() {
+                // Resize any pan-zoom instances after modal animation completes
+                if (typeof svgPanZoom !== 'undefined') {
+                    const mermaidWrappers = modalElement.querySelectorAll('.mermaid-wrapper');
+                    mermaidWrappers.forEach(wrapper => {
+                        if (wrapper.panZoomInstance) {
+                            console.log('Resizing pan-zoom instance in graph modal');
+                            wrapper.panZoomInstance.resize();
+                            wrapper.panZoomInstance.fit();
+                            wrapper.panZoomInstance.center();
+                        }
+                    });
                 }
-                
-                // Show modal
-                const modal = new bootstrap.Modal(document.getElementById('memoryContentModal'));
-                modal.show();
+                // Remove listener after use
+                modalElement.removeEventListener('shown.bs.modal', onModalShown);
+            });
+            
+            // Show modal first
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+            
+            // Load and render markdown content with enhanced rendering
+            const modalContentElement = document.getElementById('modalMarkdownContent');
+            
+            // Show loading spinner
+            modalContentElement.innerHTML = `
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch(`/api/memory/${nodeId}`);
+                if (response.ok) {
+                    const memory = await response.json();
+                    const content = memory.text || memory.summary || 'No content available';
+                    
+                    // Clear loading spinner
+                    modalContentElement.innerHTML = '';
+                    
+                    // Use enhanced markdown rendering if available
+                    if (typeof renderMarkdownContent === 'function') {
+                        // Wait for modal to be fully shown
+                        setTimeout(async () => {
+                            await renderMarkdownContent(content, modalContentElement);
+                            
+                            // Force resize of any pan-zoom instances after rendering
+                            if (typeof svgPanZoom !== 'undefined') {
+                                const mermaidWrappers = modalContentElement.querySelectorAll('.mermaid-wrapper');
+                                mermaidWrappers.forEach(wrapper => {
+                                    if (wrapper.panZoomInstance) {
+                                        wrapper.panZoomInstance.resize();
+                                        wrapper.panZoomInstance.fit();
+                                        wrapper.panZoomInstance.center();
+                                    }
+                                });
+                            }
+                        }, 200);
+                    } else {
+                        // Fallback to basic marked rendering
+                        modalContentElement.innerHTML = marked.parse(content);
+                        
+                        // Apply syntax highlighting
+                        setTimeout(() => {
+                            modalContentElement.querySelectorAll('pre code').forEach((block) => {
+                                if (typeof hljs !== 'undefined' && !block.classList.contains('language-mermaid')) {
+                                    hljs.highlightElement(block);
+                                }
+                            });
+                        }, 0);
+                    }
+                } else {
+                    modalContentElement.innerHTML = '<p class="text-muted">Could not load content</p>';
+                }
+            } catch (error) {
+                console.error('Error loading memory content:', error);
+                modalContentElement.innerHTML = '<p class="text-danger">Error loading content</p>';
             }
         }
         

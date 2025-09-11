@@ -10,6 +10,7 @@ public interface IGraphSearchService
 {
     Task<GraphSearchResult> SearchGraphAsync(string naturalLanguageQuery);
     Task<string> GenerateCypherQueryAsync(string naturalLanguageQuery);
+    Task<List<IRecord>> ExecuteRawCypherQuery(string cypherQuery);
 }
 
 public class GraphSearchService : IGraphSearchService
@@ -359,6 +360,26 @@ public class GraphSearchService : IGraphSearchService
         catch
         {
             return null;
+        }
+    }
+    
+    public async Task<List<IRecord>> ExecuteRawCypherQuery(string cypherQuery)
+    {
+        try
+        {
+            _logger.LogInformation("Executing raw Cypher query: {Query}", cypherQuery);
+            
+            // Execute the query through the repository
+            var records = await _graphRepository.RunQueryAsync(cypherQuery);
+            
+            _logger.LogInformation("Raw Cypher query executed successfully, returned {Count} records", records.Count);
+            
+            return records;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing raw Cypher query: {Query}", cypherQuery);
+            throw new InvalidOperationException($"Failed to execute Cypher query: {ex.Message}", ex);
         }
     }
 }

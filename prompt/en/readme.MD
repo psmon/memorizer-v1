@@ -84,6 +84,12 @@ Content view enhancement with markdown rendering improvements
 
 - [ContentView-Upgrade](13-ContentView-Upgrade.MD)
 
+## Version 1.0.9
+
+MCP functionality improvement and hybrid search upgrade
+
+- [HybridSearch-Upgrade](14-HybridSerch-Upgrade.md)
+
 
 ## Claude Cli Setting: Use for Vibe Coding
 
