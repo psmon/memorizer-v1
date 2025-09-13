@@ -30,6 +30,13 @@ public interface IStorage
         CancellationToken cancellationToken = default
     );
 
+    Task<List<Memorizer.Models.Memory>> SearchByText(
+        string query,
+        int limit = 10,
+        string[]? filterTags = null,
+        CancellationToken cancellationToken = default
+    );
+
     Task<Memorizer.Models.Memory?> Get(
         Guid id,
         CancellationToken cancellationToken = default
@@ -291,6 +298,68 @@ public class Storage : IStorage
         }
 
         return memory;
+    }
+
+    public async Task<List<Memorizer.Models.Memory>> SearchByText(
+        string query,
+        int limit = 10,
+        string[]? filterTags = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        await using NpgsqlConnection connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+        string sql = @"
+            SELECT id, type, content, text, source, embedding, embedding_metadata, tags, confidence, created_at, updated_at, title
+            FROM memories
+            WHERE (title ILIKE @query OR text ILIKE @query OR content ILIKE @query)";
+
+        if (filterTags != null && filterTags.Length > 0)
+        {
+            sql += " AND tags && @tags";
+        }
+
+        sql += " ORDER BY created_at DESC LIMIT @limit";
+
+        await using NpgsqlCommand command = new(sql, connection);
+        command.Parameters.AddWithValue("query", $"%{query}%");
+        command.Parameters.AddWithValue("limit", limit);
+
+        if (filterTags != null && filterTags.Length > 0)
+        {
+            command.Parameters.AddWithValue("tags", filterTags);
+        }
+
+        await using NpgsqlDataReader reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        List<Memorizer.Models.Memory> memories = new();
+
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            memories.Add(new Memorizer.Models.Memory
+            {
+                Id = reader.GetGuid(0),
+                Type = reader.GetString(1),
+                Content = reader.IsDBNull(2)
+                    ? JsonDocument.Parse("{}")
+                    : JsonDocument.Parse(reader.GetString(2)),
+                Text = reader.GetString(3),
+                Source = reader.GetString(4),
+                Embedding = reader.IsDBNull(5)
+                    ? new Vector(new float[0])
+                    : new Vector(reader.GetFieldValue<float[]>(5)),
+                EmbeddingMetadata = reader.IsDBNull(6)
+                    ? null
+                    : new Vector(reader.GetFieldValue<float[]>(6)),
+                Tags = reader.IsDBNull(7) ? null : reader.GetFieldValue<string[]>(7),
+                Confidence = reader.GetDouble(8),
+                CreatedAt = reader.GetDateTime(9),
+                UpdatedAt = reader.GetDateTime(10),
+                Title = reader.IsDBNull(11) ? null : reader.GetString(11)
+            });
+        }
+
+        return memories;
     }
 
     public async Task<List<Memorizer.Models.Memory>> Search(

@@ -414,3 +414,4 @@ FodyWeavers.xsd
 /.config
 cookies.txt
 src/Memorizer/packages-microsoft-prod.deb
+src/Memorizer.IntegrationTests/test_output.txt

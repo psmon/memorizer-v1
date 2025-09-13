@@ -153,11 +153,21 @@ public static class ServiceCollectionExtensions
                 var metadataEmbeddingActorProps = resolver.Props<MetadataEmbeddingActor>();
                 var metadataEmbeddingActor = system.ActorOf(metadataEmbeddingActorProps, "metadata-embedding");
                 registry.Register<MetadataEmbeddingActorKey>(metadataEmbeddingActor);
-                
+
                 // Create and register the GraphSyncActor
                 var graphSyncActorProps = resolver.Props<GraphSyncActor>();
                 var graphSyncActor = system.ActorOf(graphSyncActorProps, "graph-sync");
                 registry.Register<GraphSyncActorKey>(graphSyncActor);
+
+                // Create and register the SearchMemoryActor for ASKBOT
+                var searchMemoryActorProps = resolver.Props<SearchMemoryActor>();
+                var searchMemoryActor = system.ActorOf(searchMemoryActorProps, "search-memory");
+                registry.Register<SearchMemoryActorKey>(searchMemoryActor);
+
+                // Create and register the DecisionActor for ASKBOT
+                var decisionActorProps = resolver.Props<DecisionActor>();
+                var decisionActor = system.ActorOf(decisionActorProps, "decision");
+                registry.Register<DecisionActorKey>(decisionActor);
             });
 
             // TODO: Configure Akka.Persistence.Sql with PostgreSQL
