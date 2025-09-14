@@ -82,6 +82,14 @@ Custom LLM/Embedding 서비스 구현 및 설정 개선
 
 - [ContentView-Upgrade](13-ContentView-Upgrade.MD)
 
+## Version 1.0.9
+
+하이브리드 검색 기능 개선 및 ASKBot 대화형 챗봇 구현
+
+- [HybridSearch-Upgrade](14-HybridSerch-Upgrade.md)
+- [ASKBOT-ActorModel](15.01-ASKBOT-ActorModel.md)
+- [ASKBOT-SSE](15.02-ASKBOT-Websocket.md)
+
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 

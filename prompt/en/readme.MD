@@ -86,9 +86,11 @@ Content view enhancement with markdown rendering improvements
 
 ## Version 1.0.9
 
-MCP functionality improvement and hybrid search upgrade
+Hybrid search functionality improvement and ASKBot conversational chatbot implementation
 
 - [HybridSearch-Upgrade](14-HybridSerch-Upgrade.md)
+- [ASKBOT-ActorModel](15.01-ASKBOT-ActorModel.md)
+- [ASKBOT-SSE](15.02-ASKBOT-Websocket.md)
 
 
 ## Claude Cli Setting: Use for Vibe Coding

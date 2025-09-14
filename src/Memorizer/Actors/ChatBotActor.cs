@@ -8,7 +8,7 @@ namespace Memorizer.Actors;
 /// <summary>
 /// Main chatbot actor that handles user sessions and coordinates with other actors
 /// </summary>
-public sealed class ChatBotActor : ReceiveActor, IWithTimers
+public class ChatBotActor : ReceiveActor, IWithTimers
 {
     private readonly string _sessionId;
     private readonly IActorRef _searchMemoryActor;
@@ -275,12 +275,51 @@ If the information references specific details, include them in your response.";
         {
             AddReasoningStep("Generating response based on relevant memories...");
 
-            // Format memories for the prompt
-            var memoriesText = FormatMemoriesForResponse(relevantMemories);
-            var prompt = string.Format(MemoryBasedResponsePrompt, request.Message, memoriesText);
+            // Try with different memory counts if token overflow occurs
+            int[] memoryCounts = { 3, 1 };
+            string? llmResponse = null;
+            List<Guid> usedMemoryIds = new List<Guid>();
+            Exception? lastException = null;
 
-            // Generate response using LLM
-            var llmResponse = await _llmService.CompleteAsync(prompt);
+            foreach (var count in memoryCounts)
+            {
+                try
+                {
+                    var memoriesToUse = relevantMemories.Take(count).ToList();
+                    var memoriesText = FormatMemoriesForResponseWithLimit(memoriesToUse, count);
+                    var prompt = string.Format(MemoryBasedResponsePrompt, request.Message, memoriesText);
+
+                    // Generate response using LLM
+                    llmResponse = await _llmService.CompleteAsync(prompt);
+                    usedMemoryIds = memoriesToUse.Select(m => m.Id).ToList();
+
+                    AddReasoningStep($"Successfully generated response using {count} memory/memories.");
+                    break; // Success, exit the loop
+                }
+                catch (Exception ex) when (ex.Message.Contains("token") || ex.Message.Contains("context length"))
+                {
+                    lastException = ex;
+                    _logger.Warning("Token overflow with {0} memories, retrying with fewer...", count);
+                    AddReasoningStep($"Token limit exceeded with {count} memories, reducing memory count...");
+                    continue; // Try with fewer memories
+                }
+                catch (Exception)
+                {
+                    // Other types of errors, don't retry
+                    throw;
+                }
+            }
+
+            // If all memory attempts failed, fall back to general LLM
+            if (llmResponse == null)
+            {
+                _logger.Warning("All memory-based attempts failed, falling back to general LLM for session {0}", request.SessionId);
+                AddReasoningStep("Memory-based generation failed due to token limits, using general AI response instead...");
+
+                // Use general response as fallback
+                GenerateGeneralResponse(request, originalSender);
+                return;
+            }
 
             // Add to conversation history
             _conversationHistory.Add($"Assistant (memory-based): {llmResponse}");
@@ -291,17 +330,19 @@ If the information references specific details, include them in your response.";
                 SessionId = request.SessionId,
                 Message = llmResponse,
                 Type = ResponseType.MemoryBased,
-                ReferencedMemoryIds = relevantMemories.Select(m => m.Id).ToList(),
+                ReferencedMemoryIds = usedMemoryIds,
                 ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
             };
 
             originalSender.Tell(response);
-            _logger.Info("Sent memory-based response for session {0}", request.SessionId);
+            _logger.Info("Sent memory-based response for session {0} using {1} memories", request.SessionId, usedMemoryIds.Count);
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error generating memory-based response for session {0}", request.SessionId);
-            SendErrorResponse(originalSender, request.SessionId, "Failed to generate response from memories.");
+            // Fall back to general response on any error
+            AddReasoningStep("Failed to generate memory-based response, falling back to general AI...");
+            GenerateGeneralResponse(request, originalSender);
         }
     }
 
@@ -341,8 +382,52 @@ If the information references specific details, include them in your response.";
     private string FormatMemoriesForResponse(List<Models.Memory> memories)
     {
         var sb = new StringBuilder();
+        const int maxContentLength = 500; // Limit content per memory to prevent token overflow
+        const int maxMemories = 3; // Limit to top 3 most relevant memories
 
-        for (int i = 0; i < memories.Count; i++)
+        var topMemories = memories.Take(maxMemories).ToList();
+
+        for (int i = 0; i < topMemories.Count; i++)
+        {
+            var memory = topMemories[i];
+            sb.AppendLine($"--- Memory {i + 1} ---");
+            if (!string.IsNullOrWhiteSpace(memory.Title))
+            {
+                sb.AppendLine($"Title: {memory.Title}");
+            }
+            sb.AppendLine($"Type: {memory.Type}");
+
+            // Truncate content if too long
+            var content = memory.Text ?? string.Empty;
+            if (content.Length > maxContentLength)
+            {
+                content = content.Substring(0, maxContentLength) + "... [truncated]";
+            }
+            sb.AppendLine($"Content: {content}");
+
+            if (memory.Tags != null && memory.Tags.Length > 0)
+            {
+                sb.AppendLine($"Tags: {string.Join(", ", memory.Tags)}");
+            }
+            sb.AppendLine();
+        }
+
+        return sb.ToString();
+    }
+
+    private string FormatMemoriesForResponseWithLimit(List<Models.Memory> memories, int memoryCount)
+    {
+        var sb = new StringBuilder();
+
+        // Adjust content length based on memory count
+        int maxContentLength = memoryCount switch
+        {
+            1 => 1500,  // Allow more content for single memory
+            3 => 500,   // Restrict content for multiple memories
+            _ => 500
+        };
+
+        for (int i = 0; i < memories.Count && i < memoryCount; i++)
         {
             var memory = memories[i];
             sb.AppendLine($"--- Memory {i + 1} ---");
@@ -351,7 +436,15 @@ If the information references specific details, include them in your response.";
                 sb.AppendLine($"Title: {memory.Title}");
             }
             sb.AppendLine($"Type: {memory.Type}");
-            sb.AppendLine($"Content: {memory.Text}");
+
+            // Truncate content if too long
+            var content = memory.Text ?? string.Empty;
+            if (content.Length > maxContentLength)
+            {
+                content = content.Substring(0, maxContentLength) + "... [truncated]";
+            }
+            sb.AppendLine($"Content: {content}");
+
             if (memory.Tags != null && memory.Tags.Length > 0)
             {
                 sb.AppendLine($"Tags: {string.Join(", ", memory.Tags)}");
@@ -375,7 +468,7 @@ If the information references specific details, include them in your response.";
         sender.Tell(response);
     }
 
-    private void AddReasoningStep(string step)
+    protected virtual void AddReasoningStep(string step)
     {
         var update = new StreamingUpdate
         {

@@ -35,6 +35,16 @@ public class AuthenticationMiddleware
             }
         }
 
+        // Skip authentication for /api/askbot paths
+        if (path.StartsWith("/api/askbot") || path.StartsWith("/ui/askbot"))
+        {
+            _logger.LogDebug("Skipping authentication for AskBot path: {Path}", path);
+            context.Items["IsAuthenticated"] = false;
+            context.Items["Username"] = null;
+            await _next(context);
+            return;
+        }
+
         // Check if path requires authentication
         if (RequiresAuthentication(path, method))
         {
@@ -85,6 +95,8 @@ public class AuthenticationMiddleware
             "/api/graph/search",
             "/api/graph/search/cypher",
             "/api/graph/sync",
+            "/api/askbot",  // AskBot endpoints are public
+            "/ui/askbot",   // AskBot UI is public
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -98,6 +110,12 @@ public class AuthenticationMiddleware
             {
                 // For /api/graph/, POST is public for search and sync
                 if ((path.StartsWith("/api/graph/search") || path == "/api/graph/sync") && method == "POST")
+                {
+                    return false;
+                }
+
+                // For /api/askbot/, all methods are public (SSE, POST for messages)
+                if (path.StartsWith("/api/askbot"))
                 {
                     return false;
                 }

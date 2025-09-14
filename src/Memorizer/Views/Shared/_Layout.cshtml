@@ -48,10 +48,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "GraphView" ? "active" : "")" 
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "GraphView" ? "active" : "")"
                                href="/ui/graph">
                                 <i class="fas fa-project-diagram me-2"></i>
                                 Graph View
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AskBotView" ? "active" : "")"
+                               href="/ui/askbot">
+                                <i class="fas fa-robot me-2"></i>
+                                ASK Bot
                             </a>
                         </li>
                         @if (isAuthenticated)
