@@ -33,7 +33,7 @@ if a memory contains information about that technology, it IS relevant.
 
 Respond in the following format:
 RELEVANT: YES or NO
-REASONING: Brief explanation of your decision
+REASONING: Brief explanation of your decision(한글로답변)
 RELEVANT_IDS: Comma-separated list of relevant memory IDs (if any)";
 
     public DecisionActor(ILlmService llmService)

@@ -383,6 +383,7 @@
         let currentMessageContent = '';
         let messageCounter = 0;
         let referencedMemoryIds = [];
+        let processedReasoningSteps = new Set(); // Track already shown reasoning steps to prevent duplicates
 
         // Initialize Mermaid
         mermaid.initialize({
@@ -442,10 +443,13 @@
         function connectSSE() {
             updateConnectionStatus('connecting');
 
+            // Close existing connection properly
             if (eventSource) {
                 eventSource.close();
+                eventSource = null;
             }
 
+            // Create new connection
             eventSource = new EventSource(`/api/askbot/stream?sessionId=${sessionId}`);
 
             eventSource.addEventListener('connected', function(event) {
@@ -553,6 +557,7 @@
             currentAssistantMessage = null;
             currentMessageContent = '';
             referencedMemoryIds = [];
+            processedReasoningSteps.clear(); // Clear processed steps for new message
 
             // Clear any welcome message
             clearWelcomeMessage();
@@ -601,6 +606,14 @@
         }
 
         function addReasoningStep(step) {
+            // Check if this step was already processed (prevent duplicates)
+            const stepKey = `${sessionId}-${step}`;
+            if (processedReasoningSteps.has(stepKey)) {
+                console.log('Duplicate reasoning step detected, skipping:', step);
+                return; // Skip duplicate
+            }
+            processedReasoningSteps.add(stepKey);
+
             // Don't hide typing indicator here - keep it showing during reasoning steps
             const messagesContainer = document.getElementById('chat-messages');
 

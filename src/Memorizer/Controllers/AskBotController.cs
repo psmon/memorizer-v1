@@ -26,8 +26,8 @@ public class AskBotController : ControllerBase
     // Static dictionary to maintain ChatBotActors per session
     private static readonly ConcurrentDictionary<string, IActorRef> SessionActors = new();
 
-    // SSE connections per session
-    private static readonly ConcurrentDictionary<string, List<Channel<StreamingUpdate>>> SessionChannels = new();
+    // SSE connections per session - key is sessionId, value is dictionary of connectionId -> channel
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, Channel<StreamingUpdate>>> SessionChannels = new();
 
     public AskBotController(
         ActorSystem actorSystem,
@@ -52,7 +52,10 @@ public class AskBotController : ControllerBase
         // Get or create session ID
         sessionId = GetOrCreateSessionId(sessionId);
 
-        _logger.LogInformation("Starting SSE stream for session {SessionId}", sessionId);
+        // Create a unique connection ID for this SSE connection
+        var connectionId = Guid.NewGuid().ToString();
+
+        _logger.LogInformation("Starting SSE stream for session {SessionId} with connection {ConnectionId}", sessionId, connectionId);
 
         // Set SSE headers
         Response.Headers.Append("Content-Type", "text/event-stream");
@@ -67,19 +70,17 @@ public class AskBotController : ControllerBase
             SingleWriter = false
         });
 
-        // Register channel for this session
-        SessionChannels.AddOrUpdate(sessionId,
-            new List<Channel<StreamingUpdate>> { channel },
-            (key, list) =>
-            {
-                list.Add(channel);
-                return list;
-            });
+        // Register channel for this session with connection ID
+        var sessionConnections = SessionChannels.GetOrAdd(sessionId, _ => new ConcurrentDictionary<string, Channel<StreamingUpdate>>());
+        sessionConnections[connectionId] = channel;
+
+        _logger.LogInformation("SSE channel registered for session {SessionId}, connection {ConnectionId}. Total connections for session: {Count}",
+            sessionId, connectionId, sessionConnections.Count);
 
         try
         {
-            // Send initial connection event
-            await WriteSSEEvent("connected", new { sessionId, timestamp = DateTime.UtcNow });
+            // Send initial connection event with connection ID
+            await WriteSSEEvent("connected", new { sessionId, connectionId, timestamp = DateTime.UtcNow });
 
             // Start reading from channel and writing to response
             await foreach (var update in channel.Reader.ReadAllAsync(HttpContext.RequestAborted))
@@ -107,17 +108,24 @@ public class AskBotController : ControllerBase
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("SSE connection closed for session {SessionId}", sessionId);
+            _logger.LogInformation("SSE connection closed for session {SessionId}, connection {ConnectionId}", sessionId, connectionId);
         }
         finally
         {
-            // Remove channel from session
-            if (SessionChannels.TryGetValue(sessionId, out var channels))
+            // Remove this specific connection from session
+            if (SessionChannels.TryGetValue(sessionId, out var connections))
             {
-                channels.Remove(channel);
-                if (channels.Count == 0)
+                if (connections.TryRemove(connectionId, out _))
+                {
+                    _logger.LogInformation("Removed connection {ConnectionId} from session {SessionId}. Remaining connections: {Count}",
+                        connectionId, sessionId, connections.Count);
+                }
+
+                // If no more connections for this session, remove the session entry
+                if (connections.IsEmpty)
                 {
                     SessionChannels.TryRemove(sessionId, out _);
+                    _logger.LogInformation("No more connections for session {SessionId}, removed session from channels", sessionId);
                 }
             }
 
@@ -163,45 +171,12 @@ public class AskBotController : ControllerBase
                 Content = "Processing your request..."
             });
 
-            // Send request to ChatBotActor
-            var responseTask = chatBotActor.Ask<ChatBotResponse>(userRequest, TimeSpan.FromSeconds(60));
+            // Send request to ChatBotActor using Tell (fire and forget)
+            // The response will come through SSE via StreamingChatBotActor
+            chatBotActor.Tell(userRequest);
 
-            // Handle the response asynchronously
-            _ = Task.Run(async () =>
-            {
-                try
-                {
-                    var response = await responseTask;
-
-                    // Send reasoning steps
-                    if (response.ReasoningSteps != null)
-                    {
-                        foreach (var step in response.ReasoningSteps)
-                        {
-                            await BroadcastToSession(sessionId, new StreamingUpdate
-                            {
-                                SessionId = sessionId,
-                                UpdateType = StreamUpdateType.Reasoning,
-                                Content = step
-                            });
-                            await Task.Delay(100); // Small delay for animation effect
-                        }
-                    }
-
-                    // Stream the response message character by character for typing effect
-                    await StreamResponseMessage(sessionId, response.Message, response.Type, response.ReferencedMemoryIds);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Error processing chat response for session {SessionId}", sessionId);
-                    await BroadcastToSession(sessionId, new StreamingUpdate
-                    {
-                        SessionId = sessionId,
-                        UpdateType = StreamUpdateType.Error,
-                        Content = "An error occurred processing your request."
-                    });
-                }
-            });
+            // Note: The response will be streamed through SSE events
+            // StreamingChatBotActor handles all the messaging through the SSE bridge
 
             return Accepted(new { sessionId, status = "processing" });
         }
@@ -246,12 +221,19 @@ public class AskBotController : ControllerBase
     {
         var exists = SessionActors.ContainsKey(sessionId);
         var hasActiveConnections = SessionChannels.ContainsKey(sessionId);
+        var connectionCount = 0;
+
+        if (SessionChannels.TryGetValue(sessionId, out var sessionConnections))
+        {
+            connectionCount = sessionConnections.Count;
+        }
 
         return Ok(new
         {
             sessionId,
             exists,
             hasActiveConnections,
+            connectionCount,
             timestamp = DateTime.UtcNow
         });
     }
@@ -312,12 +294,19 @@ public class AskBotController : ControllerBase
 
     private async Task BroadcastToSession(string sessionId, StreamingUpdate update)
     {
-        if (SessionChannels.TryGetValue(sessionId, out var channels))
+        if (SessionChannels.TryGetValue(sessionId, out var sessionConnections))
         {
-            var tasks = channels.Select(channel =>
-                channel.Writer.TryWrite(update) ? Task.CompletedTask : Task.CompletedTask
-            );
-            await Task.WhenAll(tasks);
+            var connectionCount = sessionConnections.Count;
+            if (connectionCount > 0)
+            {
+                _logger.LogDebug("Broadcasting to session {SessionId} with {ConnectionCount} connections: {UpdateType} - {Content}",
+                    sessionId, connectionCount, update.UpdateType, update.Content);
+
+                var tasks = sessionConnections.Values.Select(channel =>
+                    channel.Writer.TryWrite(update) ? Task.CompletedTask : Task.CompletedTask
+                );
+                await Task.WhenAll(tasks);
+            }
         }
     }
 
@@ -449,6 +438,7 @@ public sealed class StreamingChatBotActor : ChatBotActor
 {
     private readonly IActorRef _sseBridge;
     private readonly string _sessionId;
+    private readonly IActorRef _askBotController;
 
     public StreamingChatBotActor(
         string sessionId,
@@ -460,7 +450,83 @@ public sealed class StreamingChatBotActor : ChatBotActor
     {
         _sessionId = sessionId;
         _sseBridge = sseBridge;
+        _askBotController = Context.Parent; // Store reference to parent for response notification
+
+        // Re-register the ChatBotResponse handler to use the overridden method
+        // This is necessary because the base constructor already registered it
+        Receive<ChatBotResponse>(HandleChatBotResponseFromPipeTo);
+
+        Context.GetLogger().Info("StreamingChatBotActor initialized for session {0}", sessionId);
     }
+
+    public IActorRef GetSseBridge() => _sseBridge;
+
+    // Override the base class method to handle ChatBotResponse differently
+    protected override void HandleChatBotResponseFromPipeTo(ChatBotResponse response)
+    {
+        Context.GetLogger().Info("[StreamingChatBotActor] Override HandleChatBotResponseFromPipeTo called for session {0}, ResponseType: {1}, MemoryCount: {2}",
+            _sessionId,
+            response.Type,
+            response.ReferencedMemoryIds?.Count ?? 0);
+
+        Context.GetLogger().Info("Successfully generated response for session {0} using {1} memory/memories.",
+            _sessionId,
+            response.ReferencedMemoryIds?.Count ?? 0);
+
+        // Stream the response message content character by character first
+        StreamResponseMessageAsync(response);
+
+        Context.GetLogger().Info("Streaming final response through SSE for session {0}", _sessionId);
+    }
+
+    private async void StreamResponseMessageAsync(ChatBotResponse response)
+    {
+        try
+        {
+            // Split message into chunks for streaming effect
+            var chunks = SplitIntoChunks(response.Message, 5); // 5 characters at a time
+
+            foreach (var chunk in chunks)
+            {
+                _sseBridge.Tell(new StreamingUpdate
+                {
+                    SessionId = _sessionId,
+                    UpdateType = StreamUpdateType.PartialResponse,
+                    Content = chunk
+                });
+
+                await Task.Delay(10); // Small delay for typing effect
+            }
+
+            // After streaming content, send the final metadata
+            _sseBridge.Tell(new StreamingUpdate
+            {
+                SessionId = _sessionId,
+                UpdateType = StreamUpdateType.FinalResponse,
+                Content = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    sessionId = _sessionId,
+                    type = response.Type.ToString(),
+                    referencedMemoryIds = response.ReferencedMemoryIds ?? new List<Guid>()
+                })
+            });
+        }
+        catch (Exception ex)
+        {
+            Context.GetLogger().Error(ex, "Error streaming response for session {0}", _sessionId);
+        }
+    }
+
+    private List<string> SplitIntoChunks(string text, int chunkSize)
+    {
+        var chunks = new List<string>();
+        for (int i = 0; i < text.Length; i += chunkSize)
+        {
+            chunks.Add(text.Substring(i, Math.Min(chunkSize, text.Length - i)));
+        }
+        return chunks;
+    }
+
 
     protected override void AddReasoningStep(string step)
     {

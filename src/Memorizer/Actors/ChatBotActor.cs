@@ -64,6 +64,8 @@ If the information references specific details, include them in your response.";
         Receive<EvaluateRelevanceResponse>(HandleEvaluateRelevanceResponse);
         Receive<SessionTimeout>(HandleSessionTimeout);
         Receive<ResetSessionTimer>(HandleResetSessionTimer);
+        Receive<ChatBotResponse>(HandleChatBotResponseFromPipeTo);
+        Receive<Status.Failure>(HandlePipeToFailure);
 
         // Start session timer
         ResetSessionTimer();
@@ -154,6 +156,12 @@ If the information references specific details, include them in your response.";
                     return true;
                 case EvaluateRelevanceResponse eval:
                     HandleEvaluateRelevanceResponse(eval);
+                    return true;
+                case ChatBotResponse response:
+                    HandleChatBotResponseFromPipeTo(response);
+                    return true;
+                case Status.Failure failure:
+                    HandlePipeToFailure(failure);
                     return true;
                 case SessionTimeout timeout:
                     HandleSessionTimeout(timeout);
@@ -266,14 +274,36 @@ If the information references specific details, include them in your response.";
         _logger.Warning("Received unexpected EvaluateRelevanceResponse for session {0}", response.SessionId);
     }
 
-    private async void GenerateMemoryBasedResponse(
+    private void GenerateMemoryBasedResponse(
+        UserChatRequest request,
+        List<Models.Memory> relevantMemories,
+        IActorRef originalSender)
+    {
+        AddReasoningStep("Generating response based on relevant memories...");
+
+        // Use async operation with manual result handling
+        var self = Self;
+        Task.Run(async () =>
+        {
+            try
+            {
+                var response = await GenerateMemoryBasedResponseAsync(request, relevantMemories, originalSender);
+                self.Tell(response);
+            }
+            catch (Exception ex)
+            {
+                self.Tell(new Status.Failure(ex));
+            }
+        });
+    }
+
+    private async Task<ChatBotResponse> GenerateMemoryBasedResponseAsync(
         UserChatRequest request,
         List<Models.Memory> relevantMemories,
         IActorRef originalSender)
     {
         try
         {
-            AddReasoningStep("Generating response based on relevant memories...");
 
             // Try with different memory counts if token overflow occurs
             int[] memoryCounts = { 3, 1 };
@@ -316,15 +346,14 @@ If the information references specific details, include them in your response.";
                 _logger.Warning("All memory-based attempts failed, falling back to general LLM for session {0}", request.SessionId);
                 AddReasoningStep("Memory-based generation failed due to token limits, using general AI response instead...");
 
-                // Use general response as fallback
-                GenerateGeneralResponse(request, originalSender);
-                return;
+                // Return a general response instead
+                return await GenerateGeneralResponseAsync(request);
             }
 
             // Add to conversation history
             _conversationHistory.Add($"Assistant (memory-based): {llmResponse}");
 
-            // Create response
+            // Create and return response
             var response = new ChatBotResponse
             {
                 SessionId = request.SessionId,
@@ -334,24 +363,45 @@ If the information references specific details, include them in your response.";
                 ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
             };
 
-            originalSender.Tell(response);
-            _logger.Info("Sent memory-based response for session {0} using {1} memories", request.SessionId, usedMemoryIds.Count);
+            _logger.Info("Generated memory-based response for session {0} using {1} memories", request.SessionId, usedMemoryIds.Count);
+            return response;
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error generating memory-based response for session {0}", request.SessionId);
-            // Fall back to general response on any error
-            AddReasoningStep("Failed to generate memory-based response, falling back to general AI...");
-            GenerateGeneralResponse(request, originalSender);
+            // Throw to let PipeTo handle the error
+            throw;
         }
     }
 
-    private async void GenerateGeneralResponse(UserChatRequest request, IActorRef originalSender)
+    private void GenerateGeneralResponse(UserChatRequest request, IActorRef originalSender)
+    {
+        AddReasoningStep("Generating general AI response...");
+
+        // Capture self reference before async operation
+        var self = Self;
+
+        // Use Task.Run to avoid blocking actor thread
+        Task.Run(async () =>
+        {
+            try
+            {
+                var response = await GenerateGeneralResponseAsync(request);
+                _logger.Info("About to send ChatBotResponse to self for session {0}, Type: {1}", response.SessionId, response.Type);
+                self.Tell(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to generate general response for session {0}", request.SessionId);
+                self.Tell(new Status.Failure(ex));
+            }
+        });
+    }
+
+    private async Task<ChatBotResponse> GenerateGeneralResponseAsync(UserChatRequest request)
     {
         try
         {
-            AddReasoningStep("Generating general AI response...");
-
             var prompt = string.Format(GeneralResponsePrompt, request.Message);
 
             // Generate response using LLM
@@ -360,7 +410,7 @@ If the information references specific details, include them in your response.";
             // Add to conversation history
             _conversationHistory.Add($"Assistant (general): {llmResponse}");
 
-            // Create response
+            // Create and return response
             var response = new ChatBotResponse
             {
                 SessionId = request.SessionId,
@@ -369,13 +419,13 @@ If the information references specific details, include them in your response.";
                 ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
             };
 
-            originalSender.Tell(response);
-            _logger.Info("Sent general response for session {0}", request.SessionId);
+            _logger.Info("Generated general response for session {0}", request.SessionId);
+            return response;
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error generating general response for session {0}", request.SessionId);
-            SendErrorResponse(originalSender, request.SessionId, "Failed to generate response.");
+            throw;
         }
     }
 
@@ -455,7 +505,7 @@ If the information references specific details, include them in your response.";
         return sb.ToString();
     }
 
-    private void SendErrorResponse(IActorRef sender, string sessionId, string errorMessage)
+    private void SendErrorResponse(IActorRef sender, string sessionId, string errorMessage, IActorRef? self = null)
     {
         var response = new ChatBotResponse
         {
@@ -465,7 +515,24 @@ If the information references specific details, include them in your response.";
             ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
         };
 
-        sender.Tell(response);
+        // Use provided self or try to get from context (may be null in async context)
+        var selfRef = self ?? Self;
+
+        if (selfRef != null)
+        {
+            // Send to self so StreamingChatBotActor can intercept and forward through SSE
+            selfRef.Tell(response);
+            // Also notify original sender if it's not self (for backward compatibility)
+            if (!sender.Equals(selfRef))
+            {
+                sender.Tell(response);
+            }
+        }
+        else
+        {
+            // Fallback: just send to original sender if self is not available
+            sender.Tell(response);
+        }
     }
 
     protected virtual void AddReasoningStep(string step)
@@ -498,6 +565,48 @@ If the information references specific details, include them in your response.";
         if (message.SessionId == _sessionId)
         {
             ResetSessionTimer();
+        }
+    }
+
+    protected virtual void HandleChatBotResponseFromPipeTo(ChatBotResponse response)
+    {
+        // This response comes from Tell after async operation
+        _logger.Info("[{0}] HandleChatBotResponseFromPipeTo called for session {1}, ResponseType: {2}, MemoryCount: {3}",
+            this.GetType().Name,
+            response.SessionId,
+            response.Type,
+            response.ReferencedMemoryIds?.Count ?? 0);
+
+        _logger.Info("Successfully generated response for session {0} using {1} memory/memories.",
+            response.SessionId,
+            response.ReferencedMemoryIds?.Count ?? 0);
+
+        // Default behavior: send to parent
+        // StreamingChatBotActor will override to send through SSE
+        if (Context.Parent != null)
+        {
+            _logger.Info("[{0}] Sending response to parent: {1}", this.GetType().Name, Context.Parent);
+            Context.Parent.Tell(response);
+        }
+    }
+
+    private void HandlePipeToFailure(Status.Failure failure)
+    {
+        _logger.Error(failure.Cause, "PipeTo operation failed");
+
+        // Extract session ID from the failure context if possible
+        if (failure.Cause.Message.Contains("session"))
+        {
+            // Try to extract session ID and send error response
+            var errorResponse = new ChatBotResponse
+            {
+                SessionId = _sessionId,
+                Message = "An error occurred while generating the response. Please try again.",
+                Type = ResponseType.Error,
+                ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
+            };
+
+            Self.Tell(errorResponse);
         }
     }
 
