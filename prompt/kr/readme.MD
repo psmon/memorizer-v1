@@ -89,6 +89,13 @@ Custom LLM/Embedding 서비스 구현 및 설정 개선
 - [HybridSearch-Upgrade](14-HybridSerch-Upgrade.md)
 - [ASKBOT-ActorModel](15.01-ASKBOT-ActorModel.md)
 - [ASKBOT-SSE](15.02-ASKBOT-Websocket.md)
+- [ASKBOT-IMPROVE1](15.03-ASKBOT-IMPROVE1.md)
+
+## Version 1.1.0
+
+메뉴 UI/UX 개선 - 반응형 햄버거 메뉴 및 애니메이션 구현
+
+- [MenuView-Upgrade](16.MenuView-Upgrade.MD)
 
 
 ## Claude Cli Setting : Vibe 코딩할시 활용

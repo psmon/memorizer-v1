@@ -1,31 +1,254 @@
 /* PostgMem Site-wide Styles */
 
-/* Sidebar Styling */
-.sidebar {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    min-height: 100vh;
+/* Layout Structure */
+body {
+    overflow-x: hidden;
 }
 
-.sidebar .nav-link {
-    color: rgba(255, 255, 255, 0.8);
-    padding: 0.75rem 1.5rem;
+.container-fluid {
+    padding: 0;
+}
+
+/* Sidebar Container */
+.sidebar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 280px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    z-index: 1040;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-right: 0;
+}
+
+.sidebar-container.collapsed {
+    transform: translateX(-280px); /* Completely hide sidebar */
+}
+
+.sidebar-inner {
+    position: relative;
+    width: 280px;
+    height: 100%;
+}
+
+/* Hamburger Menu Button */
+.hamburger-menu {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
     border-radius: 0.5rem;
-    margin: 0.25rem 0;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    z-index: 9999; /* Highest z-index to always be on top */
+    padding: 0;
+    transition: background 0.3s ease;
+    opacity: 0.95;
+}
+
+.hamburger-menu:hover {
+    opacity: 1;
+}
+
+.hamburger-menu:hover {
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+/* Hamburger bars */
+.hamburger-bar {
+    width: 24px;
+    height: 3px;
+    background-color: white;
+    margin: 3px 0;
+    transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    transform-origin: center;
+    display: block;
+}
+
+/* Animation to X when active */
+.hamburger-menu.active .hamburger-bar:nth-child(1) {
+    transform: translateY(9px) rotate(45deg);
+}
+
+.hamburger-menu.active .hamburger-bar:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+}
+
+.hamburger-menu.active .hamburger-bar:nth-child(3) {
+    transform: translateY(-9px) rotate(-45deg);
+}
+
+/* Hover effect for X state */
+.hamburger-menu.active:hover .hamburger-bar:nth-child(1),
+.hamburger-menu.active:hover .hamburger-bar:nth-child(3) {
+    background-color: #ff6b6b;
+}
+
+.hamburger-menu i {
+    font-size: 1.2rem;
+    color: white;
+}
+
+/* Sidebar Content */
+.sidebar-content {
+    padding: 0;
+    padding-top: 5rem; /* Space for header */
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-container.collapsed .sidebar-content {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Main Content */
+.main-content {
+    position: relative;
+    margin-left: 280px;
+    min-height: 100vh;
+    padding: 0;
+    background-color: #f8f9fa;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    width: calc(100% - 280px); /* Calculate width based on sidebar */
+    box-sizing: border-box;
+}
+
+.main-content.expanded {
+    margin-left: 0;
+    width: 100%;
+    padding: 0;
+}
+
+/* Content wrapper inside main */
+.content-wrapper-inner {
+    padding: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+    position: relative;
+}
+
+.main-content.expanded .content-wrapper-inner {
+    padding: 0;
+    /* No padding-top, let hamburger fully overlay */
+}
+
+/* Remove all Bootstrap container/row/col paddings in main content */
+.main-content .container,
+.main-content .container-fluid,
+.main-content .row,
+.main-content [class*="col-"] {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+/* Override Bootstrap defaults for expanded state */
+.main-content.expanded .d-flex:first-child {
+    padding-left: 60px !important; /* Only space for hamburger */
+    padding-top: 1rem !important;
+    padding-right: 1rem !important;
+}
+
+/* Ensure content starts from left edge */
+.main-content.expanded .content-wrapper-inner {
+    margin: 0;
+    padding: 0;
+}
+
+/* Direct children divs - no padding when expanded */
+.content-wrapper-inner > div {
+    padding: 1rem;
+}
+
+.main-content.expanded .content-wrapper-inner > div {
+    padding: 0; /* No padding at all */
+}
+
+/* Specific padding for cards and form elements */
+.main-content .card {
+    margin: 0;
+    border-radius: 0;
+}
+
+.main-content.expanded .card {
+    margin-left: 60px; /* Only space for hamburger button */
+    margin-right: 1rem;
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+}
+
+.main-content .card-body {
+    padding: 1rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .sidebar-container {
+        width: 260px;
+    }
+
+    .sidebar-container.collapsed {
+        transform: translateX(-260px); /* Completely hide on mobile */
+    }
+
+    .main-content {
+        margin-left: 260px;
+        padding: 0;
+        width: calc(100% - 260px);
+    }
+
+    .main-content.expanded {
+        margin-left: 0;
+        width: 100%;
+        padding: 0;
+    }
+
+    .content-wrapper-inner {
+        padding: 0;
+    }
+
+    .content-wrapper-inner > div {
+        padding: 0.5rem;
+    }
+
+    .main-content.expanded .content-wrapper-inner > div {
+        padding: 0;
+    }
+
+    .main-content.expanded .card {
+        margin-left: 50px;
+        margin-right: 0.5rem;
+        margin-top: 0.5rem;
+    }
+}
+
+.sidebar-container .nav-link {
+    color: rgba(255, 255, 255, 0.8);
+    padding: 0.75rem 1rem;
+    border-radius: 0;
+    margin: 0;
     transition: all 0.3s ease;
 }
 
-.sidebar .nav-link:hover,
-.sidebar .nav-link.active {
+.sidebar-container .nav-link:hover,
+.sidebar-container .nav-link.active {
     color: #fff;
     background-color: rgba(255, 255, 255, 0.2);
-    transform: translateX(5px);
+    transform: translateX(3px);
 }
 
-/* Content Area */
-.content-wrapper {
-    background-color: #f8f9fa;
-    min-height: 100vh;
-}
 
 /* Card Styling */
 .card {
@@ -33,11 +256,42 @@
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     border-radius: 0.75rem;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    margin-bottom: 1rem;
 }
 
 .card:hover {
     transform: translateY(-2px);
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* Remove container-fluid padding */
+.container-fluid {
+    padding-left: 0;
+    padding-right: 0;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
+/* Prevent horizontal scrolling */
+body {
+    overflow-x: hidden;
+}
+
+/* Fix Bootstrap row margins */
+.row {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+/* Remove Bootstrap default gutters */
+.g-0,
+.gx-0 {
+    --bs-gutter-x: 0;
+}
+
+.g-0,
+.gy-0 {
+    --bs-gutter-y: 0;
 }
 
 .card-header {

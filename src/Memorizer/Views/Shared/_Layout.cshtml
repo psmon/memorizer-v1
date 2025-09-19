@@ -19,18 +19,26 @@
     
 </head>
 <body>
+    <!-- Hamburger menu button fixed position -->
+    <button class="hamburger-menu" type="button" onclick="toggleSidebar()">
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+        <span class="hamburger-bar"></span>
+    </button>
+
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <div class="text-center mb-4">
-                        <h4 class="text-white">
-                            <i class="fas fa-brain me-2"></i>
-                            Memorizer
-                        </h4>
-                        <p class="text-white-50 small">Memory Management System</p>
-                    </div>
+            <nav id="sidebarMenu" class="sidebar-container" tabindex="-1">
+                <div class="sidebar-inner">
+                    <div class="sidebar-content">
+                        <div class="text-center mb-4">
+                            <h4 class="text-white">
+                                <i class="fas fa-brain me-2"></i>
+                                Memorizer
+                            </h4>
+                            <p class="text-white-50 small">Memory Management System</p>
+                        </div>
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
@@ -135,13 +143,14 @@
                             <i class="fas fa-project-diagram me-1"></i>
                             Neo4j Graph
                         </small>
+                        </div>
                     </div>
                 </div>
             </nav>
 
             <!-- Main content -->
-            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 content-wrapper">
-                <div class="py-4">
+            <main class="main-content">
+                <div class="content-wrapper-inner">
                     @RenderBody()
                 </div>
                 
@@ -185,7 +194,65 @@
     <!-- Custom scripts -->
     <script src="~/js/memory-utils.js"></script>
     <script src="~/js/markdown-renderer.js"></script>
-    
+
+    <script>
+        let sidebarOpen = true;
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebarMenu');
+            const mainContent = document.querySelector('.main-content');
+            const hamburger = document.querySelector('.hamburger-menu');
+
+            sidebarOpen = !sidebarOpen;
+
+            if (sidebarOpen) {
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                hamburger.classList.add('active'); // X icon when menu is open
+            } else {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                hamburger.classList.remove('active'); // Hamburger icon when menu is closed
+            }
+        }
+
+        function checkScreenSize() {
+            const sidebar = document.getElementById('sidebarMenu');
+            const mainContent = document.querySelector('.main-content');
+            const hamburger = document.querySelector('.hamburger-menu');
+            const width = window.innerWidth;
+
+            // Auto-collapse on narrow screens
+            if (width <= 768 && sidebarOpen) {
+                sidebarOpen = false;
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+                hamburger.classList.remove('active'); // Hamburger when collapsed
+            } else if (width > 768 && !sidebarOpen) {
+                // Auto-expand on wider screens
+                sidebarOpen = true;
+                sidebar.classList.remove('collapsed');
+                mainContent.classList.remove('expanded');
+                hamburger.classList.add('active'); // X when expanded
+            }
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            checkScreenSize();
+            // Set initial hamburger state
+            const hamburger = document.querySelector('.hamburger-menu');
+            if (sidebarOpen) {
+                hamburger.classList.add('active'); // X icon if menu is initially open
+            }
+        });
+
+        // Check on window resize
+        window.addEventListener('resize', function() {
+            checkScreenSize();
+        });
+    </script>
+
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html> 

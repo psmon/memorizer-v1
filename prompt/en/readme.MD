@@ -91,6 +91,13 @@ Hybrid search functionality improvement and ASKBot conversational chatbot implem
 - [HybridSearch-Upgrade](14-HybridSerch-Upgrade.md)
 - [ASKBOT-ActorModel](15.01-ASKBOT-ActorModel.md)
 - [ASKBOT-SSE](15.02-ASKBOT-Websocket.md)
+- [ASKBOT-IMPROVE1](15.03-ASKBOT-IMPROVE1.md)
+
+## Version 1.1.0
+
+Menu UI/UX improvements - Responsive hamburger menu and animation implementation
+
+- [MenuView-Upgrade](16.MenuView-Upgrade.MD)
 
 
 ## Claude Cli Setting: Use for Vibe Coding
