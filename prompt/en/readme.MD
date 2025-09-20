@@ -99,6 +99,12 @@ Menu UI/UX improvements - Responsive hamburger menu and animation implementation
 
 - [MenuView-Upgrade](16.MenuView-Upgrade.MD)
 
+## Version 1.1.1
+
+ASKBot conversation context management improvements - Session-based conversation context retention and selective reasoning process display
+
+- [ASKBOT-ActorModel-Upgrade](17.ASKBOT-ActorModel-Upgrade.md)
+
 
 ## Claude Cli Setting: Use for Vibe Coding
 

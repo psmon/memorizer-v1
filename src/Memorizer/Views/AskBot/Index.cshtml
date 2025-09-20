@@ -384,6 +384,7 @@
         let messageCounter = 0;
         let referencedMemoryIds = [];
         let processedReasoningSteps = new Set(); // Track already shown reasoning steps to prevent duplicates
+        let hasMemorySearch = false; // Track if memory search is happening
 
         // Initialize Mermaid
         mermaid.initialize({
@@ -460,11 +461,20 @@
 
             eventSource.addEventListener('reasoning', function(event) {
                 const data = JSON.parse(event.data);
-                addReasoningStep(data.content);
+                // Check if this is a search-related reasoning
+                if (data.content.includes('search') || data.content.includes('memory') ||
+                    data.content.includes('검색') || data.content.includes('메모리')) {
+                    hasMemorySearch = true;
+                }
+                // Only show reasoning if memory search is happening
+                if (hasMemorySearch) {
+                    addReasoningStep(data.content);
+                }
             });
 
             eventSource.addEventListener('searchprogress', function(event) {
                 const data = JSON.parse(event.data);
+                hasMemorySearch = true; // Search is definitely happening
                 addReasoningStep(data.content);
             });
 
@@ -479,8 +489,16 @@
                 // Check if we have memory references
                 if (data.referencedMemoryIds && data.referencedMemoryIds.length > 0) {
                     referencedMemoryIds = data.referencedMemoryIds;
-                } else {
-                    referencedMemoryIds = [];
+                }
+
+                // Use the hasMemorySearch flag from server
+                if (data.hasMemorySearch) {
+                    hasMemorySearch = true;
+                }
+
+                // Hide reasoning steps if no memory search was performed
+                if (!hasMemorySearch) {
+                    hideReasoningSteps();
                 }
 
                 finalizeCurrentMessage();
@@ -558,6 +576,7 @@
             currentMessageContent = '';
             referencedMemoryIds = [];
             processedReasoningSteps.clear(); // Clear processed steps for new message
+            hasMemorySearch = false; // Reset memory search flag
 
             // Clear any welcome message
             clearWelcomeMessage();
@@ -621,6 +640,7 @@
             const typingIndicator = document.getElementById('typing-indicator');
             const reasoningDiv = document.createElement('div');
             reasoningDiv.className = 'reasoning-step';
+            reasoningDiv.setAttribute('data-reasoning', 'true'); // Mark for easy removal
             reasoningDiv.innerHTML = `
                 <div class="d-flex align-items-center">
                     <i class="fas fa-check-circle text-success me-2"></i>
@@ -637,6 +657,13 @@
 
             // Keep reasoning steps visible - don't remove them
             // They show the process history
+        }
+
+        function hideReasoningSteps() {
+            // Remove all reasoning steps if no memory search was performed
+            const messagesContainer = document.getElementById('chat-messages');
+            const reasoningSteps = messagesContainer.querySelectorAll('[data-reasoning="true"]');
+            reasoningSteps.forEach(step => step.remove());
         }
 
         function showTypingIndicator() {

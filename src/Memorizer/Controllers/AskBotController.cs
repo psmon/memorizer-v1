@@ -507,7 +507,8 @@ public sealed class StreamingChatBotActor : ChatBotActor
                 {
                     sessionId = _sessionId,
                     type = response.Type.ToString(),
-                    referencedMemoryIds = response.ReferencedMemoryIds ?? new List<Guid>()
+                    referencedMemoryIds = response.ReferencedMemoryIds ?? new List<Guid>(),
+                    hasMemorySearch = response.Type == ResponseType.MemoryBased // Include memory search flag
                 })
             });
         }
@@ -540,6 +541,11 @@ public sealed class StreamingChatBotActor : ChatBotActor
             Content = step
         });
     }
+
+    // Expose conversation state for debugging/monitoring
+    public int GetConversationCount() => _conversationEntries.Count;
+    public string GetShortTermMemory() => _shortTermMemory;
+    public string GetLastImportantResponse() => _lastImportantResponse;
 
     public static Props Props(
         string sessionId,

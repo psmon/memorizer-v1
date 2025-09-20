@@ -36,9 +36,9 @@ body {
 
 /* Hamburger Menu Button */
 .hamburger-menu {
-    position: fixed;
-    top: 1rem;
-    left: 1rem;
+    position: fixed !important;
+    top: 1rem !important;
+    left: 1rem !important;
     width: 40px;
     height: 40px;
     display: flex;
@@ -50,14 +50,13 @@ body {
     border-radius: 0.5rem;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     cursor: pointer;
-    z-index: 9999; /* Highest z-index to always be on top */
+    z-index: 999999 !important; /* Maximum z-index for guaranteed overlay */
     padding: 0;
     transition: background 0.3s ease;
-    opacity: 0.95;
 }
 
 .hamburger-menu:hover {
-    opacity: 1;
+    background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
 }
 
 .hamburger-menu:hover {
@@ -156,9 +155,10 @@ body {
 
 /* Override Bootstrap defaults for expanded state */
 .main-content.expanded .d-flex:first-child {
-    padding-left: 60px !important; /* Only space for hamburger */
-    padding-top: 1rem !important;
-    padding-right: 1rem !important;
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
 }
 
 /* Ensure content starts from left edge */
@@ -167,26 +167,84 @@ body {
     padding: 0;
 }
 
-/* Direct children divs - no padding when expanded */
+/* Remove ALL padding when expanded */
+.main-content.expanded .container-fluid.px-4,
+.main-content.expanded .px-4,
+.main-content.expanded .px-3,
+.main-content.expanded .px-2,
+.main-content.expanded .px-1,
+.main-content.expanded .p-4,
+.main-content.expanded .p-3,
+.main-content.expanded .p-2,
+.main-content.expanded .p-1 {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* First element needs minimal padding to avoid hamburger */
+.main-content.expanded .content-wrapper-inner > :first-child {
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+}
+
+/* Blog/other pages with container-fluid */
+.main-content.expanded .container-fluid > .row:first-child {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    padding-left: 0 !important;
+    padding-top: 0 !important;
+    padding-right: 0 !important;
+}
+
+/* Direct children divs */
 .content-wrapper-inner > div {
     padding: 1rem;
 }
 
 .main-content.expanded .content-wrapper-inner > div {
-    padding: 0; /* No padding at all */
+    padding: 0 !important; /* No padding at all */
+    margin: 0 !important;
+}
+
+/* Blog and other pages with container-fluid */
+.main-content .container-fluid {
+    padding-left: 1rem;
+    padding-right: 1rem;
+}
+
+.main-content.expanded .container-fluid {
+    padding: 0 !important;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* Blog specific - remove all padding when expanded */
+.main-content.expanded #blogPosts,
+.main-content.expanded .filter-scroll-container,
+.main-content.expanded .filter-buttons {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
 }
 
 /* Specific padding for cards and form elements */
 .main-content .card {
+    margin: 0.5rem;
+    border-radius: 0.5rem;
+}
+
+/* When expanded, cards use full width */
+.main-content.expanded .card {
     margin: 0;
     border-radius: 0;
 }
 
-.main-content.expanded .card {
-    margin-left: 60px; /* Only space for hamburger button */
-    margin-right: 1rem;
-    margin-top: 1rem;
-    margin-bottom: 1rem;
+.main-content.expanded .content-wrapper-inner > div > .card:first-child,
+.main-content.expanded .row:first-child .card:first-child {
+    margin: 0;
 }
 
 .main-content .card-body {
@@ -231,6 +289,26 @@ body {
         margin-left: 50px;
         margin-right: 0.5rem;
         margin-top: 0.5rem;
+    }
+
+    .main-content.expanded .row > .col .card,
+    .main-content.expanded .row > .col-12 .card {
+        margin-left: 0;
+    }
+
+    .main-content.expanded .container-fluid > .row:first-child {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        padding-left: 0 !important;
+        padding-top: 0 !important;
+        padding-right: 0 !important;
+    }
+
+    .main-content.expanded .content-wrapper-inner > :first-child {
+        padding-left: 0 !important;
+        padding-top: 0 !important;
+        padding-right: 0 !important;
+        margin: 0 !important;
     }
 }
 

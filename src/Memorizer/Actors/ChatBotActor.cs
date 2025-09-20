@@ -2,6 +2,7 @@ using Akka.Actor;
 using Akka.Event;
 using Memorizer.Services;
 using System.Text;
+using System.Linq;
 
 namespace Memorizer.Actors;
 
@@ -24,25 +25,37 @@ public class ChatBotActor : ReceiveActor, IWithTimers
     private readonly List<string> _conversationHistory = new();
     private readonly List<StreamingUpdate> _reasoningSteps = new();
 
-    // Prompt for general responses
+    // Session-based conversation management
+    protected readonly List<ConversationEntry> _conversationEntries = new();
+    protected string _shortTermMemory = string.Empty;
+    protected string _lastImportantResponse = string.Empty; // Store last important response separately
+    private const int MaxConversationEntries = 10;
+    private const int MaxShortTermMemoryLength = 500;
+    private const int MaxLastResponseLength = 300;
+
+    // Prompt for general responses with context
     private const string GeneralResponsePrompt = @"
-You are a helpful AI assistant. Answer the following user query in a clear and informative way.
+You are a helpful AI assistant named ASKBot. You are having a conversation with a user.
 
-User Query: {0}
-
-Provide a helpful and concise response.";
-
-    // Prompt for memory-based responses
-    private const string MemoryBasedResponsePrompt = @"
-You are a helpful AI assistant with access to stored memories. Use the following relevant information to answer the user's query.
-
-User Query: {0}
-
-Relevant Information:
 {1}
 
-Based on the above information, provide a comprehensive and accurate answer to the user's query.
-If the information references specific details, include them in your response.";
+Current User Query: {0}
+
+Provide a helpful and concise response that takes the conversation context into account. Be conversational and maintain continuity with previous exchanges.";
+
+    // Prompt for memory-based responses with context
+    private const string MemoryBasedResponsePrompt = @"
+You are a helpful AI assistant named ASKBot with access to stored memories. You are having a conversation with a user.
+
+{2}
+
+Current User Query: {0}
+
+Relevant Information from Memory:
+{1}
+
+Based on the conversation context and the relevant information, provide a comprehensive and accurate answer to the user's query.
+Maintain conversation continuity and reference previous context when appropriate.";
 
     public ITimerScheduler Timers { get; set; } = null!;
 
@@ -82,6 +95,9 @@ If the information references specific details, include them in your response.";
 
         // Store the original sender for response
         var originalSender = Sender;
+
+        // Store the current user message for later use
+        var currentUserMessage = request.Message;
 
         // Add to conversation history
         _conversationHistory.Add($"User: {request.Message}");
@@ -317,7 +333,8 @@ If the information references specific details, include them in your response.";
                 {
                     var memoriesToUse = relevantMemories.Take(count).ToList();
                     var memoriesText = FormatMemoriesForResponseWithLimit(memoriesToUse, count);
-                    var prompt = string.Format(MemoryBasedResponsePrompt, request.Message, memoriesText);
+                    var conversationContext = GenerateConversationContext();
+                    var prompt = string.Format(MemoryBasedResponsePrompt, request.Message, memoriesText, conversationContext);
 
                     // Generate response using LLM
                     llmResponse = await _llmService.CompleteAsync(prompt);
@@ -352,6 +369,9 @@ If the information references specific details, include them in your response.";
 
             // Add to conversation history
             _conversationHistory.Add($"Assistant (memory-based): {llmResponse}");
+
+            // Update conversation entries
+            await UpdateConversationEntries(request.Message, llmResponse, true);
 
             // Create and return response
             var response = new ChatBotResponse
@@ -402,13 +422,17 @@ If the information references specific details, include them in your response.";
     {
         try
         {
-            var prompt = string.Format(GeneralResponsePrompt, request.Message);
+            var conversationContext = GenerateConversationContext();
+            var prompt = string.Format(GeneralResponsePrompt, request.Message, conversationContext);
 
             // Generate response using LLM
             var llmResponse = await _llmService.CompleteAsync(prompt);
 
             // Add to conversation history
             _conversationHistory.Add($"Assistant (general): {llmResponse}");
+
+            // Update conversation entries
+            await UpdateConversationEntries(request.Message, llmResponse, false);
 
             // Create and return response
             var response = new ChatBotResponse
@@ -626,6 +650,156 @@ If the information references specific details, include them in your response.";
     {
         _logger.Info("ChatBotActor for session {0} stopped", _sessionId);
         base.PostStop();
+    }
+
+    private string GenerateConversationContext()
+    {
+        var sb = new StringBuilder();
+
+        // Add short-term memory if exists
+        if (!string.IsNullOrWhiteSpace(_shortTermMemory))
+        {
+            sb.AppendLine("Session Context (Important Information):");
+            sb.AppendLine(_shortTermMemory);
+            sb.AppendLine();
+        }
+
+        // Selectively add last important response if it's relevant
+        // Only include if it contains substantial information
+        if (!string.IsNullOrWhiteSpace(_lastImportantResponse) && _lastImportantResponse.Length > 50)
+        {
+            sb.AppendLine("Previous Response Context:");
+            sb.AppendLine(_lastImportantResponse);
+            sb.AppendLine();
+        }
+
+        // Add recent conversation history
+        if (_conversationEntries.Any())
+        {
+            sb.AppendLine("Recent Conversation:");
+            foreach (var entry in _conversationEntries.TakeLast(3)) // Show last 3 exchanges
+            {
+                sb.AppendLine($"User: {entry.UserMessage}");
+                sb.AppendLine($"Assistant: {entry.BotResponse}");
+                sb.AppendLine();
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch)
+    {
+        // Create new entry
+        var newEntry = new ConversationEntry
+        {
+            UserMessage = userMessage,
+            BotResponse = botResponse,
+            UsedMemorySearch = usedMemorySearch
+        };
+
+        // Check if we need to prune old conversations
+        if (_conversationEntries.Count >= MaxConversationEntries)
+        {
+            // Extract important context from oldest entry before removing
+            var oldestEntry = _conversationEntries.First();
+            await ExtractAndUpdateShortTermMemory(oldestEntry);
+
+            // Remove oldest entry
+            _conversationEntries.RemoveAt(0);
+        }
+
+        // Add new entry
+        _conversationEntries.Add(newEntry);
+
+        // Store the last important response separately
+        await UpdateLastImportantResponse(botResponse, usedMemorySearch);
+
+        _logger.Debug("Updated conversation entries for session {0}. Total entries: {1}",
+            _sessionId, _conversationEntries.Count);
+    }
+
+    private async Task ExtractAndUpdateShortTermMemory(ConversationEntry entryToExtract)
+    {
+        try
+        {
+            // Prompt to extract important information
+            var extractionPrompt = $@"
+Extract the most important information from the following conversation exchange that should be remembered for future context.
+Focus on key facts, user preferences, topics discussed, or any specific information mentioned.
+Keep the extraction concise (max 100 words).
+
+User: {entryToExtract.UserMessage}
+Assistant: {entryToExtract.BotResponse}
+
+Current short-term memory: {_shortTermMemory}
+
+Provide an updated short-term memory that combines the current memory with new important information.
+Maximum length: {MaxShortTermMemoryLength} characters.";
+
+            // Use LLM to extract important context
+            var extractedContext = await _llmService.CompleteAsync(extractionPrompt);
+
+            // Update short-term memory, ensuring it doesn't exceed max length
+            if (!string.IsNullOrWhiteSpace(extractedContext))
+            {
+                _shortTermMemory = extractedContext.Length > MaxShortTermMemoryLength
+                    ? extractedContext.Substring(0, MaxShortTermMemoryLength)
+                    : extractedContext;
+
+                _logger.Debug("Updated short-term memory for session {0}: {1}",
+                    _sessionId, _shortTermMemory);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Failed to extract context from conversation for session {0}", _sessionId);
+            // Continue without updating short-term memory
+        }
+    }
+
+    private async Task UpdateLastImportantResponse(string botResponse, bool usedMemorySearch)
+    {
+        try
+        {
+            // Only update if the response contains substantial information
+            // Prioritize memory-based responses or longer responses
+            if (usedMemorySearch || botResponse.Length > 100)
+            {
+                // Extract the most important parts of the response
+                var extractionPrompt = $@"
+Extract the key information from this assistant response that might be useful for future conversation context.
+Focus on facts, data, explanations, or specific information provided.
+Keep it concise (max 300 characters).
+
+Assistant Response: {botResponse}
+
+Extract only the most important information:";
+
+                var extractedResponse = await _llmService.CompleteAsync(extractionPrompt);
+
+                if (!string.IsNullOrWhiteSpace(extractedResponse))
+                {
+                    _lastImportantResponse = extractedResponse.Length > MaxLastResponseLength
+                        ? extractedResponse.Substring(0, MaxLastResponseLength)
+                        : extractedResponse;
+
+                    _logger.Debug("Updated last important response for session {0}", _sessionId);
+                }
+            }
+            else if (botResponse.Length > 50)
+            {
+                // For shorter responses, store directly if meaningful
+                _lastImportantResponse = botResponse.Length > MaxLastResponseLength
+                    ? botResponse.Substring(0, MaxLastResponseLength)
+                    : botResponse;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning(ex, "Failed to update last important response for session {0}", _sessionId);
+            // Continue without updating
+        }
     }
 
     public static Props Props(

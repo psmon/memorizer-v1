@@ -297,3 +297,56 @@ public sealed class DecisionActorKey;
 /// Actor registry key for ChatBotActor parent/supervisor
 /// </summary>
 public sealed class ChatBotSupervisorActorKey;
+
+/// <summary>
+/// Represents a single conversation entry (user message + bot response)
+/// </summary>
+public sealed record ConversationEntry
+{
+    /// <summary>
+    /// User's message
+    /// </summary>
+    public required string UserMessage { get; init; }
+
+    /// <summary>
+    /// Bot's response
+    /// </summary>
+    public required string BotResponse { get; init; }
+
+    /// <summary>
+    /// Timestamp of the exchange
+    /// </summary>
+    public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Whether this exchange involved memory search
+    /// </summary>
+    public bool UsedMemorySearch { get; init; }
+}
+
+/// <summary>
+/// Message to extract important context from conversation history
+/// </summary>
+public sealed record ExtractContextRequest : IChatBotMessage
+{
+    /// <summary>
+    /// Conversation entries to extract context from
+    /// </summary>
+    public required List<ConversationEntry> ConversationHistory { get; init; }
+
+    /// <summary>
+    /// Current short-term memory to merge with
+    /// </summary>
+    public string? CurrentShortTermMemory { get; init; }
+}
+
+/// <summary>
+/// Response with extracted context
+/// </summary>
+public sealed record ExtractContextResponse : IChatBotMessage
+{
+    /// <summary>
+    /// Updated short-term memory (max 500 chars)
+    /// </summary>
+    public required string ShortTermMemory { get; init; }
+}

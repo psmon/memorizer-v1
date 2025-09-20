@@ -97,6 +97,12 @@ Custom LLM/Embedding 서비스 구현 및 설정 개선
 
 - [MenuView-Upgrade](16.MenuView-Upgrade.MD)
 
+## Version 1.1.1
+
+ASKBot 대화 컨텍스트 관리 기능 개선 - 세션별 대화 맥락 유지 및 추론 과정 선택적 표시
+
+- [ASKBOT-ActorModel-Upgrade](17.ASKBOT-ActorModel-Upgrade.md)
+
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
