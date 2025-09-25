@@ -105,6 +105,12 @@ ASKBot conversation context management improvements - Session-based conversation
 
 - [ASKBOT-ActorModel-Upgrade](17.ASKBOT-ActorModel-Upgrade.md)
 
+## Version 1.1.2
+
+Integration test improvements - Actor model test updates and enhanced real device-based testing
+
+- [Unitest-Upgrade](18.Unitest-Upgrade.md)
+
 
 ## Claude Cli Setting: Use for Vibe Coding
 

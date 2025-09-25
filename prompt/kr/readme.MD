@@ -104,6 +104,11 @@ ASKBot 대화 컨텍스트 관리 기능 개선 - 세션별 대화 맥락 유지
 - [ASKBOT-ActorModel-Upgrade](17.ASKBOT-ActorModel-Upgrade.md)
 
 
+통합 테스트 개선 - Actor 모델 테스트 업데이트 및 실제 장치 기반 테스트 강화
+
+- [Unitest-Upgrade](18.Unitest-Upgrade.md)
+
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```
