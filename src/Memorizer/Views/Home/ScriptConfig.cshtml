@@ -1,0 +1,337 @@
+@{
+    ViewData["Title"] = "Script Configuration";
+}
+
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 mb-1">
+                    <i class="fas fa-code me-2 text-primary"></i>
+                    Script Configuration
+                </h1>
+                <p class="text-muted mb-0">Manage custom scripts for dynamic injection into pages</p>
+            </div>
+            <div>
+                <button class="btn btn-primary" onclick="showCreateModal()">
+                    <i class="fas fa-plus me-2"></i>
+                    Add New Script
+                </button>
+            </div>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <div id="loadingSpinner" class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading scripts...</span>
+            </div>
+            <p class="text-muted mt-2">Loading scripts...</p>
+        </div>
+
+        <div id="scriptsContainer" style="display: none;">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Registered Scripts
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Created At</th>
+                                    <th>Updated At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scriptsTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="emptyState" style="display: none;" class="text-center py-4">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">No scripts configured yet. Click "Add New Script" to get started.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4" style="display: none;" id="scriptsContainer2">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    How to Use
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul>
+                    <li>Scripts are injected into the <code>&lt;head&gt;</code> section of all pages</li>
+                    <li>Use this feature to add analytics (Google Analytics, etc.), tracking pixels, or custom JavaScript</li>
+                    <li>Scripts are cached for 1 minute to optimize performance</li>
+                    <li>Only active scripts will be injected into pages</li>
+                    <li>Wrap your code in <code>&lt;script&gt;</code> tags</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="scriptModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">Add New Script</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scriptForm">
+                    <input type="hidden" id="scriptId" value="">
+                    <div class="mb-3">
+                        <label for="scriptName" class="form-label">Script Name <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="scriptName" required
+                               placeholder="e.g., google-analytics">
+                        <small class="form-text text-muted">Use lowercase with hyphens (e.g., google-analytics)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="scriptContent" class="form-label">Script Content <span class="text-danger">*</span></label>
+                        <textarea class="form-control font-monospace" id="scriptContent" rows="10" required
+                                  placeholder="<script>&#10;  // Your JavaScript code here&#10;</script>"></textarea>
+                        <small class="form-text text-muted">Include <code>&lt;script&gt;</code> tags in your content</small>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="scriptActive" checked>
+                        <label class="form-check-label" for="scriptActive">
+                            Active (inject into pages)
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveScript()">
+                    <i class="fas fa-save me-2"></i>
+                    Save Script
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+let scriptModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    scriptModal = new bootstrap.Modal(document.getElementById('scriptModal'));
+    loadScripts();
+});
+
+async function loadScripts() {
+    try {
+        const response = await fetch('/api/customscript');
+        if (!response.ok) {
+            if (response.status === 401) {
+                showAlert('Please login to manage scripts', 'warning');
+                setTimeout(() => window.location.href = '/auth/login', 2000);
+                return;
+            }
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const scripts = await response.json();
+        displayScripts(scripts);
+
+    } catch (error) {
+        console.error('Error loading scripts:', error);
+        showAlert('Failed to load scripts: ' + error.message, 'danger');
+    } finally {
+        document.getElementById('loadingSpinner').style.display = 'none';
+        document.getElementById('scriptsContainer').style.display = 'block';
+        document.getElementById('scriptsContainer2').style.display = 'block';
+    }
+}
+
+function displayScripts(scripts) {
+    const tbody = document.getElementById('scriptsTableBody');
+    const emptyState = document.getElementById('emptyState');
+
+    if (scripts.length === 0) {
+        tbody.innerHTML = '';
+        emptyState.style.display = 'block';
+        return;
+    }
+
+    emptyState.style.display = 'none';
+    tbody.innerHTML = scripts.map(script => `
+        <tr>
+            <td>
+                <strong>${escapeHtml(script.name)}</strong>
+            </td>
+            <td>
+                <span class="badge ${script.isActive ? 'bg-success' : 'bg-secondary'}">
+                    ${script.isActive ? 'Active' : 'Inactive'}
+                </span>
+            </td>
+            <td>${new Date(script.createdAt).toLocaleString()}</td>
+            <td>${new Date(script.updatedAt).toLocaleString()}</td>
+            <td>
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="viewScript('${escapeHtml(script.name)}')">
+                    <i class="fas fa-eye"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-secondary me-1" onclick="editScript('${escapeHtml(script.name)}')">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteScript('${escapeHtml(script.name)}')">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function showCreateModal() {
+    document.getElementById('modalTitle').textContent = 'Add New Script';
+    document.getElementById('scriptForm').reset();
+    document.getElementById('scriptId').value = '';
+    document.getElementById('scriptName').disabled = false;
+    document.getElementById('scriptActive').checked = true;
+    scriptModal.show();
+}
+
+async function viewScript(name) {
+    try {
+        const response = await fetch(`/api/customscript/${encodeURIComponent(name)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const script = await response.json();
+
+        document.getElementById('modalTitle').textContent = 'View Script';
+        document.getElementById('scriptId').value = script.id;
+        document.getElementById('scriptName').value = script.name;
+        document.getElementById('scriptName').disabled = true;
+        document.getElementById('scriptContent').value = script.scriptContent;
+        document.getElementById('scriptContent').disabled = true;
+        document.getElementById('scriptActive').checked = script.isActive;
+        document.getElementById('scriptActive').disabled = true;
+
+        const saveBtn = document.querySelector('#scriptModal .btn-primary');
+        saveBtn.style.display = 'none';
+
+        scriptModal.show();
+
+        document.getElementById('scriptModal').addEventListener('hidden.bs.modal', function() {
+            document.getElementById('scriptContent').disabled = false;
+            document.getElementById('scriptActive').disabled = false;
+            saveBtn.style.display = 'inline-block';
+        }, { once: true });
+
+    } catch (error) {
+        showAlert('Failed to load script: ' + error.message, 'danger');
+    }
+}
+
+async function editScript(name) {
+    try {
+        const response = await fetch(`/api/customscript/${encodeURIComponent(name)}`);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const script = await response.json();
+
+        document.getElementById('modalTitle').textContent = 'Edit Script';
+        document.getElementById('scriptId').value = script.id;
+        document.getElementById('scriptName').value = script.name;
+        document.getElementById('scriptName').disabled = true;
+        document.getElementById('scriptContent').value = script.scriptContent;
+        document.getElementById('scriptActive').checked = script.isActive;
+
+        scriptModal.show();
+
+    } catch (error) {
+        showAlert('Failed to load script: ' + error.message, 'danger');
+    }
+}
+
+async function saveScript() {
+    const name = document.getElementById('scriptName').value.trim();
+    const content = document.getElementById('scriptContent').value.trim();
+    const isActive = document.getElementById('scriptActive').checked;
+
+    if (!name || !content) {
+        showAlert('Name and content are required', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/customscript', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: name,
+                scriptContent: content,
+                isActive: isActive
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP ${response.status}`);
+        }
+
+        showAlert(`Script "${name}" saved successfully`, 'success');
+        scriptModal.hide();
+        await loadScripts();
+
+    } catch (error) {
+        showAlert('Failed to save script: ' + error.message, 'danger');
+    }
+}
+
+async function deleteScript(name) {
+    if (!confirm(`Are you sure you want to delete script "${name}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/customscript/${encodeURIComponent(name)}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || `HTTP ${response.status}`);
+        }
+
+        showAlert(`Script "${name}" deleted successfully`, 'success');
+        await loadScripts();
+
+    } catch (error) {
+        showAlert('Failed to delete script: ' + error.message, 'danger');
+    }
+}
+
+function showAlert(message, type) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.getElementById('alertContainer').innerHTML = alertHtml;
+    setTimeout(() => {
+        const alert = document.querySelector('.alert');
+        if (alert) alert.remove();
+    }, 5000);
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+}

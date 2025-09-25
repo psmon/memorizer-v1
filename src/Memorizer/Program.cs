@@ -76,8 +76,12 @@ builder.Services.AddCors(options =>
 // Add authentication services
 builder.Services.AddSingleton<IAuthenticationService, AuthenticationService>();
 
+// Add custom script service
+builder.Services.AddScoped<ICustomScriptService, CustomScriptService>();
+
 // Add session support
 builder.Services.AddDistributedMemoryCache();
+builder.Services.AddMemoryCache();
 builder.Services.AddSession(options =>
 {
     options.IdleTimeout = TimeSpan.FromHours(24);

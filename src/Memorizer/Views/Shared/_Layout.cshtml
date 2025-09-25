@@ -1,6 +1,9 @@
+@using Memorizer.Services
+@inject ICustomScriptService CustomScriptService
 @{
     var isAuthenticated = Context.Items["IsAuthenticated"] as bool? ?? false;
     var username = Context.Items["Username"] as string ?? "";
+    var customScripts = await CustomScriptService.GetActiveScriptsAsync();
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -15,8 +18,11 @@
     <link href="~/css/tools.css" rel="stylesheet">
     <link href="~/css/markdown-styles.css" rel="stylesheet">
     @await RenderSectionAsync("Styles", required: false)
-    <!-- Neo branding script -->
-    
+    <!-- Custom script -->
+    @if (!string.IsNullOrWhiteSpace(customScripts))
+    {
+        @Html.Raw(customScripts)
+    }
 </head>
 <body>
     <!-- Hamburger menu button fixed position -->
@@ -100,10 +106,17 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Config" ? "active" : "")" 
+                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Config" ? "active" : "")"
                                    asp-controller="Home" asp-action="Config">
                                     <i class="fas fa-cogs me-2"></i>
                                     System Config
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "ScriptConfig" ? "active" : "")"
+                                   asp-controller="Home" asp-action="ScriptConfig">
+                                    <i class="fas fa-code me-2"></i>
+                                    Script Config
                                 </a>
                             </li>
                         }

@@ -109,6 +109,11 @@ Integration test improvements - Actor model test updates and enhanced real devic
 
 - [Unitest-Upgrade](18.Unitest-Upgrade.md)
 
+## Version 1.1.2
+
+Dynamic script injection feature implementation - Custom JavaScript dynamic injection into pages and management UI provided
+
+- [InstallScript](19.InstallScript.md)
 
 ## Claude Cli Setting: Use for Vibe Coding
 

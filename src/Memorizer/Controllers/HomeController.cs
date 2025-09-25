@@ -97,7 +97,7 @@ public class HomeController : Controller
     public IActionResult McpConfigJson()
     {
         var canonicalUrl = _serverSettings?.CanonicalUrl ?? "http://localhost:5000";
-        
+
         var mcpConfig = new
         {
             mcpServers = new
@@ -110,5 +110,15 @@ public class HomeController : Controller
         };
 
         return Json(mcpConfig);
+    }
+
+    /// <summary>
+    /// Script configuration page - manage custom scripts injection
+    /// </summary>
+    [HttpGet]
+    [Route("script-config")]
+    public IActionResult ScriptConfig()
+    {
+        return View();
     }
 } 
