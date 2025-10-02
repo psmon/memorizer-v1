@@ -438,9 +438,13 @@
         }
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', async function() {
             sessionId = getSessionId();
             updateSessionInfo();
+
+            // Load conversation history if session exists
+            await loadConversationHistory();
+
             connectSSE();
 
             // Add event listeners
@@ -833,6 +837,83 @@
                 "'": '&#039;'
             };
             return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        async function loadConversationHistory() {
+            try {
+                const response = await fetch(`/api/askbot/session/${sessionId}/history`);
+
+                if (!response.ok) {
+                    // Session doesn't exist yet or no history - this is fine
+                    console.log('No conversation history found for this session');
+                    return;
+                }
+
+                const data = await response.json();
+
+                if (!data.messages || data.messages.length === 0) {
+                    console.log('Session exists but no messages yet');
+                    return;
+                }
+
+                // Clear welcome message
+                clearWelcomeMessage();
+
+                // Render each message
+                const messagesContainer = document.getElementById('chat-messages');
+                data.messages.forEach(msg => {
+                    if (msg.role === 'user') {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'message user';
+                        messageDiv.innerHTML = `
+                            <div>
+                                <div class="message-label">You</div>
+                                <div class="message-content">${escapeHtml(msg.content)}</div>
+                            </div>
+                        `;
+                        messagesContainer.appendChild(messageDiv);
+                    } else if (msg.role === 'assistant') {
+                        const messageDiv = document.createElement('div');
+                        messageDiv.className = 'message assistant';
+
+                        let contentHtml = `<div class="markdown-content">${renderMarkdown(msg.content)}</div>`;
+
+                        if (msg.usedMemorySearch) {
+                            contentHtml = `
+                                <div class="memory-indicator">
+                                    <i class="fas fa-brain"></i> Memory-based response
+                                </div>
+                            ` + contentHtml;
+                        }
+
+                        messageDiv.innerHTML = `
+                            <div>
+                                <div class="message-label">AskBot</div>
+                                <div class="message-content">
+                                    ${contentHtml}
+                                </div>
+                            </div>
+                        `;
+                        messagesContainer.appendChild(messageDiv);
+                    }
+                });
+
+                // Scroll to bottom
+                scrollToBottom();
+
+                // Highlight code blocks
+                document.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+
+                // Render Mermaid diagrams
+                mermaid.run();
+
+                console.log(`Restored ${data.messages.length} messages from conversation history`);
+            } catch (error) {
+                console.error('Error loading conversation history:', error);
+                // Don't show error to user - just continue with empty chat
+            }
         }
 
         async function createNewSession() {

@@ -242,6 +242,43 @@ public class AskBotController : ControllerBase
     }
 
     /// <summary>
+    /// Get conversation history for a session
+    /// </summary>
+    [HttpGet("session/{sessionId}/history")]
+    public async Task<IActionResult> GetSessionHistory(string sessionId)
+    {
+        try
+        {
+            // Check if session exists
+            if (!SessionActors.TryGetValue(sessionId, out var chatBotActor))
+            {
+                return NotFound(new { error = "Session not found" });
+            }
+
+            // Request conversation history from actor
+            var historyResponse = await chatBotActor.Ask<GetConversationHistoryResponse>(
+                new GetConversationHistoryRequest { SessionId = sessionId },
+                TimeSpan.FromSeconds(10)
+            );
+
+            // Convert to message format for UI
+            var messages = new List<object>();
+            foreach (var entry in historyResponse.ConversationEntries)
+            {
+                messages.Add(new { role = "user", content = entry.UserMessage, timestamp = entry.Timestamp });
+                messages.Add(new { role = "assistant", content = entry.BotResponse, timestamp = entry.Timestamp, usedMemorySearch = entry.UsedMemorySearch });
+            }
+
+            return Ok(new { sessionId, messages });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving session history for {SessionId}", sessionId);
+            return StatusCode(500, new { error = "Failed to retrieve session history" });
+        }
+    }
+
+    /// <summary>
     /// Create a share link for the current session
     /// </summary>
     [HttpPost("share")]
