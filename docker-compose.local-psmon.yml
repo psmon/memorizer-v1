@@ -31,7 +31,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - /mnt/d/data/postgres/mcp_ver2:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
   memorizer:
@@ -71,8 +71,9 @@ services:
     depends_on:
       - postgres
       - neo4j      
-volumes:  
+volumes:
   neo4j_data:
   neo4j_logs:
   neo4j_import:
   neo4j_plugins:
+  postgres_data:

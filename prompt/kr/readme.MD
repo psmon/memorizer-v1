@@ -113,6 +113,12 @@ ASKBot 대화 컨텍스트 관리 기능 개선 - 세션별 대화 맥락 유지
 
 - [InstallScript](19.InstallScript.md)
 
+## Version 1.1.3
+
+AskBot 대화 공유 및 복원 기능 구현 - 숏링크 기반 대화 공유, 데이터베이스 대화 스냅샷 저장, 페이지 새로고침 시 세션 기반 대화 복원, 물결 애니메이션 생각 인디케이터 개선
+
+- [AskBotShare](20-AskBotShare.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

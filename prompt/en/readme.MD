@@ -115,6 +115,12 @@ Dynamic script injection feature implementation - Custom JavaScript dynamic inje
 
 - [InstallScript](19.InstallScript.md)
 
+## Version 1.1.3
+
+AskBot conversation sharing and restoration features - Short link generation for conversation sharing, conversation snapshots in database, session-based conversation restoration on page refresh, and wave animation improvements for thinking indicator
+
+- [AskBotShare](20-AskBotShare.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

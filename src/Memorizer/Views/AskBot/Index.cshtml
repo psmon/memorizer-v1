@@ -237,6 +237,69 @@
             font-size: 0.9em;
         }
 
+        /* Thinking indicator wave animation */
+        .thinking-wave {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .thinking-wave .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            animation: wave 1.4s ease-in-out infinite;
+        }
+
+        .thinking-wave .dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+
+        .thinking-wave .dot:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .thinking-wave .dot:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        .thinking-wave .dot:nth-child(4) {
+            animation-delay: 0.6s;
+        }
+
+        .thinking-wave .dot:nth-child(5) {
+            animation-delay: 0.8s;
+        }
+
+        @@keyframes wave {
+            0%, 60%, 100% {
+                transform: translateY(0);
+                opacity: 0.4;
+            }
+            30% {
+                transform: translateY(-10px);
+                opacity: 1;
+            }
+        }
+
+        .thinking-text {
+            margin-left: 8px;
+            color: #667eea;
+            font-weight: 500;
+            font-size: 0.9rem;
+            animation: pulse 1.4s ease-in-out infinite;
+        }
+
+        @@keyframes pulse {
+            0%, 100% {
+                opacity: 0.6;
+            }
+            50% {
+                opacity: 1;
+            }
+        }
+
         /* Mobile responsive */
         @@media (max-width: 768px) {
             .chat-container {
@@ -691,12 +754,16 @@
             typingDiv.innerHTML = `
                 <div>
                     <div class="message-label">AskBot</div>
-                    <div class="message-content" style="background: #f0f0f0; color: #666;">
+                    <div class="message-content" style="background: linear-gradient(135deg, #f8f9ff 0%, #f0f0ff 100%); border-left: 3px solid #667eea;">
                         <div class="d-flex align-items-center">
-                            <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                                <span class="visually-hidden">Loading...</span>
+                            <div class="thinking-wave">
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
+                                <div class="dot"></div>
                             </div>
-                            <span>챗봇 생각중...</span>
+                            <span class="thinking-text">생각하는 중...</span>
                         </div>
                     </div>
                 </div>
@@ -845,7 +912,12 @@
 
                 if (!response.ok) {
                     // Session doesn't exist yet or no history - this is fine
-                    console.log('No conversation history found for this session');
+                    // 404 means session not found (new session or localStorage has old session ID)
+                    if (response.status === 404) {
+                        console.log('New session - no previous conversation history');
+                    } else {
+                        console.warn(`Failed to load history: ${response.status}`);
+                    }
                     return;
                 }
 
@@ -911,7 +983,9 @@
 
                 console.log(`Restored ${data.messages.length} messages from conversation history`);
             } catch (error) {
-                console.error('Error loading conversation history:', error);
+                // Silently handle errors - localStorage may have old session ID
+                // This is expected behavior for new sessions or after server restart
+                console.log('Starting fresh session - no previous history available');
                 // Don't show error to user - just continue with empty chat
             }
         }
