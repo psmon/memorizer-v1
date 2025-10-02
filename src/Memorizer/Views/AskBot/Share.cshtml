@@ -1,0 +1,299 @@
+@{
+    ViewData["Title"] = "Shared Conversation - AskBot";
+    Layout = "_Layout";
+    ViewBag.Controller = "AskBotView";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/markdown-styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+    <style>
+        .share-container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .share-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .share-header h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+
+        .share-info {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 10px;
+        }
+
+        .conversation-view {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+
+        .message-item {
+            margin-bottom: 30px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @@keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message-role {
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .message-role.user {
+            color: #007bff;
+        }
+
+        .message-role.assistant {
+            color: #764ba2;
+        }
+
+        .message-content-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .message-content-box.user {
+            background: #e7f3ff;
+            border-left-color: #007bff;
+        }
+
+        .message-content-box.assistant {
+            background: #f5f0ff;
+            border-left-color: #764ba2;
+        }
+
+        .markdown-content {
+            line-height: 1.7;
+        }
+
+        .markdown-content h1,
+        .markdown-content h2,
+        .markdown-content h3 {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .markdown-content pre {
+            background-color: #2d2d2d !important;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .markdown-content code:not(pre code) {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 0.2em 0.4em;
+            border-radius: 3px;
+            font-size: 0.9em;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 50px;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .no-messages {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+    </style>
+}
+
+<div class="share-container">
+    <div class="share-header">
+        <h1><i class="fas fa-share-alt me-2"></i>Shared Conversation</h1>
+        <div class="share-info">
+            <i class="fas fa-info-circle me-1"></i>
+            This is a read-only view of a shared AskBot conversation.
+        </div>
+    </div>
+
+    <div class="conversation-view">
+        <div id="loading" class="loading-spinner">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3">Loading conversation...</p>
+        </div>
+
+        <div id="error" class="error-message" style="display: none;">
+            <h4><i class="fas fa-exclamation-triangle me-2"></i>Error</h4>
+            <p id="error-message"></p>
+        </div>
+
+        <div id="conversation" style="display: none;">
+            <!-- Conversation messages will be rendered here -->
+        </div>
+
+        <div id="no-messages" class="no-messages" style="display: none;">
+            <i class="fas fa-comments fa-3x mb-3" style="opacity: 0.3;"></i>
+            <p>No conversation history found.</p>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.0/mermaid.min.js"></script>
+
+    <script>
+        // Get short code from URL path
+        const pathParts = window.location.pathname.split('/');
+        const shortCode = pathParts[pathParts.length - 1];
+
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#667eea',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#764ba2',
+                lineColor: '#5a67d8',
+                secondaryColor: '#764ba2',
+                tertiaryColor: '#f8f9fa'
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            try {
+                // Fetch session info by short code
+                const response = await fetch(`/api/askbot/share/${shortCode}`);
+
+                if (!response.ok) {
+                    throw new Error('Share link not found');
+                }
+
+                const data = await response.json();
+
+                // Check if content exists
+                if (!data.content || !data.content.messages || data.content.messages.length === 0) {
+                    showNoMessages();
+                    return;
+                }
+
+                // Render conversation
+                renderConversation(data.content.messages);
+
+            } catch (error) {
+                console.error('Error loading shared conversation:', error);
+                showError(error.message || 'Failed to load conversation');
+            }
+        });
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        function showNoMessages() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('no-messages').style.display = 'block';
+        }
+
+        function renderConversation(messages) {
+            const conversationDiv = document.getElementById('conversation');
+            conversationDiv.innerHTML = '';
+
+            if (!messages || messages.length === 0) {
+                showNoMessages();
+                return;
+            }
+
+            messages.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message-item';
+
+                const role = msg.role === 'user' ? 'user' : 'assistant';
+                const roleLabel = msg.role === 'user' ? 'You' : 'AskBot';
+
+                messageDiv.innerHTML = `
+                    <div class="message-role ${role}">${roleLabel}</div>
+                    <div class="message-content-box ${role}">
+                        <div class="markdown-content">${renderMarkdown(msg.content)}</div>
+                    </div>
+                `;
+
+                conversationDiv.appendChild(messageDiv);
+            });
+
+            // Show conversation
+            document.getElementById('loading').style.display = 'none';
+            conversationDiv.style.display = 'block';
+
+            // Highlight code blocks
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightElement(block);
+            });
+
+            // Render Mermaid diagrams
+            mermaid.run();
+        }
+
+        function renderMarkdown(text) {
+            marked.setOptions({
+                highlight: function(code, lang) {
+                    if (lang && hljs.getLanguage(lang)) {
+                        return hljs.highlight(code, { language: lang }).value;
+                    }
+                    return hljs.highlightAuto(code).value;
+                },
+                breaks: true,
+                gfm: true
+            });
+
+            let html = marked.parse(text);
+
+            html = DOMPurify.sanitize(html, {
+                ADD_TAGS: ['iframe'],
+                ADD_ATTR: ['target', 'rel']
+            });
+
+            html = html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
+                (match, code) => {
+                    const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
+                    return `<div class="mermaid" id="${id}">${code}</div>`;
+                });
+
+            return html;
+        }
+    </script>
+}

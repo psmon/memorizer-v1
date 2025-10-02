@@ -22,6 +22,7 @@ public class AskBotController : ControllerBase
     private readonly IActorRef _decisionActor;
     private readonly ILlmService _llmService;
     private readonly ILogger<AskBotController> _logger;
+    private readonly Npgsql.NpgsqlDataSource _dataSource;
 
     // Static dictionary to maintain ChatBotActors per session
     private static readonly ConcurrentDictionary<string, IActorRef> SessionActors = new();
@@ -34,13 +35,15 @@ public class AskBotController : ControllerBase
         IRequiredActor<SearchMemoryActorKey> searchMemoryActor,
         IRequiredActor<DecisionActorKey> decisionActor,
         ILlmService llmService,
-        ILogger<AskBotController> logger)
+        ILogger<AskBotController> logger,
+        Npgsql.NpgsqlDataSource dataSource)
     {
         _actorSystem = actorSystem;
         _searchMemoryActor = searchMemoryActor.ActorRef;
         _decisionActor = decisionActor.ActorRef;
         _llmService = llmService;
         _logger = logger;
+        _dataSource = dataSource;
     }
 
     /// <summary>
@@ -238,6 +241,214 @@ public class AskBotController : ControllerBase
         });
     }
 
+    /// <summary>
+    /// Create a share link for the current session
+    /// </summary>
+    [HttpPost("share")]
+    [AllowAnonymous]
+    public async Task<IActionResult> CreateShareLink([FromBody] ShareRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.SessionId))
+            {
+                return BadRequest(new { error = "Session ID is required" });
+            }
+
+            // Check if session has any conversation history
+            if (!SessionActors.ContainsKey(request.SessionId))
+            {
+                return BadRequest(new { error = "Session not found or has no conversation history" });
+            }
+
+            // Get conversation history from ChatBotActor
+            var chatBotActor = SessionActors[request.SessionId];
+
+            // Request conversation history from actor
+            GetConversationHistoryResponse? historyResponse = null;
+            var messages = new List<object>();
+
+            try
+            {
+                historyResponse = await chatBotActor.Ask<GetConversationHistoryResponse>(
+                    new GetConversationHistoryRequest { SessionId = request.SessionId },
+                    TimeSpan.FromSeconds(10)
+                );
+
+                // Convert conversation entries to messages
+                foreach (var entry in historyResponse.ConversationEntries)
+                {
+                    messages.Add(new
+                    {
+                        role = "user",
+                        content = entry.UserMessage,
+                        timestamp = entry.Timestamp
+                    });
+                    messages.Add(new
+                    {
+                        role = "assistant",
+                        content = entry.BotResponse,
+                        timestamp = entry.Timestamp,
+                        usedMemorySearch = entry.UsedMemorySearch
+                    });
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not retrieve conversation history for session {SessionId}, creating empty share",
+                    request.SessionId);
+                // Continue with empty messages - still create the share link
+            }
+
+            _logger.LogInformation("Creating share link for session {SessionId} with {Count} messages",
+                request.SessionId, messages.Count);
+
+            // Check if share link already exists for this session
+            await using var conn = await _dataSource.OpenConnectionAsync();
+
+            var existingQuery = @"
+                SELECT short_code, content
+                FROM askbot_share_links
+                WHERE session_id = @sessionId
+                LIMIT 1";
+
+            await using var checkCmd = new Npgsql.NpgsqlCommand(existingQuery, conn);
+            checkCmd.Parameters.AddWithValue("sessionId", request.SessionId);
+
+            await using var reader = await checkCmd.ExecuteReaderAsync();
+            if (await reader.ReadAsync())
+            {
+                var existingShortCode = reader.GetString(0);
+                _logger.LogInformation("Returning existing share link {ShortCode} for session {SessionId}",
+                    existingShortCode, request.SessionId);
+                return Ok(new { shortCode = existingShortCode, sessionId = request.SessionId });
+            }
+            await reader.CloseAsync();
+
+            // Generate unique 6-character short code
+            string shortCode;
+            int attempts = 0;
+            const int maxAttempts = 10;
+
+            do
+            {
+                shortCode = GenerateShortCode();
+                attempts++;
+
+                if (attempts > maxAttempts)
+                {
+                    return StatusCode(500, new { error = "Failed to generate unique short code" });
+                }
+            } while (await ShortCodeExists(shortCode, conn));
+
+            // Create conversation snapshot
+            var conversationSnapshot = new
+            {
+                sessionId = request.SessionId,
+                capturedAt = DateTime.UtcNow,
+                messages = messages
+            };
+
+            var contentJson = System.Text.Json.JsonSerializer.Serialize(conversationSnapshot);
+
+            // Store in database with content
+            var insertQuery = @"
+                INSERT INTO askbot_share_links (short_code, session_id, content, created_at)
+                VALUES (@shortCode, @sessionId, @content::jsonb, @createdAt)";
+
+            await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
+            cmd.Parameters.AddWithValue("shortCode", shortCode);
+            cmd.Parameters.AddWithValue("sessionId", request.SessionId);
+            cmd.Parameters.AddWithValue("content", contentJson);
+            cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
+
+            await cmd.ExecuteNonQueryAsync();
+
+            _logger.LogInformation("Created share link {ShortCode} for session {SessionId}",
+                shortCode, request.SessionId);
+
+            return Ok(new { shortCode, sessionId = request.SessionId });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating share link");
+            return StatusCode(500, new { error = "Failed to create share link" });
+        }
+    }
+
+    /// <summary>
+    /// Get session by share code
+    /// </summary>
+    [HttpGet("share/{shortCode}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetSessionByShareCode(string shortCode)
+    {
+        try
+        {
+            await using var conn = await _dataSource.OpenConnectionAsync();
+
+            var query = @"
+                SELECT session_id, created_at, content
+                FROM askbot_share_links
+                WHERE short_code = @shortCode
+                LIMIT 1";
+
+            await using var cmd = new Npgsql.NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("shortCode", shortCode);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (await reader.ReadAsync())
+            {
+                var sessionId = reader.GetString(0);
+                var createdAt = reader.GetDateTime(1);
+                var contentJson = reader.IsDBNull(2) ? null : reader.GetString(2);
+
+                _logger.LogInformation("Retrieved session {SessionId} for share code {ShortCode}",
+                    sessionId, shortCode);
+
+                object? content = null;
+                if (!string.IsNullOrEmpty(contentJson))
+                {
+                    content = System.Text.Json.JsonSerializer.Deserialize<object>(contentJson);
+                }
+
+                return Ok(new { sessionId, createdAt, shortCode, content });
+            }
+
+            return NotFound(new { error = "Share link not found" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving share link");
+            return StatusCode(500, new { error = "Failed to retrieve share link" });
+        }
+    }
+
+    private async Task<bool> ShortCodeExists(string shortCode, Npgsql.NpgsqlConnection conn)
+    {
+        var query = "SELECT COUNT(*) FROM askbot_share_links WHERE short_code = @shortCode";
+        await using var cmd = new Npgsql.NpgsqlCommand(query, conn);
+        cmd.Parameters.AddWithValue("shortCode", shortCode);
+
+        var count = (long)(await cmd.ExecuteScalarAsync() ?? 0L);
+        return count > 0;
+    }
+
+    private string GenerateShortCode()
+    {
+        const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        var random = new Random();
+        var shortCode = new char[6];
+
+        for (int i = 0; i < 6; i++)
+        {
+            shortCode[i] = chars[random.Next(chars.Length)];
+        }
+
+        return new string(shortCode);
+    }
+
     private async Task StreamResponseMessage(string sessionId, string message, ResponseType responseType, List<Guid>? referencedMemoryIds = null)
     {
         // Split message into chunks for streaming effect
@@ -396,6 +607,17 @@ public class AskBotRequest
 }
 
 /// <summary>
+/// Request model for sharing a session
+/// </summary>
+public class ShareRequest
+{
+    /// <summary>
+    /// The session ID to share
+    /// </summary>
+    public required string SessionId { get; set; }
+}
+
+/// <summary>
 /// Bridge actor to forward streaming updates to SSE
 /// </summary>
 public sealed class SSEBridgeActor : ReceiveActor
@@ -455,6 +677,9 @@ public sealed class StreamingChatBotActor : ChatBotActor
         // Re-register the ChatBotResponse handler to use the overridden method
         // This is necessary because the base constructor already registered it
         Receive<ChatBotResponse>(HandleChatBotResponseFromPipeTo);
+
+        // Note: GetConversationHistoryRequest is already handled by base class
+        // We don't need to override it because base implementation is sufficient
 
         Context.GetLogger().Info("StreamingChatBotActor initialized for session {0}", sessionId);
     }

@@ -350,3 +350,30 @@ public sealed record ExtractContextResponse : IChatBotMessage
     /// </summary>
     public required string ShortTermMemory { get; init; }
 }
+
+/// <summary>
+/// Request to get conversation history from actor
+/// </summary>
+public sealed record GetConversationHistoryRequest : IChatBotMessage
+{
+    /// <summary>
+    /// Session identifier
+    /// </summary>
+    public required string SessionId { get; init; }
+}
+
+/// <summary>
+/// Response with conversation history
+/// </summary>
+public sealed record GetConversationHistoryResponse : IChatBotMessage
+{
+    /// <summary>
+    /// Session identifier
+    /// </summary>
+    public required string SessionId { get; init; }
+
+    /// <summary>
+    /// List of conversation entries
+    /// </summary>
+    public required List<ConversationEntry> ConversationEntries { get; init; }
+}

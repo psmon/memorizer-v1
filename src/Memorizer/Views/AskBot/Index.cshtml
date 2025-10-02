@@ -27,6 +27,41 @@
             align-items: center;
         }
 
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .session-info-text {
+            font-size: 0.85rem;
+            margin-top: 4px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .status-badge.connected {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-badge.disconnected {
+            background: #dc3545;
+            color: white;
+        }
+
+        .status-badge.connecting {
+            background: #ffc107;
+            color: #333;
+        }
+
         .chat-messages {
             flex: 1;
             overflow-y: auto;
@@ -163,7 +198,7 @@
             cursor: not-allowed;
         }
 
-        .new-session-btn {
+        .new-session-btn, .share-btn {
             padding: 8px 16px;
             background: rgba(255, 255, 255, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.5);
@@ -174,63 +209,10 @@
             font-size: 14px;
         }
 
-        .new-session-btn:hover {
+        .new-session-btn:hover, .share-btn:hover {
             background: rgba(255, 255, 255, 0.3);
         }
 
-        .connection-status {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .connection-status.connected {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .connection-status.disconnected {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .connection-status.connecting {
-            background: #fff3cd;
-            color: #856404;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-
-        .status-dot.connected {
-            background: #28a745;
-        }
-
-        .status-dot.disconnected {
-            background: #dc3545;
-        }
-
-        .status-dot.connecting {
-            background: #ffc107;
-        }
-
-        @@keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
 
         /* Code block dark mode styles */
         .message-content pre {
@@ -284,11 +266,19 @@
                 <h4 class="mb-0">
                     <i class="fas fa-robot me-2"></i>AskBot Assistant
                 </h4>
-                <small id="session-info" style="opacity: 0.8;">Session: Loading...</small>
+                <div class="session-info-text">
+                    <span id="session-info">Session: Loading...</span>
+                    <span class="status-badge connecting" id="status-badge">연결중...</span>
+                </div>
             </div>
-            <button class="new-session-btn" id="new-session-btn">
-                <i class="fas fa-plus me-1"></i>New Session
-            </button>
+            <div class="header-actions">
+                <button class="share-btn" id="share-btn">
+                    <i class="fas fa-share-alt me-1"></i>공유
+                </button>
+                <button class="new-session-btn" id="new-session-btn">
+                    <i class="fas fa-plus me-1"></i>New Session
+                </button>
+            </div>
         </div>
 
         <div class="chat-messages" id="chat-messages">
@@ -313,9 +303,34 @@
     </div>
 </div>
 
-<div class="connection-status" id="connection-status">
-    <span class="status-dot"></span>
-    <span class="status-text">Connecting...</span>
+
+<!-- Share Link Modal -->
+<div class="modal fade" id="shareLinkModal" tabindex="-1" aria-labelledby="shareLinkModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareLinkModalLabel">
+                    <i class="fas fa-share-alt me-2"></i>대화 공유하기
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted mb-3">
+                    <i class="fas fa-info-circle me-1"></i>
+                    이 링크를 공유하면 현재까지의 대화 내용을 다른 사람이 볼 수 있습니다.
+                </p>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="shareUrlInput" readonly>
+                    <button class="btn btn-primary" type="button" id="copyShareUrlBtn">
+                        <i class="fas fa-copy me-1"></i>복사
+                    </button>
+                </div>
+                <small class="text-success d-none" id="copySuccessMsg">
+                    <i class="fas fa-check-circle me-1"></i>클립보드에 복사되었습니다!
+                </small>
+            </div>
+        </div>
+    </div>
 </div>
 
 <!-- Memory View Modal -->
@@ -432,6 +447,7 @@
             document.getElementById('message-input').addEventListener('keypress', handleKeyPress);
             document.getElementById('send-button').addEventListener('click', sendMessage);
             document.getElementById('new-session-btn').addEventListener('click', createNewSession);
+            document.getElementById('share-btn').addEventListener('click', shareConversation);
         });
 
         function updateSessionInfo() {
@@ -530,22 +546,19 @@
         }
 
         function updateConnectionStatus(status) {
-            const statusElement = document.getElementById('connection-status');
-            const statusDot = statusElement.querySelector('.status-dot');
-            const statusText = statusElement.querySelector('.status-text');
+            const statusBadge = document.getElementById('status-badge');
 
-            statusElement.className = `connection-status ${status}`;
-            statusDot.className = `status-dot ${status}`;
+            statusBadge.className = `status-badge ${status}`;
 
             switch(status) {
                 case 'connected':
-                    statusText.textContent = 'Connected';
+                    statusBadge.textContent = '연결됨';
                     break;
                 case 'disconnected':
-                    statusText.textContent = 'Disconnected';
+                    statusBadge.textContent = '접속끊김';
                     break;
                 case 'connecting':
-                    statusText.textContent = 'Connecting...';
+                    statusBadge.textContent = '연결중...';
                     break;
             }
         }
@@ -973,6 +986,77 @@
                 `;
             }
         }
+
+        // Share conversation function
+        async function shareConversation() {
+            if (!sessionId) {
+                alert('세션이 없습니다. 먼저 대화를 시작하세요.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/askbot/share', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sessionId: sessionId
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to create share link');
+                }
+
+                const data = await response.json();
+                const shareUrl = `${window.location.origin}/ui/askbot/share/${data.shortCode}`;
+
+                // Show modal with share link
+                document.getElementById('shareUrlInput').value = shareUrl;
+                const modal = new bootstrap.Modal(document.getElementById('shareLinkModal'));
+                modal.show();
+
+            } catch (error) {
+                console.error('Error creating share link:', error);
+                alert('공유 링크 생성에 실패했습니다. 다시 시도해주세요.');
+            }
+        }
+
+        // Copy share URL to clipboard and modal cleanup
+        document.addEventListener('DOMContentLoaded', function() {
+            const copyBtn = document.getElementById('copyShareUrlBtn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', async function() {
+                    const shareUrl = document.getElementById('shareUrlInput').value;
+                    try {
+                        await navigator.clipboard.writeText(shareUrl);
+                        const successMsg = document.getElementById('copySuccessMsg');
+                        successMsg.classList.remove('d-none');
+                        setTimeout(() => {
+                            successMsg.classList.add('d-none');
+                        }, 3000);
+                    } catch (error) {
+                        console.error('Failed to copy:', error);
+                        alert('복사에 실패했습니다.');
+                    }
+                });
+            }
+
+            // Fix modal backdrop issue
+            const shareModal = document.getElementById('shareLinkModal');
+            if (shareModal) {
+                shareModal.addEventListener('hidden.bs.modal', function () {
+                    // Remove any lingering backdrops
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => backdrop.remove());
+                    // Reset body overflow
+                    document.body.classList.remove('modal-open');
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('padding-right');
+                });
+            }
+        });
 
     </script>
 }

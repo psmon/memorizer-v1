@@ -79,6 +79,7 @@ Maintain conversation continuity and reference previous context when appropriate
         Receive<ResetSessionTimer>(HandleResetSessionTimer);
         Receive<ChatBotResponse>(HandleChatBotResponseFromPipeTo);
         Receive<Status.Failure>(HandlePipeToFailure);
+        Receive<GetConversationHistoryRequest>(HandleGetConversationHistoryRequest);
 
         // Start session timer
         ResetSessionTimer();
@@ -154,6 +155,11 @@ Maintain conversation continuity and reference previous context when appropriate
                 HandleResetSessionTimer(reset);
                 return true;
             }
+            else if (message is GetConversationHistoryRequest historyRequest)
+            {
+                HandleGetConversationHistoryRequest(historyRequest);
+                return true;
+            }
             return false;
         };
     }
@@ -184,6 +190,9 @@ Maintain conversation continuity and reference previous context when appropriate
                     return true;
                 case ResetSessionTimer reset:
                     HandleResetSessionTimer(reset);
+                    return true;
+                case GetConversationHistoryRequest historyRequest:
+                    HandleGetConversationHistoryRequest(historyRequest);
                     return true;
                 default:
                     return false;
@@ -249,6 +258,11 @@ Maintain conversation continuity and reference previous context when appropriate
             else if (message is ResetSessionTimer reset)
             {
                 HandleResetSessionTimer(reset);
+                return true;
+            }
+            else if (message is GetConversationHistoryRequest historyRequest)
+            {
+                HandleGetConversationHistoryRequest(historyRequest);
                 return true;
             }
             return false;
@@ -644,6 +658,19 @@ Maintain conversation continuity and reference previous context when appropriate
 
         // Stop the actor
         Context.Stop(Self);
+    }
+
+    private void HandleGetConversationHistoryRequest(GetConversationHistoryRequest request)
+    {
+        _logger.Debug("Retrieving conversation history for session {0}. Total entries: {1}",
+            _sessionId, _conversationEntries.Count);
+
+        // Return conversation history to sender
+        Sender.Tell(new GetConversationHistoryResponse
+        {
+            SessionId = _sessionId,
+            ConversationEntries = new List<ConversationEntry>(_conversationEntries)
+        });
     }
 
     protected override void PostStop()

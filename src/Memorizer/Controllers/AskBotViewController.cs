@@ -19,4 +19,12 @@ public class AskBotViewController : Controller
         _logger.LogInformation("AskBot UI page accessed");
         return View("~/Views/AskBot/Index.cshtml");
     }
+
+    [HttpGet("/ui/askbot/share/{shortCode}")]
+    public IActionResult Share(string shortCode)
+    {
+        _logger.LogInformation("Shared AskBot conversation accessed with code: {ShortCode}", shortCode);
+        ViewData["ShortCode"] = shortCode;
+        return View("~/Views/AskBot/Share.cshtml");
+    }
 }
