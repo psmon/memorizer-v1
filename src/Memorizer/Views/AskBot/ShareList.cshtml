@@ -1,0 +1,356 @@
+@{
+    ViewData["Title"] = "AI Knowledges - Shared Conversations";
+    Layout = "_Layout";
+    ViewBag.Controller = "ShareListView";
+}
+
+@section Styles {
+    <style>
+        .share-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            background: white;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .share-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+            border-color: #667eea;
+        }
+
+        .share-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .short-code {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .created-date {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .session-id {
+            font-size: 0.8rem;
+            color: #6c757d;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 10px;
+        }
+
+        .summary-text {
+            color: #333;
+            line-height: 1.6;
+            margin-bottom: 0;
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+            margin-bottom: 30px;
+        }
+
+        .concept-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            border-radius: 12px;
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .concept-section h3 {
+            margin-bottom: 20px;
+        }
+
+        .concept-section p {
+            font-size: 1.05rem;
+            line-height: 1.8;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .no-data-container {
+            text-align: center;
+            padding: 60px 20px;
+            color: #6c757d;
+        }
+    </style>
+}
+
+<div class="container-fluid px-4 py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h2 mb-3">
+                <i class="fas fa-brain me-2 text-primary"></i>
+                AI Knowledges
+            </h1>
+            <p class="text-muted">Explore shared conversations and AI-generated knowledge</p>
+        </div>
+    </div>
+
+    <!-- Share Cards Container -->
+    <div id="shareCardsContainer" class="row">
+        <!-- Cards will be loaded here -->
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="loading-container">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-3 text-muted">Loading shared conversations...</p>
+    </div>
+
+    <!-- No Data Message -->
+    <div id="noDataMessage" class="no-data-container d-none">
+        <i class="fas fa-inbox fa-3x mb-3" style="opacity: 0.3;"></i>
+        <p>No shared conversations yet</p>
+    </div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="pagination-container d-none">
+        <!-- Pagination will be rendered here -->
+    </div>
+
+    <!-- Concept Section -->
+    <div class="concept-section">
+        <h3>
+            <i class="fas fa-lightbulb me-2"></i>
+            AI Knowledge Regeneration
+        </h3>
+        <p>
+            이 페이지는 AskBot을 통해 생성된 대화 내용을 공유합니다.
+            각 대화는 메모리 시스템의 지식을 기반으로 LLM이 새로운 형태로 재생성한 지식입니다.
+            메모리에 저장된 원본 지식과 사용자의 질문이 결합되어, 맥락에 맞는 새로운 인사이트가 생성됩니다.
+        </p>
+        <p class="mb-0">
+            <strong>💡 핵심 컨셉:</strong>
+            저장된 지식(Memory) + 사용자 맥락(Context) → AI 재생성 지식(Regenerated Knowledge)
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentPage = 1;
+        const pageSize = 30;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadShareList(1);
+        });
+
+        async function loadShareList(page) {
+            try {
+                const loadingIndicator = document.getElementById('loadingIndicator');
+                const shareCardsContainer = document.getElementById('shareCardsContainer');
+                const noDataMessage = document.getElementById('noDataMessage');
+                const paginationContainer = document.getElementById('paginationContainer');
+
+                // Show loading
+                loadingIndicator.classList.remove('d-none');
+                shareCardsContainer.innerHTML = '';
+                paginationContainer.classList.add('d-none');
+                noDataMessage.classList.add('d-none');
+
+                const response = await fetch(`/api/askbot/share?page=${page}&pageSize=${pageSize}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to load share links');
+                }
+
+                const data = await response.json();
+                currentPage = page;
+
+                // Hide loading
+                loadingIndicator.classList.add('d-none');
+
+                // Check if no data
+                if (!data.items || data.items.length === 0) {
+                    noDataMessage.classList.remove('d-none');
+                    return;
+                }
+
+                // Render cards
+                renderShareCards(data.items);
+
+                // Render pagination
+                if (data.totalPages > 1) {
+                    renderPagination(data.page, data.totalPages);
+                    paginationContainer.classList.remove('d-none');
+                }
+
+            } catch (error) {
+                console.error('Error loading share list:', error);
+                document.getElementById('loadingIndicator').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load shared conversations. Please try again later.
+                    </div>
+                `;
+            }
+        }
+
+        function renderShareCards(items) {
+            const container = document.getElementById('shareCardsContainer');
+
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'col-12 col-md-6 col-lg-4';
+
+                const createdDate = new Date(item.createdAt).toLocaleString('ko-KR', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                card.innerHTML = `
+                    <div class="share-card" onclick="openShareLink('${item.shortCode}')">
+                        <div class="share-card-header">
+                            <div class="short-code">
+                                <i class="fas fa-link me-2"></i>${escapeHtml(item.shortCode)}
+                            </div>
+                            <div class="created-date">
+                                <i class="far fa-clock me-1"></i>${createdDate}
+                            </div>
+                        </div>
+                        <div class="session-id">
+                            <i class="fas fa-hashtag me-1"></i>Session: ${escapeHtml(item.sessionId.substring(0, 16))}...
+                        </div>
+                        <div class="summary-text">
+                            ${escapeHtml(item.summary)}
+                        </div>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+        }
+
+        function renderPagination(currentPage, totalPages) {
+            const container = document.getElementById('paginationContainer');
+
+            let paginationHTML = '<nav><ul class="pagination">';
+
+            // Previous button
+            if (currentPage > 1) {
+                paginationHTML += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadShareList(${currentPage - 1}); return false;">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                `;
+            } else {
+                paginationHTML += `
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                    </li>
+                `;
+            }
+
+            // Page numbers
+            const maxPageButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
+
+            if (endPage - startPage < maxPageButtons - 1) {
+                startPage = Math.max(1, endPage - maxPageButtons + 1);
+            }
+
+            if (startPage > 1) {
+                paginationHTML += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadShareList(1); return false;">1</a>
+                    </li>
+                `;
+                if (startPage > 2) {
+                    paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+            }
+
+            for (let i = startPage; i <= endPage; i++) {
+                if (i === currentPage) {
+                    paginationHTML += `
+                        <li class="page-item active">
+                            <span class="page-link">${i}</span>
+                        </li>
+                    `;
+                } else {
+                    paginationHTML += `
+                        <li class="page-item">
+                            <a class="page-link" href="#" onclick="loadShareList(${i}); return false;">${i}</a>
+                        </li>
+                    `;
+                }
+            }
+
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+                }
+                paginationHTML += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadShareList(${totalPages}); return false;">${totalPages}</a>
+                    </li>
+                `;
+            }
+
+            // Next button
+            if (currentPage < totalPages) {
+                paginationHTML += `
+                    <li class="page-item">
+                        <a class="page-link" href="#" onclick="loadShareList(${currentPage + 1}); return false;">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                `;
+            } else {
+                paginationHTML += `
+                    <li class="page-item disabled">
+                        <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                    </li>
+                `;
+            }
+
+            paginationHTML += '</ul></nav>';
+            container.innerHTML = paginationHTML;
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function openShareLink(shortCode) {
+            const url = `/ui/askbot/share/${shortCode}`;
+            window.open(url, '_blank');
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+    </script>
+}

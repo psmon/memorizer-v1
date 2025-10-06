@@ -121,6 +121,12 @@ AskBot conversation sharing and restoration features - Short link generation for
 
 - [AskBotShare](20-AskBotShare.md)
 
+## Version 1.1.4
+
+AI-Knowledges page implementation - Shared conversation list view with card-based responsive UI, pagination, and knowledge regeneration concept display
+
+- [AskBotShareList](21-AskBotShareList.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

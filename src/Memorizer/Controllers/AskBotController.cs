@@ -462,6 +462,106 @@ public class AskBotController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Get all share links with pagination
+    /// </summary>
+    [HttpGet("share")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetShareLinks([FromQuery] int page = 1, [FromQuery] int pageSize = 30)
+    {
+        try
+        {
+            if (page < 1) page = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 30;
+
+            await using var conn = await _dataSource.OpenConnectionAsync();
+
+            // Get total count
+            var countQuery = "SELECT COUNT(*) FROM askbot_share_links";
+            await using var countCmd = new Npgsql.NpgsqlCommand(countQuery, conn);
+            var totalCount = (long)(await countCmd.ExecuteScalarAsync() ?? 0L);
+
+            // Get paginated results
+            var query = @"
+                SELECT short_code, session_id, created_at, content
+                FROM askbot_share_links
+                ORDER BY created_at DESC
+                LIMIT @pageSize OFFSET @offset";
+
+            await using var cmd = new Npgsql.NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("pageSize", pageSize);
+            cmd.Parameters.AddWithValue("offset", (page - 1) * pageSize);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            var shareLinks = new List<object>();
+            while (await reader.ReadAsync())
+            {
+                var shortCode = reader.GetString(0);
+                var sessionId = reader.GetString(1);
+                var createdAt = reader.GetDateTime(2);
+                var contentJson = reader.IsDBNull(3) ? null : reader.GetString(3);
+
+                // Extract summary from content
+                string summary = "No conversation";
+                if (!string.IsNullOrEmpty(contentJson))
+                {
+                    try
+                    {
+                        var contentObj = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(contentJson);
+                        if (contentObj.TryGetProperty("messages", out var messages) &&
+                            messages.GetArrayLength() > 0)
+                        {
+                            // Get first user message as summary
+                            foreach (var msg in messages.EnumerateArray())
+                            {
+                                if (msg.TryGetProperty("role", out var role) &&
+                                    role.GetString() == "user" &&
+                                    msg.TryGetProperty("content", out var content))
+                                {
+                                    var text = content.GetString() ?? "";
+                                    summary = text.Length > 100 ? text.Substring(0, 100) + "..." : text;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    catch
+                    {
+                        summary = "Unable to load summary";
+                    }
+                }
+
+                shareLinks.Add(new
+                {
+                    shortCode,
+                    sessionId,
+                    createdAt,
+                    summary
+                });
+            }
+
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
+
+            _logger.LogInformation("Retrieved {Count} share links (page {Page} of {TotalPages})",
+                shareLinks.Count, page, totalPages);
+
+            return Ok(new
+            {
+                items = shareLinks,
+                page,
+                pageSize,
+                totalCount,
+                totalPages
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving share links");
+            return StatusCode(500, new { error = "Failed to retrieve share links" });
+        }
+    }
+
     private async Task<bool> ShortCodeExists(string shortCode, Npgsql.NpgsqlConnection conn)
     {
         var query = "SELECT COUNT(*) FROM askbot_share_links WHERE short_code = @shortCode";

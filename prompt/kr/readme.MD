@@ -119,6 +119,12 @@ AskBot 대화 공유 및 복원 기능 구현 - 숏링크 기반 대화 공유, 
 
 - [AskBotShare](20-AskBotShare.md)
 
+## Version 1.1.4
+
+AI-Knowledges 페이지 구현 - 공유된 대화 리스트 뷰, 카드 기반 반응형 UI, 페이지네이션, 지식 재생성 컨셉 표시
+
+- [AskBotShareList](21-AskBotShareList.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

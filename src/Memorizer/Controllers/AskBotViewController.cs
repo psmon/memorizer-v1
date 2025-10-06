@@ -27,4 +27,12 @@ public class AskBotViewController : Controller
         ViewData["ShortCode"] = shortCode;
         return View("~/Views/AskBot/Share.cshtml");
     }
+
+    [HttpGet("/ui/sharelist")]
+    public IActionResult ShareList()
+    {
+        _logger.LogInformation("ShareList page accessed");
+        ViewBag.Controller = "ShareListView";
+        return View("~/Views/AskBot/ShareList.cshtml");
+    }
 }

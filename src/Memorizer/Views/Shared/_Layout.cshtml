@@ -4,6 +4,7 @@
     var isAuthenticated = Context.Items["IsAuthenticated"] as bool? ?? false;
     var username = Context.Items["Username"] as string ?? "";
     var customScripts = await CustomScriptService.GetActiveScriptsAsync();
+    var currentController = ViewBag.Controller as string ?? ViewContext.RouteData.Values["controller"]?.ToString() ?? "";
 }
 <!DOCTYPE html>
 <html lang="en">
@@ -48,72 +49,79 @@
                     
                     <ul class="nav flex-column">
                         <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")" 
+                            <a class="nav-link @(currentController == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Index" ? "active" : "")"
                                asp-controller="Home" asp-action="Index">
                                 <i class="fas fa-list me-2"></i>
                                 All Memories
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Blog" ? "active" : "")" 
+                            <a class="nav-link @(currentController == "Blog" ? "active" : "")"
                                href="/ui/blog">
                                 <i class="fas fa-blog me-2"></i>
                                 Blog Memories
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "GraphView" ? "active" : "")"
+                            <a class="nav-link @(currentController == "GraphView" ? "active" : "")"
                                href="/ui/graph">
                                 <i class="fas fa-project-diagram me-2"></i>
                                 Graph View
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "AskBotView" ? "active" : "")"
+                            <a class="nav-link @(currentController == "AskBotView" ? "active" : "")"
                                href="/ui/askbot">
                                 <i class="fas fa-robot me-2"></i>
                                 ASK Bot
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(currentController == "ShareListView" ? "active" : "")"
+                               href="/ui/sharelist">
+                                <i class="fas fa-brain me-2"></i>
+                                AI-Knowledges
+                            </a>
+                        </li>
                         @if (isAuthenticated)
                         {
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Create" ? "active" : "")" 
+                                <a class="nav-link @(currentController == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Create" ? "active" : "")"
                                    asp-controller="Home" asp-action="Create">
                                     <i class="fas fa-plus me-2"></i>
                                     Create Memory
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["controller"]?.ToString() == "Tools" ? "active" : "")" 
+                                <a class="nav-link @(currentController == "Tools" ? "active" : "")"
                                    asp-controller="Tools" asp-action="Index">
                                     <i class="fas fa-tools me-2"></i>
                                     Tools
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Stats" ? "active" : "")" 
+                                <a class="nav-link @(currentController == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Stats" ? "active" : "")"
                                    asp-controller="Home" asp-action="Stats">
                                     <i class="fas fa-chart-bar me-2"></i>
                                     Statistics
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "McpConfig" ? "active" : "")" 
+                                <a class="nav-link @(currentController == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "McpConfig" ? "active" : "")"
                                    asp-controller="Home" asp-action="McpConfig">
                                     <i class="fas fa-cog me-2"></i>
                                     MCP Config
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "Config" ? "active" : "")"
+                                <a class="nav-link @(currentController == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "Config" ? "active" : "")"
                                    asp-controller="Home" asp-action="Config">
                                     <i class="fas fa-cogs me-2"></i>
                                     System Config
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link @(ViewContext.RouteData.Values["action"]?.ToString() == "ScriptConfig" ? "active" : "")"
+                                <a class="nav-link @(currentController == "Home" && ViewContext.RouteData.Values["action"]?.ToString() == "ScriptConfig" ? "active" : "")"
                                    asp-controller="Home" asp-action="ScriptConfig">
                                     <i class="fas fa-code me-2"></i>
                                     Script Config
