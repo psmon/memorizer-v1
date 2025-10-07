@@ -127,6 +127,12 @@ AI-Knowledges page implementation - Shared conversation list view with card-base
 
 - [AskBotShareList](21-AskBotShareList.md)
 
+## Version 1.1.5
+
+AskBot shared conversation referenced documents display improvement - Save and display referenced document information in shared conversations, view document details through modal, ensure backward compatibility with existing data
+
+- [AskBotShare-Improve](22-AskBotShare-Improve.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

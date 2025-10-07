@@ -131,6 +131,17 @@
             padding: 50px;
             color: #6c757d;
         }
+
+        .memory-references {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .memory-reference-btn {
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
     </style>
 }
 
@@ -167,6 +178,57 @@
     </div>
 </div>
 
+<!-- Memory View Modal -->
+<div class="modal fade" id="memoryModal" tabindex="-1" aria-labelledby="memoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="memoryModalLabel">
+                    <i class="fas fa-book-open me-2"></i>
+                    <span id="modalMemoryTitle">Memory Details</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="modalLoadingContent" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="modalMemoryContent" style="display: none;">
+                    <!-- Memory metadata -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>Type:</strong> <span id="modalMemoryType" class="badge bg-primary"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>Confidence:</strong> <span id="modalMemoryConfidence"></span>
+                        </div>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="mb-3">
+                        <strong>Tags:</strong>
+                        <div id="modalMemoryTags" class="mt-1"></div>
+                    </div>
+
+                    <!-- Content -->
+                    <div class="border-top pt-3">
+                        <div id="modalRenderedContent" class="markdown-content"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a id="modalOpenFullView" href="#" target="_blank" class="btn btn-primary">
+                    <i class="fas fa-external-link-alt me-1"></i>
+                    Open Full View
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
@@ -192,6 +254,8 @@
             }
         });
 
+        let referencedMemoriesMap = {}; // Store memory references by message index
+
         document.addEventListener('DOMContentLoaded', async function() {
             try {
                 // Fetch session info by short code
@@ -209,7 +273,14 @@
                     return;
                 }
 
-                // Render conversation
+                // Store referenced memories if available
+                if (data.referencedMemories) {
+                    data.referencedMemories.forEach(ref => {
+                        referencedMemoriesMap[ref.messageIndex] = ref.memoryIds;
+                    });
+                }
+
+                // Render conversation with memory references
                 renderConversation(data.content.messages);
 
             } catch (error) {
@@ -238,17 +309,59 @@
                 return;
             }
 
-            messages.forEach(msg => {
+            messages.forEach((msg, index) => {
                 const messageDiv = document.createElement('div');
                 messageDiv.className = 'message-item';
 
                 const role = msg.role === 'user' ? 'user' : 'assistant';
                 const roleLabel = msg.role === 'user' ? 'You' : 'AskBot';
 
+                let memoryReferencesHtml = '';
+
+                // Check if this message has referenced memories
+                if (msg.role === 'assistant' && referencedMemoriesMap[index]) {
+                    const memoryIds = referencedMemoriesMap[index];
+                    if (memoryIds && memoryIds.length > 0) {
+                        const buttons = memoryIds.map((id, idx) =>
+                            `<button class="btn btn-sm btn-outline-info memory-reference-btn" onclick="viewMemory('${id}')">
+                                <i class="fas fa-eye me-1"></i>참고 문서 ${idx + 1} 보기
+                            </button>`
+                        ).join('');
+
+                        memoryReferencesHtml = `
+                            <div class="memory-references">
+                                <small class="text-muted">
+                                    <i class="fas fa-book me-1"></i>
+                                    <strong>참고 문서:</strong>
+                                </small>
+                                <div class="mt-2">${buttons}</div>
+                            </div>
+                        `;
+                    }
+                } else if (msg.role === 'assistant' && msg.referencedMemoryIds && msg.referencedMemoryIds.length > 0) {
+                    // Fallback: Check if memory IDs are stored directly in message
+                    const buttons = msg.referencedMemoryIds.map((id, idx) =>
+                        `<button class="btn btn-sm btn-outline-info memory-reference-btn" onclick="viewMemory('${id}')">
+                            <i class="fas fa-eye me-1"></i>참고 문서 ${idx + 1} 보기
+                        </button>`
+                    ).join('');
+
+                    memoryReferencesHtml = `
+                        <div class="memory-references">
+                            <small class="text-muted">
+                                <i class="fas fa-book me-1"></i>
+                                <strong>참고 문서:</strong>
+                            </small>
+                            <div class="mt-2">${buttons}</div>
+                        </div>
+                    `;
+                }
+
                 messageDiv.innerHTML = `
                     <div class="message-role ${role}">${roleLabel}</div>
                     <div class="message-content-box ${role}">
                         <div class="markdown-content">${renderMarkdown(msg.content)}</div>
+                        ${memoryReferencesHtml}
                     </div>
                 `;
 
@@ -294,6 +407,82 @@
                 });
 
             return html;
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // View memory in modal
+        async function viewMemory(id) {
+            const modalElement = document.getElementById('memoryModal');
+            const modal = new bootstrap.Modal(modalElement);
+
+            // Show loading
+            document.getElementById('modalLoadingContent').style.display = 'block';
+            document.getElementById('modalMemoryContent').style.display = 'none';
+
+            modal.show();
+
+            try {
+                const response = await fetch(`/api/memory/${id}`);
+                if (!response.ok) {
+                    throw new Error('Failed to load memory');
+                }
+
+                const memory = await response.json();
+
+                // Update modal content
+                document.getElementById('modalMemoryTitle').textContent = memory.title || 'Memory';
+                document.getElementById('modalMemoryType').textContent = memory.type;
+                document.getElementById('modalMemoryConfidence').textContent =
+                    `${(memory.confidence * 100).toFixed(0)}%`;
+
+                // Tags
+                const tagsContainer = document.getElementById('modalMemoryTags');
+                if (memory.tags && memory.tags.length > 0) {
+                    tagsContainer.innerHTML = memory.tags.map(tag =>
+                        `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`
+                    ).join('');
+                } else {
+                    tagsContainer.innerHTML = '<span class="text-muted">No tags</span>';
+                }
+
+                // Content
+                const contentContainer = document.getElementById('modalRenderedContent');
+                contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
+
+                // Render Mermaid diagrams if any
+                mermaid.run();
+
+                // Highlight code blocks
+                contentContainer.querySelectorAll('pre code').forEach((block) => {
+                    hljs.highlightElement(block);
+                });
+
+                // Update full view link
+                document.getElementById('modalOpenFullView').href = `/ui/view/${id}`;
+
+                // Hide loading, show content
+                document.getElementById('modalLoadingContent').style.display = 'none';
+                document.getElementById('modalMemoryContent').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error loading memory:', error);
+                document.getElementById('modalLoadingContent').innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Failed to load memory details
+                    </div>
+                `;
+            }
         }
     </script>
 }

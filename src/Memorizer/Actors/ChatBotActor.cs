@@ -384,8 +384,8 @@ Maintain conversation continuity and reference previous context when appropriate
             // Add to conversation history
             _conversationHistory.Add($"Assistant (memory-based): {llmResponse}");
 
-            // Update conversation entries
-            await UpdateConversationEntries(request.Message, llmResponse, true);
+            // Update conversation entries with referenced memory IDs
+            await UpdateConversationEntries(request.Message, llmResponse, true, usedMemoryIds);
 
             // Create and return response
             var response = new ChatBotResponse
@@ -715,14 +715,15 @@ Maintain conversation continuity and reference previous context when appropriate
         return sb.ToString();
     }
 
-    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch)
+    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch, List<Guid>? referencedMemoryIds = null)
     {
         // Create new entry
         var newEntry = new ConversationEntry
         {
             UserMessage = userMessage,
             BotResponse = botResponse,
-            UsedMemorySearch = usedMemorySearch
+            UsedMemorySearch = usedMemorySearch,
+            ReferencedMemoryIds = referencedMemoryIds
         };
 
         // Check if we need to prune old conversations

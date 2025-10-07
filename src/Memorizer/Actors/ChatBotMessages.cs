@@ -322,6 +322,11 @@ public sealed record ConversationEntry
     /// Whether this exchange involved memory search
     /// </summary>
     public bool UsedMemorySearch { get; init; }
+
+    /// <summary>
+    /// List of referenced memory IDs used in this response
+    /// </summary>
+    public List<Guid>? ReferencedMemoryIds { get; init; }
 }
 
 /// <summary>

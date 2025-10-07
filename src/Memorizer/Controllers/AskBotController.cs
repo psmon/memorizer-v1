@@ -326,7 +326,8 @@ public class AskBotController : ControllerBase
                         role = "assistant",
                         content = entry.BotResponse,
                         timestamp = entry.Timestamp,
-                        usedMemorySearch = entry.UsedMemorySearch
+                        usedMemorySearch = entry.UsedMemorySearch,
+                        referencedMemoryIds = entry.ReferencedMemoryIds ?? new List<Guid>()
                     });
                 }
             }
@@ -344,7 +345,7 @@ public class AskBotController : ControllerBase
             await using var conn = await _dataSource.OpenConnectionAsync();
 
             var existingQuery = @"
-                SELECT short_code, content
+                SELECT short_code, content, referenced_memories
                 FROM askbot_share_links
                 WHERE session_id = @sessionId
                 LIMIT 1";
@@ -388,15 +389,41 @@ public class AskBotController : ControllerBase
 
             var contentJson = System.Text.Json.JsonSerializer.Serialize(conversationSnapshot);
 
-            // Store in database with content
+            // Extract referenced memories from messages for easier querying
+            var referencedMemories = new List<object>();
+            int messageIndex = 0;
+            foreach (dynamic msg in messages)
+            {
+                if (msg.GetType().GetProperty("referencedMemoryIds") != null)
+                {
+                    var memoryIds = msg.referencedMemoryIds as List<Guid>;
+                    if (memoryIds != null && memoryIds.Count > 0)
+                    {
+                        referencedMemories.Add(new
+                        {
+                            messageIndex = messageIndex,
+                            memoryIds = memoryIds
+                        });
+                    }
+                }
+                messageIndex++;
+            }
+
+            var referencedMemoriesJson = referencedMemories.Count > 0
+                ? System.Text.Json.JsonSerializer.Serialize(referencedMemories)
+                : null;
+
+            // Store in database with content and referenced memories
             var insertQuery = @"
-                INSERT INTO askbot_share_links (short_code, session_id, content, created_at)
-                VALUES (@shortCode, @sessionId, @content::jsonb, @createdAt)";
+                INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, created_at)
+                VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @createdAt)";
 
             await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
             cmd.Parameters.AddWithValue("shortCode", shortCode);
             cmd.Parameters.AddWithValue("sessionId", request.SessionId);
             cmd.Parameters.AddWithValue("content", contentJson);
+            cmd.Parameters.AddWithValue("referencedMemories",
+                referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
             cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
 
             await cmd.ExecuteNonQueryAsync();
@@ -425,7 +452,7 @@ public class AskBotController : ControllerBase
             await using var conn = await _dataSource.OpenConnectionAsync();
 
             var query = @"
-                SELECT session_id, created_at, content
+                SELECT session_id, created_at, content, referenced_memories
                 FROM askbot_share_links
                 WHERE short_code = @shortCode
                 LIMIT 1";
@@ -440,6 +467,7 @@ public class AskBotController : ControllerBase
                 var sessionId = reader.GetString(0);
                 var createdAt = reader.GetDateTime(1);
                 var contentJson = reader.IsDBNull(2) ? null : reader.GetString(2);
+                var referencedMemoriesJson = reader.IsDBNull(3) ? null : reader.GetString(3);
 
                 _logger.LogInformation("Retrieved session {SessionId} for share code {ShortCode}",
                     sessionId, shortCode);
@@ -450,7 +478,13 @@ public class AskBotController : ControllerBase
                     content = System.Text.Json.JsonSerializer.Deserialize<object>(contentJson);
                 }
 
-                return Ok(new { sessionId, createdAt, shortCode, content });
+                object? referencedMemories = null;
+                if (!string.IsNullOrEmpty(referencedMemoriesJson))
+                {
+                    referencedMemories = System.Text.Json.JsonSerializer.Deserialize<object>(referencedMemoriesJson);
+                }
+
+                return Ok(new { sessionId, createdAt, shortCode, content, referencedMemories });
             }
 
             return NotFound(new { error = "Share link not found" });

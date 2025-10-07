@@ -125,6 +125,12 @@ AI-Knowledges 페이지 구현 - 공유된 대화 리스트 뷰, 카드 기반 �
 
 - [AskBotShareList](21-AskBotShareList.md)
 
+## Version 1.1.5
+
+AskBot 공유 대화 연관 문서 표시 기능 개선 - 공유된 대화에서 참고 문서 정보 저장 및 표시, 모달을 통한 문서 상세 보기, 기존 데이터 호환성 보장
+
+- [AskBotShare-Improve](22-AskBotShare-Improve.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```
