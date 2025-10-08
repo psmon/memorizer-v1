@@ -133,6 +133,12 @@ AskBot shared conversation referenced documents display improvement - Save and d
 
 - [AskBotShare-Improve](22-AskBotShare-Improve.md)
 
+## Version 1.1.6
+
+ReMemorizer feature addition - UI permission control improvements (hide edit/delete buttons when unauthenticated), save shared conversations as memory feature (LLM-based automatic metadata extraction and relationship linking)
+
+- [ReMemorizer](23-ReMemorizer.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

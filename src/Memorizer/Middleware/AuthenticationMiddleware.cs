@@ -35,12 +35,17 @@ public class AuthenticationMiddleware
             }
         }
 
-        // Skip authentication for /api/askbot paths
+        // Skip authentication requirement for /api/askbot and /ui/askbot paths
+        // But still set authentication status based on session
         if (path.StartsWith("/api/askbot") || path.StartsWith("/ui/askbot"))
         {
-            _logger.LogDebug("Skipping authentication for AskBot path: {Path}", path);
-            context.Items["IsAuthenticated"] = false;
-            context.Items["Username"] = null;
+            _logger.LogDebug("AskBot path (authentication optional): {Path}", path);
+
+            // Set authentication status from session (but don't require it)
+            var isAuthenticated = context.Session.GetString("IsAuthenticated") == "true";
+            context.Items["IsAuthenticated"] = isAuthenticated;
+            context.Items["Username"] = isAuthenticated ? context.Session.GetString("Username") : null;
+
             await _next(context);
             return;
         }

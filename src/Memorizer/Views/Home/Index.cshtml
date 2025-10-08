@@ -1,5 +1,6 @@
 @{
     ViewData["Title"] = "Memory Manager";
+    var isAuthenticated = Context.Items["IsAuthenticated"] as bool? ?? false;
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -10,7 +11,15 @@
         </h1>
         <p class="text-muted mb-0">Manage your AI agent memories with vector search capabilities</p>
     </div>
-    <div>        <a asp-controller="Home" asp-action="Create" class="btn btn-primary">            <i class="fas fa-plus me-2"></i>            Add Memory        </a>    </div>
+    <div>
+        @if (isAuthenticated)
+        {
+            <a asp-controller="Home" asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>
+                Add Memory
+            </a>
+        }
+    </div>
 </div>
 
 <!-- Vector Search Bar - Moved to top -->
@@ -77,6 +86,7 @@ let currentPage = 1;
 let currentPageSize = 20;
 let totalPages = 1;
 let isVectorSearch = false;
+const isAuthenticated = @(isAuthenticated ? "true" : "false");
 
 // Load memories on page load
 document.addEventListener('DOMContentLoaded', function() {
@@ -124,7 +134,7 @@ function displayMemories(memories) {
                 <i class="fas fa-brain fa-3x text-muted mb-3"></i>
                 <h5 class="text-muted">No memories found</h5>
                 <p class="text-muted">Start by creating your first memory.</p>
-                <a href="/ui/create" class="btn btn-primary">                    <i class="fas fa-plus me-2"></i>                    Create Memory                </a>
+                ${isAuthenticated ? '<a href="/ui/create" class="btn btn-primary"><i class="fas fa-plus me-2"></i>Create Memory</a>' : ''}
             </div>
         `;
         return;
@@ -176,6 +186,7 @@ function displayMemories(memories) {
                                 <i class="fas fa-eye me-1"></i>
                                 View
                             </a>
+                            ${isAuthenticated ? `
                             <a href="/ui/edit/${memory.id}" class="btn btn-outline-primary btn-sm">
                                 <i class="fas fa-edit me-1"></i>
                                 Edit
@@ -184,6 +195,7 @@ function displayMemories(memories) {
                                 <i class="fas fa-trash me-1"></i>
                                 Delete
                             </button>
+                            ` : ''}
                         </div>
                     </div>
                 </div>
@@ -366,8 +378,10 @@ function displayVectorSearchResults(results) {
                     <div class='card-footer bg-transparent'>
                         <div class='btn-group w-100' role='group'>
                             <a href='/ui/view/${memory.id}' class='btn btn-outline-success btn-sm'><i class='fas fa-eye me-1'></i>View</a>
+                            ${isAuthenticated ? `
                             <a href='/ui/edit/${memory.id}' class='btn btn-outline-primary btn-sm'><i class='fas fa-edit me-1'></i>Edit</a>
                             <button class='btn btn-outline-danger btn-sm' onclick='deleteMemory("${memory.id}")'><i class='fas fa-trash me-1'></i>Delete</button>
+                            ` : ''}
                         </div>
                     </div>
                 </div>

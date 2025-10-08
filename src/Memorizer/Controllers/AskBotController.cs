@@ -23,6 +23,7 @@ public class AskBotController : ControllerBase
     private readonly ILlmService _llmService;
     private readonly ILogger<AskBotController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
+    private readonly IStorage _storage;
 
     // Static dictionary to maintain ChatBotActors per session
     private static readonly ConcurrentDictionary<string, IActorRef> SessionActors = new();
@@ -36,7 +37,8 @@ public class AskBotController : ControllerBase
         IRequiredActor<DecisionActorKey> decisionActor,
         ILlmService llmService,
         ILogger<AskBotController> logger,
-        Npgsql.NpgsqlDataSource dataSource)
+        Npgsql.NpgsqlDataSource dataSource,
+        IStorage storage)
     {
         _actorSystem = actorSystem;
         _searchMemoryActor = searchMemoryActor.ActorRef;
@@ -44,6 +46,7 @@ public class AskBotController : ControllerBase
         _llmService = llmService;
         _logger = logger;
         _dataSource = dataSource;
+        _storage = storage;
     }
 
     /// <summary>
@@ -738,6 +741,201 @@ public class AskBotController : ControllerBase
         return newSessionId;
     }
 
+    /// <summary>
+    /// Save shared conversation as memory
+    /// </summary>
+    [HttpPost("share/{shortCode}/save-memory")]
+    public async Task<IActionResult> SaveConversationAsMemory(string shortCode, [FromBody] SaveMemoryRequest request)
+    {
+        try
+        {
+            // Check authentication
+            var isAuthenticated = HttpContext.Session.GetString("IsAuthenticated") == "true";
+            if (!isAuthenticated)
+            {
+                return Unauthorized(new { error = "Authentication required to save memories" });
+            }
+
+            // Get conversation by short code
+            await using var conn = await _dataSource.OpenConnectionAsync();
+            var query = @"
+                SELECT session_id, content, referenced_memories
+                FROM askbot_share_links
+                WHERE short_code = @shortCode
+                LIMIT 1";
+
+            await using var cmd = new Npgsql.NpgsqlCommand(query, conn);
+            cmd.Parameters.AddWithValue("shortCode", shortCode);
+
+            await using var reader = await cmd.ExecuteReaderAsync();
+
+            if (!await reader.ReadAsync())
+            {
+                return NotFound(new { error = "Share link not found" });
+            }
+
+            var contentJson = reader.IsDBNull(1) ? null : reader.GetString(1);
+            var referencedMemoriesJson = reader.IsDBNull(2) ? null : reader.GetString(2);
+            await reader.CloseAsync();
+
+            if (string.IsNullOrEmpty(contentJson))
+            {
+                return BadRequest(new { error = "No conversation content found" });
+            }
+
+            // Parse conversation content
+            var content = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(contentJson);
+            if (!content.TryGetProperty("messages", out var messages))
+            {
+                return BadRequest(new { error = "Invalid conversation format" });
+            }
+
+            // Build conversation text for LLM analysis
+            var conversationText = new System.Text.StringBuilder();
+            foreach (var msg in messages.EnumerateArray())
+            {
+                if (msg.TryGetProperty("role", out var role) && msg.TryGetProperty("content", out var msgContent))
+                {
+                    var roleStr = role.GetString();
+                    var contentStr = msgContent.GetString();
+                    conversationText.AppendLine($"{roleStr}: {contentStr}");
+                    conversationText.AppendLine();
+                }
+            }
+
+            // Use LLM to analyze and structure the conversation
+            var analysisPrompt = $@"Analyze the following conversation and create metadata for storing it as a knowledge memory.
+
+Conversation:
+{conversationText}
+
+Provide a JSON response with:
+1. title: A concise, descriptive title (max 80 characters)
+2. tags: Array of 3-7 relevant tags
+3. summary: A brief summary (2-3 sentences) highlighting key information
+4. type: Memory type (choose one: 'conversation', 'reference', 'how-to', 'document')
+
+Return ONLY valid JSON, no markdown formatting:
+{{
+  ""title"": ""...\,
+  ""tags"": [...],
+  ""summary"": ""...\,
+  ""type"": ""...""
+}}";
+
+            var llmResponse = await _llmService.CompleteAsync(analysisPrompt);
+
+            // Clean LLM response (remove markdown if present)
+            var jsonResponse = llmResponse.Trim();
+            if (jsonResponse.StartsWith("```json"))
+            {
+                jsonResponse = jsonResponse.Substring(7);
+            }
+            if (jsonResponse.StartsWith("```"))
+            {
+                jsonResponse = jsonResponse.Substring(3);
+            }
+            if (jsonResponse.EndsWith("```"))
+            {
+                jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
+            }
+            jsonResponse = jsonResponse.Trim();
+
+            // Parse LLM response
+            JsonElement metadata;
+            try
+            {
+                metadata = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(jsonResponse);
+            }
+            catch (System.Text.Json.JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to parse LLM response as JSON: {Response}", llmResponse);
+                return StatusCode(500, new { error = "Failed to analyze conversation", details = llmResponse });
+            }
+
+            var title = metadata.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : "Shared Conversation";
+            var tags = new List<string>();
+            if (metadata.TryGetProperty("tags", out var tagsProp))
+            {
+                foreach (var tag in tagsProp.EnumerateArray())
+                {
+                    tags.Add(tag.GetString() ?? "");
+                }
+            }
+            var summary = metadata.TryGetProperty("summary", out var summaryProp) ? summaryProp.GetString() : "";
+            var memoryType = metadata.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : "conversation";
+
+            // Build memory content with summary and full conversation
+            var memoryContent = new System.Text.StringBuilder();
+            if (!string.IsNullOrEmpty(summary))
+            {
+                memoryContent.AppendLine($"## Summary");
+                memoryContent.AppendLine(summary);
+                memoryContent.AppendLine();
+            }
+            memoryContent.AppendLine($"## Conversation");
+            memoryContent.AppendLine();
+            memoryContent.Append(conversationText.ToString());
+
+            // Save memory
+            var username = HttpContext.Session.GetString("Username") ?? "user";
+            var memory = await _storage.StoreMemory(
+                memoryType ?? "conversation",
+                memoryContent.ToString(),
+                $"shared-by-{username}",
+                tags.ToArray(),
+                0.9,
+                title: title ?? "Shared Conversation"
+            );
+
+            // Create relationships if referenced memories exist
+            if (!string.IsNullOrEmpty(referencedMemoriesJson) && request.CreateRelationships)
+            {
+                try
+                {
+                    var referencedMemories = System.Text.Json.JsonSerializer.Deserialize<List<JsonElement>>(referencedMemoriesJson);
+                    if (referencedMemories != null)
+                    {
+                        foreach (var refMem in referencedMemories)
+                        {
+                            if (refMem.TryGetProperty("memoryIds", out var memoryIds))
+                            {
+                                foreach (var memId in memoryIds.EnumerateArray())
+                                {
+                                    if (Guid.TryParse(memId.GetString(), out var relatedMemoryId))
+                                    {
+                                        await _storage.CreateRelationship(
+                                            memory.Id,
+                                            relatedMemoryId,
+                                            "references"
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to create relationships for memory {MemoryId}", memory.Id);
+                }
+            }
+
+            _logger.LogInformation("Saved shared conversation {ShortCode} as memory {MemoryId}", shortCode, memory.Id);
+
+            return Ok(new {
+                memoryId = memory.Id,
+                title = memory.Title,
+                message = "Conversation saved successfully as memory"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving conversation as memory for share code {ShortCode}", shortCode);
+            return StatusCode(500, new { error = "Failed to save conversation as memory" });
+        }
+    }
+
     private IActorRef GetOrCreateChatBotActor(string sessionId)
     {
         return SessionActors.GetOrAdd(sessionId, sid =>
@@ -786,6 +984,17 @@ public class ShareRequest
     /// The session ID to share
     /// </summary>
     public required string SessionId { get; set; }
+}
+
+/// <summary>
+/// Request model for saving conversation as memory
+/// </summary>
+public class SaveMemoryRequest
+{
+    /// <summary>
+    /// Whether to create relationships with referenced memories
+    /// </summary>
+    public bool CreateRelationships { get; set; } = true;
 }
 
 /// <summary>

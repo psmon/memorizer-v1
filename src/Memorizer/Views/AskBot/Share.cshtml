@@ -2,6 +2,7 @@
     ViewData["Title"] = "Shared Conversation - AskBot";
     Layout = "_Layout";
     ViewBag.Controller = "AskBotView";
+    var isAuthenticated = Context.Items["IsAuthenticated"] as bool? ?? false;
 }
 
 @section Styles {
@@ -147,10 +148,21 @@
 
 <div class="share-container">
     <div class="share-header">
-        <h1><i class="fas fa-share-alt me-2"></i>Shared Conversation</h1>
-        <div class="share-info">
-            <i class="fas fa-info-circle me-1"></i>
-            This is a read-only view of a shared AskBot conversation.
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1><i class="fas fa-share-alt me-2"></i>Shared Conversation</h1>
+                <div class="share-info">
+                    <i class="fas fa-info-circle me-1"></i>
+                    This is a read-only view of a shared AskBot conversation.
+                </div>
+            </div>
+            @if (isAuthenticated)
+            {
+                <button type="button" class="btn btn-light btn-lg" onclick="saveAsMemory()" id="saveMemoryBtn">
+                    <i class="fas fa-save me-2"></i>
+                    Save as Memory
+                </button>
+            }
         </div>
     </div>
 
@@ -418,6 +430,97 @@
                 "'": '&#039;'
             };
             return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // Save conversation as memory
+        async function saveAsMemory() {
+            const btn = document.getElementById('saveMemoryBtn');
+            const originalHtml = btn.innerHTML;
+
+            try {
+                // Disable button and show loading
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+
+                const response = await fetch(`/api/askbot/share/${shortCode}/save-memory`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        createRelationships: true
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to save conversation');
+                }
+
+                const result = await response.json();
+
+                // Show success message
+                btn.innerHTML = '<i class="fas fa-check me-2"></i>Saved!';
+                btn.classList.remove('btn-light');
+                btn.classList.add('btn-success');
+
+                // Show toast notification
+                showToast('Success', `Conversation saved as "${result.title}"`, 'success');
+
+                // Optionally redirect to memory view after a delay
+                setTimeout(() => {
+                    window.location.href = `/ui/view/${result.memoryId}`;
+                }, 2000);
+
+            } catch (error) {
+                console.error('Error saving memory:', error);
+
+                // Restore button
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+
+                // Show error message
+                showToast('Error', error.message || 'Failed to save conversation as memory', 'error');
+            }
+        }
+
+        // Show toast notification
+        function showToast(title, message, type = 'info') {
+            // Create toast container if it doesn't exist
+            let toastContainer = document.getElementById('toastContainer');
+            if (!toastContainer) {
+                toastContainer = document.createElement('div');
+                toastContainer.id = 'toastContainer';
+                toastContainer.style.cssText = 'position: fixed; top: 20px; right: 20px; z-index: 9999;';
+                document.body.appendChild(toastContainer);
+            }
+
+            // Create toast element
+            const toastId = 'toast-' + Date.now();
+            const bgColor = type === 'success' ? 'bg-success' : type === 'error' ? 'bg-danger' : 'bg-info';
+
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgColor} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="d-flex">
+                        <div class="toast-body">
+                            <strong>${escapeHtml(title)}</strong><br>
+                            ${escapeHtml(message)}
+                        </div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                </div>
+            `;
+
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement, { autohide: true, delay: 5000 });
+            toast.show();
+
+            // Remove toast element after it's hidden
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
         }
 
         // View memory in modal

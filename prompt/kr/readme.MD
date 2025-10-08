@@ -131,6 +131,12 @@ AskBot 공유 대화 연관 문서 표시 기능 개선 - 공유된 대화에서
 
 - [AskBotShare-Improve](22-AskBotShare-Improve.md)
 
+## Version 1.1.6
+
+ReMemorizer 기능 추가 - UI 권한 제어 개선(비인증 시 편집/삭제 버튼 숨김), 공유 대화를 메모리로 저장 기능(LLM 기반 자동 메타데이터 추출 및 관계 연결)
+
+- [ReMemorizer](23-ReMemorizer.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```
