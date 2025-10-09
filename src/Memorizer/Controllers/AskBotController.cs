@@ -790,24 +790,59 @@ public class AskBotController : ControllerBase
                 return BadRequest(new { error = "Invalid conversation format" });
             }
 
-            // Build conversation text for LLM analysis
-            var conversationText = new System.Text.StringBuilder();
+            // Extract conversation pairs (user + assistant messages)
+            var conversationPairs = new List<(JsonElement userMsg, JsonElement assistantMsg)>();
+            JsonElement? currentUserMsg = null;
+
             foreach (var msg in messages.EnumerateArray())
             {
-                if (msg.TryGetProperty("role", out var role) && msg.TryGetProperty("content", out var msgContent))
+                if (!msg.TryGetProperty("role", out var role))
+                    continue;
+
+                var roleStr = role.GetString();
+
+                if (roleStr == "user")
                 {
-                    var roleStr = role.GetString();
-                    var contentStr = msgContent.GetString();
-                    conversationText.AppendLine($"{roleStr}: {contentStr}");
-                    conversationText.AppendLine();
+                    currentUserMsg = msg;
+                }
+                else if (roleStr == "assistant" && currentUserMsg.HasValue)
+                {
+                    conversationPairs.Add((currentUserMsg.Value, msg));
+                    currentUserMsg = null;
                 }
             }
 
-            // Use LLM to analyze and structure the conversation
-            var analysisPrompt = $@"Analyze the following conversation and create metadata for storing it as a knowledge memory.
+            if (conversationPairs.Count == 0)
+            {
+                return BadRequest(new { error = "No valid conversation pairs found" });
+            }
+
+            _logger.LogInformation("Extracted {Count} conversation pairs from shared conversation {ShortCode}",
+                conversationPairs.Count, shortCode);
+
+            // Store each conversation pair as a separate memory
+            var savedMemories = new List<Memorizer.Models.Memory>();
+            var username = HttpContext.Session.GetString("Username") ?? "user";
+
+            for (int i = 0; i < conversationPairs.Count; i++)
+            {
+                var (userMsg, assistantMsg) = conversationPairs[i];
+
+                var userContent = userMsg.TryGetProperty("content", out var uc) ? uc.GetString() : "";
+                var assistantContent = assistantMsg.TryGetProperty("content", out var ac) ? ac.GetString() : "";
+
+                // Build conversation text for this pair
+                var pairText = new System.Text.StringBuilder();
+                pairText.AppendLine($"user: {userContent}");
+                pairText.AppendLine();
+                pairText.AppendLine($"assistant: {assistantContent}");
+                pairText.AppendLine();
+
+                // Use LLM to analyze and structure this conversation pair
+                var analysisPrompt = $@"Analyze the following conversation pair and create metadata for storing it as a knowledge memory.
 
 Conversation:
-{conversationText}
+{pairText}
 
 Provide a JSON response with:
 1. title: A concise, descriptive title (max 80 characters)
@@ -817,78 +852,113 @@ Provide a JSON response with:
 
 Return ONLY valid JSON, no markdown formatting:
 {{
-  ""title"": ""...\,
+  ""title"": ""..."",
   ""tags"": [...],
-  ""summary"": ""...\,
+  ""summary"": ""..."",
   ""type"": ""...""
 }}";
 
-            var llmResponse = await _llmService.CompleteAsync(analysisPrompt);
+                var llmResponse = await _llmService.CompleteAsync(analysisPrompt);
 
-            // Clean LLM response (remove markdown if present)
-            var jsonResponse = llmResponse.Trim();
-            if (jsonResponse.StartsWith("```json"))
-            {
-                jsonResponse = jsonResponse.Substring(7);
-            }
-            if (jsonResponse.StartsWith("```"))
-            {
-                jsonResponse = jsonResponse.Substring(3);
-            }
-            if (jsonResponse.EndsWith("```"))
-            {
-                jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
-            }
-            jsonResponse = jsonResponse.Trim();
-
-            // Parse LLM response
-            JsonElement metadata;
-            try
-            {
-                metadata = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(jsonResponse);
-            }
-            catch (System.Text.Json.JsonException ex)
-            {
-                _logger.LogError(ex, "Failed to parse LLM response as JSON: {Response}", llmResponse);
-                return StatusCode(500, new { error = "Failed to analyze conversation", details = llmResponse });
-            }
-
-            var title = metadata.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : "Shared Conversation";
-            var tags = new List<string>();
-            if (metadata.TryGetProperty("tags", out var tagsProp))
-            {
-                foreach (var tag in tagsProp.EnumerateArray())
+                // Clean LLM response (remove markdown if present)
+                var jsonResponse = llmResponse.Trim();
+                if (jsonResponse.StartsWith("```json"))
                 {
-                    tags.Add(tag.GetString() ?? "");
+                    jsonResponse = jsonResponse.Substring(7);
+                }
+                if (jsonResponse.StartsWith("```"))
+                {
+                    jsonResponse = jsonResponse.Substring(3);
+                }
+                if (jsonResponse.EndsWith("```"))
+                {
+                    jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
+                }
+                jsonResponse = jsonResponse.Trim();
+
+                // Parse LLM response
+                JsonElement metadata;
+                try
+                {
+                    metadata = System.Text.Json.JsonSerializer.Deserialize<JsonElement>(jsonResponse);
+                }
+                catch (System.Text.Json.JsonException ex)
+                {
+                    _logger.LogError(ex, "Failed to parse LLM response as JSON for pair {Index}: {Response}", i, llmResponse);
+                    // Use fallback metadata
+                    metadata = JsonDocument.Parse($@"{{
+                        ""title"": ""Conversation {i + 1}"",
+                        ""tags"": [""conversation"", ""shared""],
+                        ""summary"": ""Conversation pair {i + 1}"",
+                        ""type"": ""conversation""
+                    }}").RootElement;
+                }
+
+                var title = metadata.TryGetProperty("title", out var titleProp) ? titleProp.GetString() : $"Conversation {i + 1}";
+                var tags = new List<string>();
+                if (metadata.TryGetProperty("tags", out var tagsProp))
+                {
+                    foreach (var tag in tagsProp.EnumerateArray())
+                    {
+                        tags.Add(tag.GetString() ?? "");
+                    }
+                }
+                var summary = metadata.TryGetProperty("summary", out var summaryProp) ? summaryProp.GetString() : "";
+                var memoryType = metadata.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : "conversation";
+
+                // Build memory content with summary and conversation
+                var memoryContent = new System.Text.StringBuilder();
+                if (!string.IsNullOrEmpty(summary))
+                {
+                    memoryContent.AppendLine($"## Summary");
+                    memoryContent.AppendLine(summary);
+                    memoryContent.AppendLine();
+                }
+                memoryContent.AppendLine($"## Conversation");
+                memoryContent.AppendLine();
+                memoryContent.Append(pairText.ToString());
+
+                // Save memory for this conversation pair
+                var memory = await _storage.StoreMemory(
+                    memoryType ?? "conversation",
+                    memoryContent.ToString(),
+                    $"shared-by-{username}",
+                    tags.ToArray(),
+                    0.9,
+                    title: title ?? $"Conversation {i + 1}"
+                );
+
+                savedMemories.Add(memory);
+
+                _logger.LogInformation("Saved conversation pair {Index}/{Total} as memory {MemoryId}",
+                    i + 1, conversationPairs.Count, memory.Id);
+            }
+
+            // Create sequential relationships between conversation memories
+            if (savedMemories.Count > 1 && request.CreateRelationships)
+            {
+                for (int i = 0; i < savedMemories.Count - 1; i++)
+                {
+                    try
+                    {
+                        await _storage.CreateRelationship(
+                            savedMemories[i].Id,
+                            savedMemories[i + 1].Id,
+                            "continues-to"
+                        );
+
+                        _logger.LogInformation("Created relationship: Memory {FromId} continues-to {ToId}",
+                            savedMemories[i].Id, savedMemories[i + 1].Id);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to create relationship between memories {FromId} and {ToId}",
+                            savedMemories[i].Id, savedMemories[i + 1].Id);
+                    }
                 }
             }
-            var summary = metadata.TryGetProperty("summary", out var summaryProp) ? summaryProp.GetString() : "";
-            var memoryType = metadata.TryGetProperty("type", out var typeProp) ? typeProp.GetString() : "conversation";
 
-            // Build memory content with summary and full conversation
-            var memoryContent = new System.Text.StringBuilder();
-            if (!string.IsNullOrEmpty(summary))
-            {
-                memoryContent.AppendLine($"## Summary");
-                memoryContent.AppendLine(summary);
-                memoryContent.AppendLine();
-            }
-            memoryContent.AppendLine($"## Conversation");
-            memoryContent.AppendLine();
-            memoryContent.Append(conversationText.ToString());
-
-            // Save memory
-            var username = HttpContext.Session.GetString("Username") ?? "user";
-            var memory = await _storage.StoreMemory(
-                memoryType ?? "conversation",
-                memoryContent.ToString(),
-                $"shared-by-{username}",
-                tags.ToArray(),
-                0.9,
-                title: title ?? "Shared Conversation"
-            );
-
-            // Create relationships if referenced memories exist
+            // Create relationships with referenced memories if they exist
             if (!string.IsNullOrEmpty(referencedMemoriesJson) && request.CreateRelationships)
             {
                 try
@@ -898,17 +968,30 @@ Return ONLY valid JSON, no markdown formatting:
                     {
                         foreach (var refMem in referencedMemories)
                         {
-                            if (refMem.TryGetProperty("memoryIds", out var memoryIds))
+                            if (refMem.TryGetProperty("messageIndex", out var msgIndexProp) &&
+                                refMem.TryGetProperty("memoryIds", out var memoryIds))
                             {
-                                foreach (var memId in memoryIds.EnumerateArray())
+                                var messageIndex = msgIndexProp.GetInt32();
+
+                                // Find which conversation pair this message belongs to
+                                // messageIndex is for all messages, we need to map it to assistant messages
+                                var pairIndex = messageIndex / 2; // Approximate mapping (assumes user, assistant pairs)
+
+                                if (pairIndex >= 0 && pairIndex < savedMemories.Count)
                                 {
-                                    if (Guid.TryParse(memId.GetString(), out var relatedMemoryId))
+                                    foreach (var memId in memoryIds.EnumerateArray())
                                     {
-                                        await _storage.CreateRelationship(
-                                            memory.Id,
-                                            relatedMemoryId,
-                                            "references"
-                                        );
+                                        if (Guid.TryParse(memId.GetString(), out var relatedMemoryId))
+                                        {
+                                            await _storage.CreateRelationship(
+                                                savedMemories[pairIndex].Id,
+                                                relatedMemoryId,
+                                                "references"
+                                            );
+
+                                            _logger.LogInformation("Created reference relationship: Memory {FromId} references {ToId}",
+                                                savedMemories[pairIndex].Id, relatedMemoryId);
+                                        }
                                     }
                                 }
                             }
@@ -917,16 +1000,19 @@ Return ONLY valid JSON, no markdown formatting:
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to create relationships for memory {MemoryId}", memory.Id);
+                    _logger.LogWarning(ex, "Failed to create relationships with referenced memories");
                 }
             }
 
-            _logger.LogInformation("Saved shared conversation {ShortCode} as memory {MemoryId}", shortCode, memory.Id);
+            _logger.LogInformation("Saved shared conversation {ShortCode} as {Count} memories",
+                shortCode, savedMemories.Count);
 
             return Ok(new {
-                memoryId = memory.Id,
-                title = memory.Title,
-                message = "Conversation saved successfully as memory"
+                memoryIds = savedMemories.Select(m => m.Id).ToList(),
+                memoryId = savedMemories.First().Id, // For backward compatibility
+                title = savedMemories.First().Title,
+                count = savedMemories.Count,
+                message = $"Conversation saved successfully as {savedMemories.Count} memories"
             });
         }
         catch (Exception ex)

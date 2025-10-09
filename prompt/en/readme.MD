@@ -139,6 +139,12 @@ ReMemorizer feature addition - UI permission control improvements (hide edit/del
 
 - [ReMemorizer](23-ReMemorizer.md)
 
+## Version 1.1.7
+
+ReMemorizer multi-conversation pair storage improvement - Save multiple conversation pairs as individual memories, sequential relationship linking (continues-to), enhanced reference document mapping
+
+- [ReMemorizer-Fix](24-ReMemorizer-fix.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

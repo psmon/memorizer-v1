@@ -137,6 +137,12 @@ ReMemorizer 기능 추가 - UI 권한 제어 개선(비인증 시 편집/삭제 
 
 - [ReMemorizer](23-ReMemorizer.md)
 
+## Version 1.1.7
+
+ReMemorizer 다중 대화 쌍 저장 개선 - 여러 대화 쌍을 개별 메모리로 저장, 순차적 관계 연결(continues-to), 참조 문서 매핑 개선
+
+- [ReMemorizer-Fix](24-ReMemorizer-fix.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```
