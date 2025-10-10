@@ -1,13 +1,24 @@
-# Memorizer with Graph
+
+# Memorizer Extended
 
 ![Introduction](intro.png)
 
 This project extends the capabilities of the **original Memorizer** by adding Graph functionality.
 
+![Introduction](askbot.png)
+
+“It is possible to generate answers using the memory knowledge stored in ASKBOT.”
+
+![Introduction](knowlodge.png)
+
+“The responses provided by ASKBOT can be regenerated as new memory.”
+
+“In my personal memory space, I experiment with Vibe code centered around the actor model, along with various AI technologies and trends. All the extended features here are written entirely in Vibe. You can explore the organized content through the MCP blog.”
+
 playground : https://mcp.webnori.com/ui/blog
 
 
-# Memorizer
+# Memorizer Original
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/petabridge/memorizer)](https://hub.docker.com/r/petabridge/memorizer) ![GitHub License](https://img.shields.io/github/license/petabridge/memorizer-v1) ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/petabridge/memorizer-v1/pr_validation.yml) ![GitHub Release](https://img.shields.io/github/v/release/petabridge/memorizer-v1)
 
