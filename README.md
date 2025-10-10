@@ -17,6 +17,8 @@ This project extends the capabilities of the **original Memorizer** by adding Gr
 
 playground : https://mcp.webnori.com/ui/blog
 
+Realese Note : [Memorizer Extended](prompt/en/readme.MD)
+
 
 # Memorizer Original
 
@@ -151,34 +153,6 @@ The Web UI provides a user-friendly interface for all Memorizer functionality, m
 - [Schema Migrations](docs/schema-migrations.md)
 - [Architecture Decision Records](docs/adr/README.md)
 
-## 📝 Version History
-
-- Version 1.0.9 - [Dynamic Script Injection](prompt/en/19.InstallScript.md)
-  - Added custom script configuration UI at `/ui/script-config`
-  - Implemented dynamic script injection into page `<head>` section
-  - Support for analytics scripts (Google Analytics, etc.) with in-memory caching
-  - Database migration for script storage and management
-- Version 1.0.8 - [Unit Test Upgrade](prompt/en/18.Unitest-Upgrade.md)
-  - Enhanced actor model unit testing
-  - Improved test coverage for ChatBotActor, SearchMemoryActor, and DecisionActor
-- Version 1.0.7 - [ASKBot Actor Model Upgrade](prompt/en/17.ASKBOT-ActorModel-Upgrade.md)
-  - Optimized conversation context management
-  - Improved multi-session handling and SSE stability
-- Version 1.0.6 - [ASKBot Improvements](prompt/en/15.03-ASKBOT-IMPROVE1.md)
-  - Enhanced chatbot UI/UX
-  - Added menu improvements and better conversation flow
-- Version 1.0.5 - [ASKBot Websocket](prompt/en/15.02-ASKBOT-Websocket.md)
-  - Implemented WebSocket support for real-time communication
-  - Added SSE (Server-Sent Events) integration
-- Version 1.0.4 - [ASKBot Actor Model](prompt/en/15.01-ASKBOT-ActorModel.md)
-  - Introduced actor-based chatbot architecture
-  - Implemented SearchMemoryActor and DecisionActor
-- Version 1.0.3 - [Hybrid Search Upgrade](prompt/en/14-HybridSerch-Upgrade.md)
-  - Enhanced search capabilities with hybrid approach
-  - Combined vector and keyword search
-- Version 1.0.2 - [Prompt Management Improvement](prompt/en/12.PROMPT-Improve.md)
-  - Centralized prompt templates management
-  - Consolidated and improved LLM instruction prompts
 
 ## License
 
