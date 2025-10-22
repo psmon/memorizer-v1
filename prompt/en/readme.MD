@@ -145,6 +145,12 @@ ReMemorizer multi-conversation pair storage improvement - Save multiple conversa
 
 - [ReMemorizer-Fix](24-ReMemorizer-fix.md)
 
+## Version 1.1.8
+
+AskBot share feature improvements - Mermaid diagram rendering fixes in shared pages, share update functionality for existing sessions, async/await syntax error resolution
+
+- [ReMemorizer-Fix2](25-ReMemorizer-fix2.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

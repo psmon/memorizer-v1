@@ -143,6 +143,12 @@ ReMemorizer 다중 대화 쌍 저장 개선 - 여러 대화 쌍을 개별 메모
 
 - [ReMemorizer-Fix](24-ReMemorizer-fix.md)
 
+## Version 1.1.8
+
+AskBot 공유 기능 개선 - 공유 페이지에서 Mermaid 다이어그램 렌더링 수정, 기존 세션 공유 업데이트 기능, async/await 구문 오류 해결
+
+- [ReMemorizer-Fix2](25-ReMemorizer-fix2.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

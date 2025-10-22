@@ -15,3 +15,14 @@
   - Version 1.0.8 - [ContentView-Upgrade](13-ContentView-Upgrade.MD) 에 해당하니 버전설명시 참고하며 마이너 버전이 증가합니다. 누락되거나 중복되지 않도록 주의하며 누락시 업데이트합니다.
   - 15.01-,15.02- 와같이 하위에 숫자가 붙은경우, 분할해 개선된 케이스로 readme 설명시 동일버전으로 설명합니다. 
   - 파일이름이 변경될수도 있으며 readme.MD에 연결된 상대경로 연결문서가 깨진게 없나 마지막으로 확인합니다.
+
+# 버전업데이트
+- 바이너리버전 파일이 다음에 있으니 최종버전 업데이트도 반영해주새요
+  - Directory.Build.props
+    - VersionPrefix 반영
+  - src/Directory.Build.props
+    - VersionPrefix 반영
+
+
+
+

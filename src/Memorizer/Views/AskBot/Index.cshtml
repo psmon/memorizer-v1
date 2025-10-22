@@ -451,7 +451,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.0/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 
     <script>
         let eventSource = null;
@@ -464,19 +464,10 @@
         let processedReasoningSteps = new Set(); // Track already shown reasoning steps to prevent duplicates
         let hasMemorySearch = false; // Track if memory search is happening
 
-        // Initialize Mermaid
-        mermaid.initialize({
-            startOnLoad: true,
-            theme: 'default',
-            themeVariables: {
-                primaryColor: '#667eea',
-                primaryTextColor: '#fff',
-                primaryBorderColor: '#764ba2',
-                lineColor: '#5a67d8',
-                secondaryColor: '#764ba2',
-                tertiaryColor: '#f8f9fa'
-            }
-        });
+        // Initialize Mermaid using common renderer
+        if (typeof initializeMermaid === 'function') {
+            initializeMermaid();
+        }
 
         // Get or create session ID
         function getSessionId() {
@@ -802,18 +793,31 @@
             scrollToBottom();
         }
 
-        function finalizeCurrentMessage() {
+        async function finalizeCurrentMessage() {
             if (currentAssistantMessage) {
                 const contentElement = currentAssistantMessage.querySelector('.message-content');
-                contentElement.innerHTML = renderMarkdown(currentMessageContent);
 
-                // Render Mermaid diagrams if any
-                mermaid.run();
-
-                // Highlight code blocks
-                contentElement.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
-                });
+                // Use the enhanced markdown renderer if available
+                if (typeof renderMarkdownContent === 'function') {
+                    try {
+                        await renderMarkdownContent(currentMessageContent, contentElement);
+                    } catch (error) {
+                        console.error('Error rendering markdown:', error);
+                        // Fallback to basic rendering
+                        contentElement.innerHTML = renderMarkdown(currentMessageContent);
+                        mermaid.run();
+                        contentElement.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                    }
+                } else {
+                    // Fallback to basic rendering
+                    contentElement.innerHTML = renderMarkdown(currentMessageContent);
+                    mermaid.run();
+                    contentElement.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                }
 
                 // Add memory reference links if any
                 addMemoryReferenceLinks(contentElement);
@@ -839,18 +843,44 @@
             scrollToBottom();
         }
 
-        function renderMarkdown(text) {
-            // Configure marked options
-            marked.setOptions({
-                highlight: function(code, lang) {
-                    if (lang && hljs.getLanguage(lang)) {
-                        return hljs.highlight(code, { language: lang }).value;
-                    }
-                    return hljs.highlightAuto(code).value;
-                },
-                breaks: true,
-                gfm: true
+        function preprocessMarkdown(text) {
+            // Fix nested code blocks - extract mermaid blocks from markdown code blocks
+            // Pattern: ```markdown\n...\n```mermaid\n...\n```\n...\n```
+            const nestedMermaidPattern = /```markdown\s*\n([\s\S]*?)\n```mermaid\s*\n([\s\S]*?)\n```\s*\n([\s\S]*?)\n```/g;
+
+            text = text.replace(nestedMermaidPattern, (match, before, mermaidCode, after) => {
+                // Extract the mermaid block and keep the surrounding markdown content
+                return before + '\n\n```mermaid\n' + mermaidCode + '\n```\n\n' + after;
             });
+
+            return text;
+        }
+
+        function renderMarkdown(text) {
+            // Preprocess to fix nested code blocks
+            text = preprocessMarkdown(text);
+
+            // Use common renderer configuration if available
+            if (typeof configureMarked === 'function') {
+                configureMarked();
+            } else {
+                // Fallback configuration
+                marked.setOptions({
+                    highlight: function(code, lang) {
+                        // Skip mermaid blocks from syntax highlighting
+                        if (lang && lang.toLowerCase() === 'mermaid') {
+                            return code;
+                        }
+                        if (lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, { language: lang }).value;
+                        }
+                        return hljs.highlightAuto(code).value;
+                    },
+                    breaks: true,
+                    gfm: true,
+                    langPrefix: 'language-'
+                });
+            }
 
             // Convert markdown to HTML
             let html = marked.parse(text);
@@ -861,12 +891,8 @@
                 ADD_ATTR: ['target', 'rel']
             });
 
-            // Handle Mermaid diagrams
-            html = html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
-                (match, code) => {
-                    const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
-                    return `<div class="mermaid" id="${id}">${code}</div>`;
-                });
+            // DON'T convert mermaid blocks here - let renderMermaidDiagrams handle them
+            // The common renderer expects <pre><code class="language-mermaid"> format
 
             return html;
         }
@@ -973,13 +999,29 @@
                 // Scroll to bottom
                 scrollToBottom();
 
-                // Highlight code blocks
-                document.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
-                });
+                // Render markdown content with enhancements
+                const assistantMessages = messagesContainer.querySelectorAll('.message.assistant .markdown-content');
+                for (const msgContent of assistantMessages) {
+                    if (typeof renderMarkdownContent === 'function') {
+                        try {
+                            // Get the original text from the innerHTML (already rendered by basic marked)
+                            const htmlContent = msgContent.innerHTML;
+                            // Re-render with enhancements - this will properly handle Mermaid
+                            // Note: We need to extract text from previous rendering or store it
+                            // For simplicity, we'll process existing HTML for mermaid rendering
+                            await renderMermaidDiagrams(msgContent);
+                        } catch (error) {
+                            console.error('Error rendering enhanced content:', error);
+                        }
+                    }
+                }
 
-                // Render Mermaid diagrams
-                mermaid.run();
+                // Highlight code blocks if not already done
+                document.querySelectorAll('pre code:not(.hljs)').forEach((block) => {
+                    if (!block.classList.contains('language-mermaid')) {
+                        hljs.highlightElement(block);
+                    }
+                });
 
                 console.log(`Restored ${data.messages.length} messages from conversation history`);
             } catch (error) {
@@ -1114,15 +1156,26 @@
 
                 // Content
                 const contentContainer = document.getElementById('modalRenderedContent');
-                contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
 
-                // Render Mermaid diagrams if any
-                mermaid.run();
-
-                // Highlight code blocks
-                contentContainer.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
-                });
+                // Use enhanced renderer if available
+                if (typeof renderMarkdownContent === 'function') {
+                    try {
+                        await renderMarkdownContent(memory.text || memory.content || '', contentContainer);
+                    } catch (error) {
+                        console.error('Error rendering markdown:', error);
+                        contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
+                        mermaid.run();
+                        contentContainer.querySelectorAll('pre code').forEach((block) => {
+                            hljs.highlightElement(block);
+                        });
+                    }
+                } else {
+                    contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
+                    mermaid.run();
+                    contentContainer.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                }
 
                 // Update full view link
                 document.getElementById('modalOpenFullView').href = `/ui/view/${id}`;

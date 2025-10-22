@@ -356,31 +356,41 @@ public class AskBotController : ControllerBase
             await using var checkCmd = new Npgsql.NpgsqlCommand(existingQuery, conn);
             checkCmd.Parameters.AddWithValue("sessionId", request.SessionId);
 
+            string? existingShortCode = null;
             await using var reader = await checkCmd.ExecuteReaderAsync();
             if (await reader.ReadAsync())
             {
-                var existingShortCode = reader.GetString(0);
-                _logger.LogInformation("Returning existing share link {ShortCode} for session {SessionId}",
+                existingShortCode = reader.GetString(0);
+                _logger.LogInformation("Found existing share link {ShortCode} for session {SessionId}, will update it",
                     existingShortCode, request.SessionId);
-                return Ok(new { shortCode = existingShortCode, sessionId = request.SessionId });
             }
             await reader.CloseAsync();
 
-            // Generate unique 6-character short code
+            // Generate or reuse short code
             string shortCode;
-            int attempts = 0;
-            const int maxAttempts = 10;
 
-            do
+            if (existingShortCode != null)
             {
-                shortCode = GenerateShortCode();
-                attempts++;
+                // Reuse existing short code for update
+                shortCode = existingShortCode;
+            }
+            else
+            {
+                // Generate new unique short code
+                int attempts = 0;
+                const int maxAttempts = 10;
 
-                if (attempts > maxAttempts)
+                do
                 {
-                    return StatusCode(500, new { error = "Failed to generate unique short code" });
-                }
-            } while (await ShortCodeExists(shortCode, conn));
+                    shortCode = GenerateShortCode();
+                    attempts++;
+
+                    if (attempts > maxAttempts)
+                    {
+                        return StatusCode(500, new { error = "Failed to generate unique short code" });
+                    }
+                } while (await ShortCodeExists(shortCode, conn));
+            }
 
             // Create conversation snapshot
             var conversationSnapshot = new
@@ -416,23 +426,49 @@ public class AskBotController : ControllerBase
                 ? System.Text.Json.JsonSerializer.Serialize(referencedMemories)
                 : null;
 
-            // Store in database with content and referenced memories
-            var insertQuery = @"
-                INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, created_at)
-                VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @createdAt)";
+            // Insert or update in database
+            if (existingShortCode != null)
+            {
+                // Update existing share
+                var updateQuery = @"
+                    UPDATE askbot_share_links
+                    SET content = @content::jsonb,
+                        referenced_memories = @referencedMemories::jsonb,
+                        updated_at = @updatedAt
+                    WHERE short_code = @shortCode";
 
-            await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
-            cmd.Parameters.AddWithValue("shortCode", shortCode);
-            cmd.Parameters.AddWithValue("sessionId", request.SessionId);
-            cmd.Parameters.AddWithValue("content", contentJson);
-            cmd.Parameters.AddWithValue("referencedMemories",
-                referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
-            cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
+                await using var cmd = new Npgsql.NpgsqlCommand(updateQuery, conn);
+                cmd.Parameters.AddWithValue("shortCode", shortCode);
+                cmd.Parameters.AddWithValue("content", contentJson);
+                cmd.Parameters.AddWithValue("referencedMemories",
+                    referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
+                cmd.Parameters.AddWithValue("updatedAt", DateTime.UtcNow);
 
-            await cmd.ExecuteNonQueryAsync();
+                await cmd.ExecuteNonQueryAsync();
 
-            _logger.LogInformation("Created share link {ShortCode} for session {SessionId}",
-                shortCode, request.SessionId);
+                _logger.LogInformation("Updated share link {ShortCode} for session {SessionId}",
+                    shortCode, request.SessionId);
+            }
+            else
+            {
+                // Insert new share
+                var insertQuery = @"
+                    INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, created_at)
+                    VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @createdAt)";
+
+                await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
+                cmd.Parameters.AddWithValue("shortCode", shortCode);
+                cmd.Parameters.AddWithValue("sessionId", request.SessionId);
+                cmd.Parameters.AddWithValue("content", contentJson);
+                cmd.Parameters.AddWithValue("referencedMemories",
+                    referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
+                cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
+
+                await cmd.ExecuteNonQueryAsync();
+
+                _logger.LogInformation("Created share link {ShortCode} for session {SessionId}",
+                    shortCode, request.SessionId);
+            }
 
             return Ok(new { shortCode, sessionId = request.SessionId });
         }

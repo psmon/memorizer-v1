@@ -245,26 +245,18 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dompurify@2.4.0/dist/purify.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/10.6.0/mermaid.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
 
     <script>
+        // Share page script - v2.0 - Fixed async/await issues
         // Get short code from URL path
         const pathParts = window.location.pathname.split('/');
         const shortCode = pathParts[pathParts.length - 1];
 
-        // Initialize Mermaid
-        mermaid.initialize({
-            startOnLoad: true,
-            theme: 'default',
-            themeVariables: {
-                primaryColor: '#667eea',
-                primaryTextColor: '#fff',
-                primaryBorderColor: '#764ba2',
-                lineColor: '#5a67d8',
-                secondaryColor: '#764ba2',
-                tertiaryColor: '#f8f9fa'
-            }
-        });
+        // Initialize Mermaid using common renderer
+        if (typeof initializeMermaid === 'function') {
+            initializeMermaid();
+        }
 
         let referencedMemoriesMap = {}; // Store memory references by message index
 
@@ -293,7 +285,7 @@
                 }
 
                 // Render conversation with memory references
-                renderConversation(data.content.messages);
+                await renderConversation(data.content.messages);
 
             } catch (error) {
                 console.error('Error loading shared conversation:', error);
@@ -312,7 +304,7 @@
             document.getElementById('no-messages').style.display = 'block';
         }
 
-        function renderConversation(messages) {
+        async function renderConversation(messages) {
             const conversationDiv = document.getElementById('conversation');
             conversationDiv.innerHTML = '';
 
@@ -384,26 +376,64 @@
             document.getElementById('loading').style.display = 'none';
             conversationDiv.style.display = 'block';
 
+            // Render markdown content with enhancements
+            const markdownContents = conversationDiv.querySelectorAll('.markdown-content');
+            for (const content of markdownContents) {
+                if (typeof renderMermaidDiagrams === 'function') {
+                    try {
+                        await renderMermaidDiagrams(content);
+                    } catch (error) {
+                        console.error('Error rendering Mermaid:', error);
+                    }
+                }
+            }
+
             // Highlight code blocks
-            document.querySelectorAll('pre code').forEach((block) => {
-                hljs.highlightElement(block);
+            document.querySelectorAll('pre code:not(.hljs)').forEach((block) => {
+                if (!block.classList.contains('language-mermaid')) {
+                    hljs.highlightElement(block);
+                }
+            });
+        }
+
+        function preprocessMarkdown(text) {
+            // Fix nested code blocks - extract mermaid blocks from markdown code blocks
+            // Pattern: ```markdown\n...\n```mermaid\n...\n```\n...\n```
+            const nestedMermaidPattern = /```markdown\s*\n([\s\S]*?)\n```mermaid\s*\n([\s\S]*?)\n```\s*\n([\s\S]*?)\n```/g;
+
+            text = text.replace(nestedMermaidPattern, (match, before, mermaidCode, after) => {
+                // Extract the mermaid block and keep the surrounding markdown content
+                return before + '\n\n```mermaid\n' + mermaidCode + '\n```\n\n' + after;
             });
 
-            // Render Mermaid diagrams
-            mermaid.run();
+            return text;
         }
 
         function renderMarkdown(text) {
-            marked.setOptions({
-                highlight: function(code, lang) {
-                    if (lang && hljs.getLanguage(lang)) {
-                        return hljs.highlight(code, { language: lang }).value;
-                    }
-                    return hljs.highlightAuto(code).value;
-                },
-                breaks: true,
-                gfm: true
-            });
+            // Preprocess to fix nested code blocks
+            text = preprocessMarkdown(text);
+
+            // Use common renderer configuration if available
+            if (typeof configureMarked === 'function') {
+                configureMarked();
+            } else {
+                // Fallback configuration
+                marked.setOptions({
+                    highlight: function(code, lang) {
+                        // Skip mermaid blocks from syntax highlighting
+                        if (lang && lang.toLowerCase() === 'mermaid') {
+                            return code;
+                        }
+                        if (lang && hljs.getLanguage(lang)) {
+                            return hljs.highlight(code, { language: lang }).value;
+                        }
+                        return hljs.highlightAuto(code).value;
+                    },
+                    breaks: true,
+                    gfm: true,
+                    langPrefix: 'language-'
+                });
+            }
 
             let html = marked.parse(text);
 
@@ -412,11 +442,8 @@
                 ADD_ATTR: ['target', 'rel']
             });
 
-            html = html.replace(/<pre><code class="language-mermaid">([\s\S]*?)<\/code><\/pre>/g,
-                (match, code) => {
-                    const id = 'mermaid-' + Math.random().toString(36).substr(2, 9);
-                    return `<div class="mermaid" id="${id}">${code}</div>`;
-                });
+            // DON'T convert mermaid blocks here - let renderMermaidDiagrams handle them
+            // The common renderer expects <pre><code class="language-mermaid"> format
 
             return html;
         }
@@ -560,15 +587,34 @@
 
                 // Content
                 const contentContainer = document.getElementById('modalRenderedContent');
-                contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
 
-                // Render Mermaid diagrams if any
-                mermaid.run();
-
-                // Highlight code blocks
-                contentContainer.querySelectorAll('pre code').forEach((block) => {
-                    hljs.highlightElement(block);
-                });
+                // Use enhanced renderer if available
+                if (typeof renderMarkdownContent === 'function') {
+                    try {
+                        await renderMarkdownContent(memory.text || memory.content || '', contentContainer);
+                    } catch (error) {
+                        console.error('Error rendering markdown:', error);
+                        contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
+                        if (typeof renderMermaidDiagrams === 'function') {
+                            await renderMermaidDiagrams(contentContainer);
+                        }
+                        contentContainer.querySelectorAll('pre code').forEach((block) => {
+                            if (!block.classList.contains('language-mermaid')) {
+                                hljs.highlightElement(block);
+                            }
+                        });
+                    }
+                } else {
+                    contentContainer.innerHTML = renderMarkdown(memory.text || memory.content || '');
+                    if (typeof renderMermaidDiagrams === 'function') {
+                        await renderMermaidDiagrams(contentContainer);
+                    }
+                    contentContainer.querySelectorAll('pre code').forEach((block) => {
+                        if (!block.classList.contains('language-mermaid')) {
+                            hljs.highlightElement(block);
+                        }
+                    });
+                }
 
                 // Update full view link
                 document.getElementById('modalOpenFullView').href = `/ui/view/${id}`;
