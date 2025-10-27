@@ -3,12 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.1.8</VersionPrefix>
+    <VersionPrefix>1.1.9</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [Bump OllamaSharp from 5.2.10 to 5.3.3](https://github.com/petabridge/memorizer-v1/pull/13)
-- [Bump `ModelContextProtocol` from 0.1.0-preview.14 to 0.3.0-preview.3](https://github.com/petabridge/memorizer-v1/pull/15)</PackageReleaseNotes>
+    <PackageReleaseNotes>- [Bump `ModelContextProtocol` from 0.3.0 to 0.4.0]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

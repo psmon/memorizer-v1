@@ -149,6 +149,11 @@ AskBot 공유 기능 개선 - 공유 페이지에서 Mermaid 다이어그램 렌
 
 - [ReMemorizer-Fix2](25-ReMemorizer-fix2.md)
 
+## Version 1.1.9
+
+ModelContextProtocol 0.3.0 -> 0.4.0 모듈 업데이트 반영
+
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

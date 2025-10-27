@@ -151,6 +151,10 @@ AskBot share feature improvements - Mermaid diagram rendering fixes in shared pa
 
 - [ReMemorizer-Fix2](25-ReMemorizer-fix2.md)
 
+## Version 1.1.9
+
+ModelContextProtocol module update from 0.3.0 to 0.4.0
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
