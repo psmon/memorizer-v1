@@ -236,9 +236,15 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Act & Assert - First exchange (greeting)
         var request1 = new UserChatRequest
@@ -248,7 +254,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response1 = await chatBotActor.Ask<ChatBotResponse>(request1, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request1, TestActor);
+        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1);
         Assert.Contains("ASKBot", response1.Message, StringComparison.OrdinalIgnoreCase);
         _output.WriteLine($"First response: {response1.Message}");
@@ -261,7 +268,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response2 = await chatBotActor.Ask<ChatBotResponse>(request2, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request2, TestActor);
+        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2);
         _output.WriteLine($"Second response: {response2.Message}");
 
@@ -273,10 +281,13 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response3 = await chatBotActor.Ask<ChatBotResponse>(request3, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request3, TestActor);
+        var response3 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response3);
         _output.WriteLine($"Third response: {response3.Message}");
         // Response should acknowledge the thanks in context
+
+        await Task.CompletedTask; // For async signature
     }
 
     [Fact]
@@ -284,9 +295,15 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Act & Assert - First exchange (express curiosity)
         var request1 = new UserChatRequest
@@ -296,7 +313,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response1 = await chatBotActor.Ask<ChatBotResponse>(request1, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request1, TestActor);
+        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1);
         _output.WriteLine($"First response: {response1.Message}");
         // Should ask what the user is curious about
@@ -309,11 +327,14 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response2 = await chatBotActor.Ask<ChatBotResponse>(request2, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request2, TestActor);
+        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2);
         _output.WriteLine($"Second response: {response2.Message}");
         // Should search memory and provide information about AI development methodology
         Assert.True(response2.Type == ResponseType.MemoryBased || response2.Type == ResponseType.General);
+
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -321,9 +342,15 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Test multiple topics in sequence
         var topics = new[]
@@ -344,7 +371,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
                 UserId = "test-user"
             };
 
-            var response = await chatBotActor.Ask<ChatBotResponse>(request, TimeSpan.FromSeconds(30));
+            supervisor.Tell(request, TestActor);
+            var response = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
             Assert.NotNull(response);
             _output.WriteLine($"Topic {i + 1} response: {response.Message}");
 
@@ -363,6 +391,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
 
             previousResponse = response;
         }
+
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -370,9 +400,15 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Act - Send more than 10 messages to test pruning
         for (int i = 1; i <= 12; i++)
@@ -384,7 +420,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
                 UserId = "test-user"
             };
 
-            var response = await chatBotActor.Ask<ChatBotResponse>(request, TimeSpan.FromSeconds(30));
+            supervisor.Tell(request, TestActor);
+            var response = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
             Assert.NotNull(response);
             _output.WriteLine($"Message {i} response received");
         }
@@ -397,10 +434,13 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var finalResponse = await chatBotActor.Ask<ChatBotResponse>(finalRequest, TimeSpan.FromSeconds(30));
+        supervisor.Tell(finalRequest, TestActor);
+        var finalResponse = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(finalResponse);
         _output.WriteLine($"Final response: {finalResponse.Message}");
         // Should have some context from short-term memory even if early messages are pruned
+
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -410,13 +450,22 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
         var sessionId1 = Guid.NewGuid().ToString();
         var sessionId2 = Guid.NewGuid().ToString();
 
-        var chatBotActor1 = Sys.ActorOf(
-            ChatBotActor.Props(sessionId1, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId1}");
+        // Use TestChatBotSupervisor for both sessions
+        var supervisorProps1 = TestChatBotSupervisor.Props(
+            sessionId1,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor1 = Sys.ActorOf(supervisorProps1, $"supervisor-{sessionId1}");
 
-        var chatBotActor2 = Sys.ActorOf(
-            ChatBotActor.Props(sessionId2, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId2}");
+        var supervisorProps2 = TestChatBotSupervisor.Props(
+            sessionId2,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor2 = Sys.ActorOf(supervisorProps2, $"supervisor-{sessionId2}");
 
         // Act - Session 1: Talk about Reactive Streams
         var request1_1 = new UserChatRequest
@@ -426,7 +475,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "user1"
         };
 
-        var response1_1 = await chatBotActor1.Ask<ChatBotResponse>(request1_1, TimeSpan.FromSeconds(30));
+        supervisor1.Tell(request1_1, TestActor);
+        var response1_1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1_1);
         _output.WriteLine($"Session 1 response: {response1_1.Message}");
 
@@ -438,7 +488,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "user2"
         };
 
-        var response2_1 = await chatBotActor2.Ask<ChatBotResponse>(request2_1, TimeSpan.FromSeconds(30));
+        supervisor2.Tell(request2_1, TestActor);
+        var response2_1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2_1);
         _output.WriteLine($"Session 2 response: {response2_1.Message}");
 
@@ -450,7 +501,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "user1"
         };
 
-        var response1_2 = await chatBotActor1.Ask<ChatBotResponse>(request1_2, TimeSpan.FromSeconds(30));
+        supervisor1.Tell(request1_2, TestActor);
+        var response1_2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1_2);
         _output.WriteLine($"Session 1 follow-up: {response1_2.Message}");
         // Should talk about Reactive Streams benefits
@@ -463,7 +515,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             UserId = "user2"
         };
 
-        var response2_2 = await chatBotActor2.Ask<ChatBotResponse>(request2_2, TimeSpan.FromSeconds(30));
+        supervisor2.Tell(request2_2, TestActor);
+        var response2_2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2_2);
         _output.WriteLine($"Session 2 follow-up: {response2_2.Message}");
         // Should talk about AI development phases
@@ -473,6 +526,8 @@ public class ConversationContextTests : TestKit, IAsyncLifetime
             keyword => response1_2.Message.Contains(keyword, StringComparison.OrdinalIgnoreCase));
         Assert.Contains(new[] { "phase", "development", "AI", "단계", "개발" },
             keyword => response2_2.Message.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        await Task.CompletedTask;
     }
 
     public Task DisposeAsync()

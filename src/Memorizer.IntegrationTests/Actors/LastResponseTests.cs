@@ -181,9 +181,15 @@ public class LastResponseTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Act - First message with detailed response
         var request1 = new UserChatRequest
@@ -193,7 +199,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response1 = await chatBotActor.Ask<ChatBotResponse>(request1, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request1, TestActor);
+        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1);
         _output.WriteLine($"First response (length: {response1.Message.Length}): {response1.Message}");
 
@@ -208,7 +215,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response2 = await chatBotActor.Ask<ChatBotResponse>(request2, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request2, TestActor);
+        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2);
         _output.WriteLine($"Second response: {response2.Message}");
 
@@ -220,7 +228,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response3 = await chatBotActor.Ask<ChatBotResponse>(request3, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request3, TestActor);
+        var response3 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response3);
         _output.WriteLine($"Third response: {response3.Message}");
 
@@ -234,9 +243,15 @@ public class LastResponseTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Act - Send a short greeting (should not be stored as important)
         var request1 = new UserChatRequest
@@ -246,7 +261,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response1 = await chatBotActor.Ask<ChatBotResponse>(request1, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request1, TestActor);
+        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1);
         _output.WriteLine($"Greeting response (length: {response1.Message.Length}): {response1.Message}");
 
@@ -258,7 +274,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response2 = await chatBotActor.Ask<ChatBotResponse>(request2, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request2, TestActor);
+        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2);
         _output.WriteLine($"Technical response (length: {response2.Message.Length}): {response2.Message}");
 
@@ -273,7 +290,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response3 = await chatBotActor.Ask<ChatBotResponse>(request3, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request3, TestActor);
+        var response3 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response3);
         _output.WriteLine($"Follow-up response: {response3.Message}");
 
@@ -287,9 +305,15 @@ public class LastResponseTests : TestKit, IAsyncLifetime
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var chatBotActor = Sys.ActorOf(
-            ChatBotActor.Props(sessionId, _searchMemoryActor!, _decisionActor!, _llmService!),
-            $"chatbot-{sessionId}");
+
+        // Use TestChatBotSupervisor to capture responses
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            _searchMemoryActor!,
+            _decisionActor!,
+            _llmService!,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
 
         // Act - Query that should trigger memory search
         var request1 = new UserChatRequest
@@ -299,7 +323,8 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response1 = await chatBotActor.Ask<ChatBotResponse>(request1, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request1, TestActor);
+        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response1);
         _output.WriteLine($"Memory-based response type: {response1.Type}");
         _output.WriteLine($"Response: {response1.Message}");
@@ -318,13 +343,16 @@ public class LastResponseTests : TestKit, IAsyncLifetime
             UserId = "test-user"
         };
 
-        var response2 = await chatBotActor.Ask<ChatBotResponse>(request2, TimeSpan.FromSeconds(30));
+        supervisor.Tell(request2, TestActor);
+        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
         Assert.NotNull(response2);
         _output.WriteLine($"Follow-up response: {response2.Message}");
 
         // Should reference DIP from stored context
         Assert.Contains(new[] { "Dependency", "DIP", "Inversion" },
             keyword => response2.Message.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+
+        await Task.CompletedTask;
     }
 
     public Task DisposeAsync()
