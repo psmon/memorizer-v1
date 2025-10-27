@@ -29,6 +29,40 @@ docker push psmon/mcp-memorizer:v1.1.8
 ```
 
 
+
+## 🔌 MCP Configuration Example
+
+
+###  Claude CLI
+- claude mcp add local-memorizer http://localhost:5013/sse --transport sse --header "X-API-Key: default-api-key"
+
+### Claude Desktop
+```json
+{
+  "mcpServers": {
+    "local-memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "http://localhost:5013/sse",
+        "--header",
+        "X-API-Key:${MCP_API_KEY}"
+      ],
+      "env": {
+        "MCP_API_KEY": "default-api-key"
+      }
+    }
+  }
+}
+```
+
+## Claude Desktop Configuration File Location
+
+- macOS : ~/Library/Application Support/Claude/claude_desktop_config.json
+- Windows : %APPDATA%\Claude\claude_desktop_config.json (예: C:\Users\<사용자명>\AppData\Roaming\Claude\claude_desktop_config.json)
+
+
 ## Proxy Configuration
 ```
 # location 컨텍스트에서 유효
