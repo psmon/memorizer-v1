@@ -153,6 +153,18 @@ AskBot 공유 기능 개선 - 공유 페이지에서 Mermaid 다이어그램 렌
 
 ModelContextProtocol 0.3.0 -> 0.4.0 모듈 업데이트 반영
 
+## Version 1.2.0
+
+통합 테스트 개선 - 빠른 기능 개발로 누락된 유닛 테스트 재작동화 및 업데이트
+
+- [Unitest-Improve](26-Unitest-Imporove.md)
+
+## Version 1.2.1
+
+블로그 뷰 UX 개선 - 연관 문서 직접 접근 버튼 및 자동 스크롤 애니메이션 구현
+
+- [BlogView-Upgrade](27-BlogView-Upgrade.md)
+
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 

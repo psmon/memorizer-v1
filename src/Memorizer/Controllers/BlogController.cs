@@ -102,6 +102,25 @@ public class BlogController : Controller
         return Ok(memory);
     }
 
+    /// <summary>
+    /// Get related memories for a specific memory by ID
+    /// </summary>
+    [HttpGet]
+    [Route("api/memory/{id}/relationships")]
+    public async Task<ActionResult<List<MemoryRelationship>>> GetRelatedMemories(Guid id)
+    {
+        try
+        {
+            var relationships = await _storage.GetRelationships(id);
+            return Ok(relationships);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting related memories for {MemoryId}", id);
+            return StatusCode(500, new { error = "Failed to load related memories" });
+        }
+    }
+
     // Note: These methods have been replaced with optimized database queries in IStorage
     // The filtering, searching, and counting is now done at the database level for better performance
 }

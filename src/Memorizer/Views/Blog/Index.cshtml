@@ -123,6 +123,27 @@
     </div>
 </div>
 
+<!-- Related Memories Modal -->
+<div class="modal fade" id="relatedMemoriesModal" tabindex="-1" aria-labelledby="relatedMemoriesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="relatedMemoriesModalLabel">
+                    <i class="fas fa-link me-2"></i>
+                    Related Memories
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="relatedMemoriesModalBody">
+                <!-- Related memories will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <!-- Markdown rendering libraries -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -416,13 +437,13 @@ async function loadMemories(append = false) {
 }
 
 // Display memories
-function displayMemories(memories, append = false) {
+async function displayMemories(memories, append = false) {
     const container = document.getElementById('blogPosts');
-    
+
     if (!append) {
         container.innerHTML = '';
     }
-    
+
     if (memories.length === 0 && !append) {
         container.innerHTML = `
             <div class="col-12 text-center py-5">
@@ -433,27 +454,59 @@ function displayMemories(memories, append = false) {
         `;
         return;
     }
-    
-    memories.forEach(memory => {
-        const postCard = createBlogPostCard(memory);
+
+    // Create cards with relationships loaded
+    for (const memory of memories) {
+        const postCard = await createBlogPostCard(memory);
         container.insertAdjacentHTML('beforeend', postCard);
-    });
+    }
 }
 
 // Create blog post card
-function createBlogPostCard(memory) {
+async function createBlogPostCard(memory) {
     const title = escapeHtml(memory.title || 'Untitled Memory');
     const preview = createPreview(memory.text || '', 300);
-    const tags = memory.tags ? memory.tags.map(tag => 
+    const tags = memory.tags ? memory.tags.map(tag =>
         `<span class="badge bg-secondary me-1">${escapeHtml(tag)}</span>`
     ).join('') : '';
-    
+
     const date = new Date(memory.createdAt).toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric'
     });
-    
+
+    // Fetch relationships for this memory
+    let relationshipButtons = '';
+    try {
+        const response = await fetch(`/ui/blog/api/memory/${memory.id}/relationships`);
+        if (response.ok) {
+            const relationships = await response.json();
+            if (relationships && relationships.length > 0) {
+                // Take max 5 relationships
+                const limitedRels = relationships.slice(0, 5);
+                relationshipButtons = limitedRels.map(rel => {
+                    const relTitle = rel.relatedMemoryTitle || 'Untitled';
+                    const badgeColor = getRelationshipBadgeColor(rel.relationshipType || 'related');
+                    const escapedTitle = escapeHtml(relTitle);
+
+                    return `
+                        <button class="btn btn-sm btn-outline-secondary related-doc-btn"
+                                onclick="viewMemory('${rel.toMemoryId}')"
+                                title="${escapedTitle} (${escapeHtml(rel.relationshipType || 'related')})">
+                            <i class="fas fa-link me-1 flex-shrink-0"></i>
+                            <span class="related-doc-title-wrapper">
+                                <span class="related-doc-title">${escapedTitle} &nbsp;&nbsp;&nbsp; ${escapedTitle}</span>
+                            </span>
+                        </button>
+                    `;
+                }).join('');
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching relationships:', error);
+    }
+
     return `
         <div class="col-12 mb-4">
             <article class="card shadow-sm h-100 blog-post-card">
@@ -476,19 +529,22 @@ function createBlogPostCard(memory) {
                             </span>
                         </div>
                     </div>
-                    
+
                     <div class="blog-content mb-3">
                         <div class="preview-text">${preview}</div>
                     </div>
-                    
+
                     <div class="mb-3">
                         ${tags}
                     </div>
-                    
-                    <button class="btn btn-outline-primary" onclick="viewMemory('${memory.id}')">
-                        <i class="fas fa-book-open me-2"></i>
-                        View More
-                    </button>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <button class="btn btn-outline-primary" onclick="viewMemory('${memory.id}')">
+                            <i class="fas fa-book-open me-2"></i>
+                            View More
+                        </button>
+                        ${relationshipButtons}
+                    </div>
                 </div>
             </article>
         </div>
@@ -818,6 +874,142 @@ function escapeHtml(text) {
     };
     return text.replace(/[&<>"']/g, m => map[m]);
 }
+
+// View related memories in modal
+async function viewRelatedMemories(memoryId) {
+    const modalElement = document.getElementById('relatedMemoriesModal');
+    const modal = new bootstrap.Modal(modalElement);
+    const modalBody = document.getElementById('relatedMemoriesModalBody');
+    const modalTitle = document.getElementById('relatedMemoriesModalLabel');
+
+    modalBody.innerHTML = `
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+
+    modal.show();
+
+    try {
+        const response = await fetch(`/ui/blog/api/memory/${memoryId}/relationships`);
+
+        if (!response.ok) {
+            throw new Error('Failed to load related memories');
+        }
+
+        const relationships = await response.json();
+
+        if (relationships.length === 0) {
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-unlink fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No Related Memories</h5>
+                    <p class="text-muted">This memory has no related documents yet.</p>
+                </div>
+            `;
+            return;
+        }
+
+        // Display related memories in a card grid
+        modalBody.innerHTML = `
+            <div class="row">
+                ${relationships.map(rel => createRelatedMemoryCard(rel)).join('')}
+            </div>
+        `;
+
+    } catch (error) {
+        console.error('Error loading related memories:', error);
+        modalBody.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Failed to load related memories. Please try again.
+            </div>
+        `;
+    }
+}
+
+// Create related memory card
+function createRelatedMemoryCard(relationship) {
+    const title = escapeHtml(relationship.relatedMemoryTitle || 'Untitled');
+    const type = escapeHtml(relationship.relatedMemoryType || '');
+    const relationshipType = escapeHtml(relationship.relationshipType || 'related');
+    const badgeColor = getRelationshipBadgeColor(relationshipType);
+
+    return `
+        <div class="col-md-6 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-file-alt me-1"></i>
+                            ${title}
+                        </h6>
+                        <span class="badge bg-secondary">${type}</span>
+                    </div>
+                    <div class="mb-3">
+                        <span class="badge ${badgeColor}">
+                            <i class="fas fa-arrow-right me-1"></i>
+                            ${relationshipType}
+                        </span>
+                    </div>
+                    <div class="btn-group w-100" role="group">
+                        <button class="btn btn-outline-primary btn-sm" onclick="viewMemoryFromRelated('${relationship.toMemoryId}')">
+                            <i class="fas fa-book-open me-1"></i>
+                            View
+                        </button>
+                        <a href="/ui/view/${relationship.toMemoryId}" class="btn btn-outline-secondary btn-sm" target="_blank">
+                            <i class="fas fa-external-link-alt me-1"></i>
+                            Open
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Get badge color based on relationship type
+function getRelationshipBadgeColor(relationshipType) {
+    const type = relationshipType.toLowerCase();
+    switch (type) {
+        case 'explains':
+        case 'explanation-of':
+            return 'bg-info';
+        case 'example-of':
+        case 'example':
+            return 'bg-success';
+        case 'related-to':
+        case 'related':
+            return 'bg-primary';
+        case 'supersedes':
+        case 'replaces':
+            return 'bg-warning';
+        case 'depends-on':
+        case 'requires':
+            return 'bg-danger';
+        case 'chunk-of':
+        case 'part-of':
+            return 'bg-secondary';
+        default:
+            return 'bg-dark';
+    }
+}
+
+// View memory from related memories modal (closes related modal and opens memory modal)
+async function viewMemoryFromRelated(memoryId) {
+    // Close the related memories modal
+    const relatedModal = bootstrap.Modal.getInstance(document.getElementById('relatedMemoriesModal'));
+    if (relatedModal) {
+        relatedModal.hide();
+    }
+
+    // Wait a bit for the modal to close, then open the memory modal
+    setTimeout(() => {
+        viewMemory(memoryId);
+    }, 300);
+}
 </script>
 
 <style>
@@ -1140,11 +1332,66 @@ function escapeHtml(text) {
         padding-left: 1rem;
         padding-right: 1rem;
     }
-    
+
     .filter-pill,
     .filter-pill-active {
         padding: 0.5rem 0.875rem;
         font-size: 0.9rem;
+    }
+}
+
+/* Related document buttons */
+.related-doc-btn {
+    display: inline-flex;
+    align-items: center;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    width: 140px; /* Fixed width to show ~10 characters */
+    overflow: hidden;
+    position: relative;
+}
+
+.related-doc-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.related-doc-title-wrapper {
+    overflow: hidden;
+    flex: 1;
+    position: relative;
+    height: 1.2em;
+    mask-image: linear-gradient(to right, black 85%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black 85%, transparent 100%);
+}
+
+.related-doc-title {
+    font-size: 0.875rem;
+    display: inline-block;
+    white-space: nowrap;
+}
+
+/* Scrolling animation always active */
+.related-doc-title {
+    animation: scroll-left-seamless 10s linear infinite;
+}
+
+@@keyframes scroll-left-seamless {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+@@media (max-width: 576px) {
+    .related-doc-btn {
+        font-size: 0.8rem;
+        width: 120px; /* Slightly smaller on mobile */
+    }
+
+    .related-doc-title {
+        font-size: 0.75rem;
     }
 }
 </style>

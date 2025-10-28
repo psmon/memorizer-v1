@@ -155,6 +155,18 @@ AskBot share feature improvements - Mermaid diagram rendering fixes in shared pa
 
 ModelContextProtocol module update from 0.3.0 to 0.4.0
 
+## Version 1.2.0
+
+Integration test improvements - Re-enable and update unit tests missed during rapid feature development
+
+- [Unitest-Improve](26-Unitest-Imporove.md)
+
+## Version 1.2.1
+
+Blog view UX improvements - Direct access buttons for related documents with auto-scrolling animation
+
+- [BlogView-Upgrade](27-BlogView-Upgrade.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
