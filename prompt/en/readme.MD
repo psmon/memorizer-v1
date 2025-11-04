@@ -167,6 +167,12 @@ Blog view UX improvements - Direct access buttons for related documents with aut
 
 - [BlogView-Upgrade](27-BlogView-Upgrade.md)
 
+## Version 1.2.2
+
+Multi-modal image analysis feature implementation - Separate module from ILlmService, OpenAI-compatible API format support (LM Studio), cross-platform PNG generation without external libraries
+
+- [Multi-modal-OCR](28-multi-modal-ocr.MD)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

@@ -165,6 +165,11 @@ ModelContextProtocol 0.3.0 -> 0.4.0 모듈 업데이트 반영
 
 - [BlogView-Upgrade](27-BlogView-Upgrade.md)
 
+## Version 1.2.2
+
+멀티모달 이미지 분석 기능 구현 - ILlmService와 분리된 독립 모듈, OpenAI 호환 API 형식 지원(LM Studio), 외부 라이브러리 없는 크로스 플랫폼 PNG 생성
+
+- [Multi-modal-OCR](28-multi-modal-ocr.MD)
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
