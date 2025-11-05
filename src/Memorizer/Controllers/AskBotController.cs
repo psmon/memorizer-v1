@@ -21,6 +21,7 @@ public class AskBotController : ControllerBase
     private readonly IActorRef _searchMemoryActor;
     private readonly IActorRef _decisionActor;
     private readonly ILlmService _llmService;
+    private readonly IMultiModalService? _multiModalService;
     private readonly ILogger<AskBotController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
     private readonly IStorage _storage;
@@ -38,12 +39,14 @@ public class AskBotController : ControllerBase
         ILlmService llmService,
         ILogger<AskBotController> logger,
         Npgsql.NpgsqlDataSource dataSource,
-        IStorage storage)
+        IStorage storage,
+        IMultiModalService? multiModalService = null)
     {
         _actorSystem = actorSystem;
         _searchMemoryActor = searchMemoryActor.ActorRef;
         _decisionActor = decisionActor.ActorRef;
         _llmService = llmService;
+        _multiModalService = multiModalService;
         _logger = logger;
         _dataSource = dataSource;
         _storage = storage;
@@ -140,23 +143,57 @@ public class AskBotController : ControllerBase
     }
 
     /// <summary>
-    /// Send a message to the chatbot
+    /// Send a message to the chatbot (with optional image)
     /// </summary>
     [HttpPost("message")]
     [AllowAnonymous]
-    public async Task<IActionResult> SendMessage([FromBody] AskBotRequest request)
+    [RequestSizeLimit(3 * 1024 * 1024)] // 3MB limit
+    public async Task<IActionResult> SendMessage([FromForm] string message, [FromForm] string? sessionId = null, [FromForm] IFormFile? image = null)
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(request.Message))
+            if (string.IsNullOrWhiteSpace(message))
             {
                 return BadRequest(new { error = "Message cannot be empty" });
             }
 
             // Get or create session ID
-            var sessionId = GetOrCreateSessionId(request.SessionId);
+            sessionId = GetOrCreateSessionId(sessionId);
 
-            _logger.LogInformation("Processing askbot request for session {SessionId}", sessionId);
+            byte[]? imageData = null;
+            string? imageFormat = null;
+
+            // Process image if provided
+            if (image != null)
+            {
+                // Validate file size (3MB max)
+                if (image.Length > 3 * 1024 * 1024)
+                {
+                    return BadRequest(new { error = "Image size cannot exceed 3MB" });
+                }
+
+                // Validate file format
+                var allowedFormats = new[] { "image/jpeg", "image/jpg", "image/png" };
+                if (!allowedFormats.Contains(image.ContentType.ToLower()))
+                {
+                    return BadRequest(new { error = "Only JPG and PNG image formats are allowed" });
+                }
+
+                // Read image data
+                using var ms = new MemoryStream();
+                await image.CopyToAsync(ms);
+                imageData = ms.ToArray();
+
+                // Determine format
+                imageFormat = image.ContentType.ToLower().Contains("png") ? "png" : "jpeg";
+
+                _logger.LogInformation("Processing multi-modal request for session {SessionId} with {ImageFormat} image ({ImageSize} bytes)",
+                    sessionId, imageFormat, imageData.Length);
+            }
+            else
+            {
+                _logger.LogInformation("Processing text-only request for session {SessionId}", sessionId);
+            }
 
             // Get or create ChatBotActor for this session
             var chatBotActor = GetOrCreateChatBotActor(sessionId);
@@ -165,8 +202,10 @@ public class AskBotController : ControllerBase
             var userRequest = new UserChatRequest
             {
                 SessionId = sessionId,
-                Message = request.Message,
-                UserId = "anonymous"
+                Message = message,
+                UserId = "anonymous",
+                ImageData = imageData,
+                ImageFormat = imageFormat
             };
 
             // Send initial processing update via SSE
@@ -174,7 +213,7 @@ public class AskBotController : ControllerBase
             {
                 SessionId = sessionId,
                 UpdateType = StreamUpdateType.SearchProgress,
-                Content = "Processing your request..."
+                Content = userRequest.IsMultiModal ? "Processing your multi-modal request..." : "Processing your request..."
             });
 
             // Send request to ChatBotActor using Tell (fire and forget)
@@ -184,7 +223,7 @@ public class AskBotController : ControllerBase
             // Note: The response will be streamed through SSE events
             // StreamingChatBotActor handles all the messaging through the SSE bridge
 
-            return Accepted(new { sessionId, status = "processing" });
+            return Accepted(new { sessionId, status = "processing", isMultiModal = userRequest.IsMultiModal });
         }
         catch (Exception ex)
         {
@@ -1071,8 +1110,8 @@ Return ONLY valid JSON, no markdown formatting:
             });
             var sseBridgeActor = _actorSystem.ActorOf(sseBridgeProps, $"sse-bridge-{sid}");
 
-            // Create ChatBotActor with SSE bridge
-            var props = StreamingChatBotActor.Props(sid, _searchMemoryActor, _decisionActor, _llmService, sseBridgeActor);
+            // Create ChatBotActor with SSE bridge and MultiModalService
+            var props = StreamingChatBotActor.Props(sid, _searchMemoryActor, _decisionActor, _llmService, sseBridgeActor, _multiModalService);
             var actorName = $"askbot-{sid}";
             var actor = _actorSystem.ActorOf(props, actorName);
 
@@ -1169,8 +1208,9 @@ public sealed class StreamingChatBotActor : ChatBotActor
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
         ILlmService llmService,
-        IActorRef sseBridge)
-        : base(sessionId, searchMemoryActor, decisionActor, llmService)
+        IActorRef sseBridge,
+        IMultiModalService? multiModalService = null)
+        : base(sessionId, searchMemoryActor, decisionActor, llmService, multiModalService)
     {
         _sessionId = sessionId;
         _sseBridge = sseBridge;
@@ -1279,9 +1319,10 @@ public sealed class StreamingChatBotActor : ChatBotActor
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
         ILlmService llmService,
-        IActorRef sseBridge)
+        IActorRef sseBridge,
+        IMultiModalService? multiModalService = null)
     {
         return Akka.Actor.Props.Create(() =>
-            new StreamingChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, sseBridge));
+            new StreamingChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, sseBridge, multiModalService));
     }
 }

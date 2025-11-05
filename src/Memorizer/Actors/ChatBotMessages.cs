@@ -28,9 +28,24 @@ public sealed record UserChatRequest : IChatBotMessage
     public required string UserId { get; init; }
 
     /// <summary>
+    /// Optional image data for multi-modal requests (byte array)
+    /// </summary>
+    public byte[]? ImageData { get; init; }
+
+    /// <summary>
+    /// Image format (e.g., "jpeg", "png") when ImageData is provided
+    /// </summary>
+    public string? ImageFormat { get; init; }
+
+    /// <summary>
     /// Timestamp of the request
     /// </summary>
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// Indicates if this is a multi-modal request (has image)
+    /// </summary>
+    public bool IsMultiModal => ImageData != null && ImageData.Length > 0;
 }
 
 /// <summary>

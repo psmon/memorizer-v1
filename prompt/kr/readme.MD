@@ -171,6 +171,12 @@ ModelContextProtocol 0.3.0 -> 0.4.0 모듈 업데이트 반영
 
 - [Multi-modal-OCR](28-multi-modal-ocr.MD)
 
+## Version 1.2.3
+
+AskBot 멀티모달 요청 기능 구현 - 이미지 업로드(버튼/드래그앤드롭/클립보드), 이미지+텍스트 동시 분석, qwen3-vl-8b 모델 연동, 3MB 제한 및 JPG/PNG 포맷 지원
+
+- [AskBot-Multimodal](29-AskBot-Multimodal.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

@@ -58,6 +58,12 @@ services:
       MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
       MEMORIZER_LLM__Model: openai/gpt-oss-20b
       MEMORIZER_LLM__Timeout: 00:02:00
+      # MultiModal configuration
+      MEMORIZER_MultiModal__ApiUrl: http://192.168.0.50:1234
+      MEMORIZER_MultiModal__Model: qwen/qwen3-vl-8b
+      MEMORIZER_MultiModal__Temperature: '0.2'
+      MEMORIZER_MultiModal__MaxTokens: '4096'
+      MEMORIZER_MultiModal__Timeout: 00:02:00
       # Neo4j configuration
       Neo4j__Uri: bolt://neo4j:7687
       Neo4j__User: neo4j

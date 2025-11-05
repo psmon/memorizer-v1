@@ -15,6 +15,7 @@ public class ChatBotActor : ReceiveActor, IWithTimers
     private readonly IActorRef _searchMemoryActor;
     private readonly IActorRef _decisionActor;
     private readonly ILlmService _llmService;
+    private readonly IMultiModalService? _multiModalService;
     private readonly ILoggingAdapter _logger;
 
     // Timer for session timeout
@@ -63,12 +64,14 @@ Maintain conversation continuity and reference previous context when appropriate
         string sessionId,
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
-        ILlmService llmService)
+        ILlmService llmService,
+        IMultiModalService? multiModalService = null)
     {
         _sessionId = sessionId;
         _searchMemoryActor = searchMemoryActor;
         _decisionActor = decisionActor;
         _llmService = llmService;
+        _multiModalService = multiModalService;
         _logger = Context.GetLogger();
 
         // Set up message handlers
@@ -89,7 +92,8 @@ Maintain conversation continuity and reference previous context when appropriate
 
     private void HandleUserChatRequest(UserChatRequest request)
     {
-        _logger.Info("Processing chat request for session {0}: {1}", request.SessionId, request.Message);
+        _logger.Info("Processing chat request for session {0}: {1} (MultiModal: {2})",
+            request.SessionId, request.Message, request.IsMultiModal);
 
         // Reset session timer on activity
         ResetSessionTimer();
@@ -111,6 +115,15 @@ Maintain conversation continuity and reference previous context when appropriate
 
         try
         {
+            // For multi-modal requests, use MultiModal service directly instead of memory search
+            if (request.IsMultiModal)
+            {
+                AddReasoningStep("Processing multi-modal request (image + text)...");
+                GenerateMultiModalResponse(request, originalSender);
+                SetupBaseHandlers();
+                return;
+            }
+
             // Send search request to SearchMemoryActor
             var searchRequest = new SearchMemoryRequest
             {
@@ -404,6 +417,81 @@ Maintain conversation continuity and reference previous context when appropriate
         {
             _logger.Error(ex, "Error generating memory-based response for session {0}", request.SessionId);
             // Throw to let PipeTo handle the error
+            throw;
+        }
+    }
+
+    private void GenerateMultiModalResponse(UserChatRequest request, IActorRef originalSender)
+    {
+        AddReasoningStep("Generating multi-modal AI response...");
+
+        // Capture self reference before async operation
+        var self = Self;
+
+        // Use Task.Run to avoid blocking actor thread
+        Task.Run(async () =>
+        {
+            try
+            {
+                var response = await GenerateMultiModalResponseAsync(request);
+                _logger.Info("About to send MultiModal ChatBotResponse to self for session {0}, Type: {1}", response.SessionId, response.Type);
+                self.Tell(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Failed to generate multi-modal response for session {0}", request.SessionId);
+                self.Tell(new Status.Failure(ex));
+            }
+        });
+    }
+
+    private async Task<ChatBotResponse> GenerateMultiModalResponseAsync(UserChatRequest request)
+    {
+        try
+        {
+            if (_multiModalService == null)
+            {
+                _logger.Warning("MultiModalService is not available for session {0}. Falling back to text-only response.", request.SessionId);
+                AddReasoningStep("Multi-modal service not available, using text-only mode...");
+                return await GenerateGeneralResponseAsync(request);
+            }
+
+            if (request.ImageData == null || request.ImageData.Length == 0)
+            {
+                _logger.Warning("Multi-modal request but no image data provided for session {0}", request.SessionId);
+                return await GenerateGeneralResponseAsync(request);
+            }
+
+            AddReasoningStep($"Analyzing image with multi-modal model ({request.ImageFormat})...");
+
+            // Call multi-modal service to analyze image with text prompt
+            var llmResponse = await _multiModalService.AnalyzeImageAsync(
+                request.ImageData,
+                request.Message,
+                request.ImageFormat ?? "png"
+            );
+
+            // Add to conversation history
+            _conversationHistory.Add($"Assistant (multi-modal): {llmResponse}");
+
+            // Update conversation entries
+            await UpdateConversationEntries(request.Message, llmResponse, false);
+
+            // Create and return response
+            var response = new ChatBotResponse
+            {
+                SessionId = request.SessionId,
+                Message = llmResponse,
+                Type = ResponseType.General, // Multi-modal is treated as General type (not memory-based)
+                ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
+            };
+
+            _logger.Info("Generated multi-modal response for session {0}", request.SessionId);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Error generating multi-modal response for session {0}", request.SessionId);
             throw;
         }
     }
@@ -834,9 +922,10 @@ Extract only the most important information:";
         string sessionId,
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
-        ILlmService llmService)
+        ILlmService llmService,
+        IMultiModalService? multiModalService = null)
     {
         return Akka.Actor.Props.Create(() =>
-            new ChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService));
+            new ChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, multiModalService));
     }
 }

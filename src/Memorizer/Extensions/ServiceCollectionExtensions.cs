@@ -18,6 +18,7 @@ public static class ServiceCollectionExtensions
         services.AddHttpClient(); // Add HttpClientFactory for service implementations
         services.AddEmbeddings();
         services.AddLlmServices();
+        services.AddMultiModalServices();
         services.AddActorSystem();
         services.AddStorage();
         services.AddServerSettings();
@@ -124,6 +125,57 @@ public static class ServiceCollectionExtensions
                 return new OllamaLlmService(httpClient, settings, logger.CreateLogger<OllamaLlmService>());
             }
             
+        });
+
+        return services;
+    }
+
+    public static IServiceCollection AddMultiModalServices(
+        this IServiceCollection services)
+    {
+        services
+            .AddSingleton<MultiModalSettings>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var multiModalSettings = config.GetSection("MultiModal").Get<MultiModalSettings>();
+
+                // If no settings, create default settings
+                if (multiModalSettings == null)
+                {
+                    multiModalSettings = new MultiModalSettings
+                    {
+                        ApiUrl = new Uri(Environment.GetEnvironmentVariable("MULTIMODAL_API_URL") ?? "http://localhost:1234"),
+                        Model = Environment.GetEnvironmentVariable("MULTIMODAL_MODEL") ?? "qwen/qwen3-vl-8b"
+                    };
+                }
+                else
+                {
+                    // Override with environment variables if present
+                    var envApiUrl = Environment.GetEnvironmentVariable("MULTIMODAL_API_URL");
+                    if (!string.IsNullOrEmpty(envApiUrl))
+                    {
+                        multiModalSettings.ApiUrl = new Uri(envApiUrl);
+                    }
+
+                    var envModel = Environment.GetEnvironmentVariable("MULTIMODAL_MODEL");
+                    if (!string.IsNullOrEmpty(envModel))
+                    {
+                        multiModalSettings.Model = envModel;
+                    }
+                }
+
+                return multiModalSettings;
+            });
+
+        // Add MultiModalService
+        services.AddSingleton<IMultiModalService>(sp =>
+        {
+            var settings = sp.GetRequiredService<MultiModalSettings>();
+            var logger = sp.GetRequiredService<ILoggerFactory>();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient();
+
+            return new MultiModalService(httpClient, settings, logger.CreateLogger<MultiModalService>());
         });
 
         return services;

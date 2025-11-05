@@ -173,6 +173,12 @@ Multi-modal image analysis feature implementation - Separate module from ILlmSer
 
 - [Multi-modal-OCR](28-multi-modal-ocr.MD)
 
+## Version 1.2.3
+
+AskBot multi-modal request feature implementation - Image upload (button/drag-and-drop/clipboard), simultaneous image+text analysis, qwen3-vl-8b model integration, 3MB limit and JPG/PNG format support
+
+- [AskBot-Multimodal](29-AskBot-Multimodal.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

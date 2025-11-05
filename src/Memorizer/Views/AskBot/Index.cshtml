@@ -150,6 +150,41 @@
             border-radius: 0 0 12px 12px;
         }
 
+        .image-preview-container {
+            display: none;
+            position: relative;
+            margin-bottom: 10px;
+            max-width: 200px;
+        }
+
+        .image-preview-container.active {
+            display: block;
+        }
+
+        .image-preview {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+        }
+
+        .image-remove-btn {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #dc3545;
+            color: white;
+            border: 2px solid white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
         .chat-input-wrapper {
             display: flex;
             gap: 10px;
@@ -172,6 +207,30 @@
 
         .chat-input:disabled {
             background: #f8f9fa;
+            cursor: not-allowed;
+        }
+
+        .upload-button {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            color: #667eea;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .upload-button:hover:not(:disabled) {
+            background: #e9ecef;
+            transform: scale(1.05);
+        }
+
+        .upload-button:disabled {
+            opacity: 0.5;
             cursor: not-allowed;
         }
 
@@ -353,7 +412,22 @@
         </div>
 
         <div class="chat-input-container">
+            <!-- Image Preview -->
+            <div class="image-preview-container" id="image-preview-container">
+                <img src="" alt="Preview" class="image-preview" id="image-preview">
+                <button class="image-remove-btn" id="image-remove-btn" title="Remove image">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
             <div class="chat-input-wrapper">
+                <input type="file"
+                       id="image-upload"
+                       accept="image/jpeg,image/jpg,image/png"
+                       style="display: none;">
+                <button class="upload-button" id="upload-button" title="Upload image">
+                    <i class="fas fa-image"></i>
+                </button>
                 <input type="text"
                        class="chat-input"
                        id="message-input"
@@ -463,6 +537,7 @@
         let referencedMemoryIds = [];
         let processedReasoningSteps = new Set(); // Track already shown reasoning steps to prevent duplicates
         let hasMemorySearch = false; // Track if memory search is happening
+        let selectedImage = null; // Store selected image file
 
         // Initialize Mermaid using common renderer
         if (typeof initializeMermaid === 'function') {
@@ -506,6 +581,22 @@
             document.getElementById('send-button').addEventListener('click', sendMessage);
             document.getElementById('new-session-btn').addEventListener('click', createNewSession);
             document.getElementById('share-btn').addEventListener('click', shareConversation);
+
+            // Image upload event listeners
+            document.getElementById('upload-button').addEventListener('click', () => {
+                document.getElementById('image-upload').click();
+            });
+
+            document.getElementById('image-upload').addEventListener('change', handleImageSelect);
+            document.getElementById('image-remove-btn').addEventListener('click', removeImage);
+
+            // Drag and drop support
+            const chatInput = document.getElementById('message-input');
+            chatInput.addEventListener('drop', handleDrop);
+            chatInput.addEventListener('dragover', handleDragOver);
+
+            // Paste support
+            chatInput.addEventListener('paste', handlePaste);
         });
 
         function updateSessionInfo() {
@@ -621,6 +712,70 @@
             }
         }
 
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processImageFile(file);
+            }
+        }
+
+        function handleDrop(event) {
+            event.preventDefault();
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                processImageFile(file);
+            }
+        }
+
+        function handleDragOver(event) {
+            event.preventDefault();
+        }
+
+        function handlePaste(event) {
+            const items = event.clipboardData.items;
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type.indexOf('image') !== -1) {
+                    const file = items[i].getAsFile();
+                    processImageFile(file);
+                    event.preventDefault();
+                    break;
+                }
+            }
+        }
+
+        function processImageFile(file) {
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+            if (!allowedTypes.includes(file.type.toLowerCase())) {
+                alert('Only JPG and PNG image formats are allowed.');
+                return;
+            }
+
+            // Validate file size (3MB max)
+            if (file.size > 3 * 1024 * 1024) {
+                alert('Image size cannot exceed 3MB.');
+                return;
+            }
+
+            // Store the file
+            selectedImage = file;
+
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('image-preview').src = e.target.result;
+                document.getElementById('image-preview-container').classList.add('active');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeImage() {
+            selectedImage = null;
+            document.getElementById('image-preview').src = '';
+            document.getElementById('image-preview-container').classList.remove('active');
+            document.getElementById('image-upload').value = ''; // Reset file input
+        }
+
         function handleKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey && !isProcessing) {
                 event.preventDefault();
@@ -634,8 +789,12 @@
 
             if (!message || isProcessing) return;
 
-            // Add user message to chat
-            addUserMessage(message);
+            // Add user message to chat (including image indicator if present)
+            if (selectedImage) {
+                addUserMessage(message + ' [이미지 포함]');
+            } else {
+                addUserMessage(message);
+            }
 
             // Clear input and disable
             input.value = '';
@@ -656,26 +815,36 @@
             showTypingIndicator();
 
             try {
+                // Create FormData for multipart/form-data request
+                const formData = new FormData();
+                formData.append('message', message);
+                formData.append('sessionId', sessionId);
+
+                // Add image if selected
+                if (selectedImage) {
+                    formData.append('image', selectedImage);
+                }
+
                 const response = await fetch('/api/askbot/message', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        sessionId: sessionId
-                    })
+                    body: formData // Don't set Content-Type, browser will set it with boundary
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to send message');
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Failed to send message');
+                }
+
+                // Clear selected image after sending
+                if (selectedImage) {
+                    removeImage();
                 }
 
                 // The response will come through SSE
             } catch (error) {
                 console.error('Error sending message:', error);
                 hideTypingIndicator();
-                addErrorMessage('Failed to send message. Please try again.');
+                addErrorMessage(error.message || 'Failed to send message. Please try again.');
                 isProcessing = false;
                 enableInput();
             }
