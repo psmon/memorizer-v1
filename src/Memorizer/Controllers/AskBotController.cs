@@ -634,12 +634,20 @@ public class AskBotController : ControllerBase
     {
         try
         {
+            // Determine base storage path (absolute or relative)
+            var basePath = Path.IsPathRooted(_askBotSettings.ImageStoragePath)
+                ? _askBotSettings.ImageStoragePath
+                : Path.Combine(Directory.GetCurrentDirectory(), _askBotSettings.ImageStoragePath);
+
             // Construct the image path
-            var imagePath = Path.Combine(Directory.GetCurrentDirectory(), _askBotSettings.ImageStoragePath, shortCode, fileName);
+            var imagePath = Path.Combine(basePath, shortCode, fileName);
+
+            _logger.LogInformation("Attempting to serve image from: {ImagePath}", imagePath);
 
             // Check if file exists
             if (!System.IO.File.Exists(imagePath))
             {
+                _logger.LogWarning("Image not found at path: {ImagePath}", imagePath);
                 return NotFound(new { error = "Image not found" });
             }
 
@@ -1208,14 +1216,24 @@ Return ONLY valid JSON, no markdown formatting:
     /// </summary>
     private async Task<string> SaveImageToDisk(string shortCode, int entryIndex, byte[] imageData, string imageFormat)
     {
-        // Ensure image storage directory exists
-        var storageDir = Path.Combine(Directory.GetCurrentDirectory(), _askBotSettings.ImageStoragePath, shortCode);
+        // Determine base storage path (absolute or relative)
+        var basePath = Path.IsPathRooted(_askBotSettings.ImageStoragePath)
+            ? _askBotSettings.ImageStoragePath
+            : Path.Combine(Directory.GetCurrentDirectory(), _askBotSettings.ImageStoragePath);
+
+        // Ensure base directory exists
+        Directory.CreateDirectory(basePath);
+
+        // Create shortCode subdirectory
+        var storageDir = Path.Combine(basePath, shortCode);
         Directory.CreateDirectory(storageDir);
 
         // Generate filename with entry index and extension
         var extension = imageFormat.ToLower() == "png" ? "png" : "jpg";
         var fileName = $"image_{entryIndex}.{extension}";
         var fullPath = Path.Combine(storageDir, fileName);
+
+        _logger.LogInformation("Saving image to: {FullPath}", fullPath);
 
         // Save image to disk
         await System.IO.File.WriteAllBytesAsync(fullPath, imageData);

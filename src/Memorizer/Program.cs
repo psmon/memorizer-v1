@@ -117,6 +117,37 @@ WebApplication app = builder.Build();
 // Create application logger for runtime debugging
 var appLogger = app.Services.GetRequiredService<ILoggerFactory>().CreateLogger("Application");
 
+// Initialize ImageStoragePath and create access.txt file
+var imageStoragePath = app.Configuration["AskBot:ImageStoragePath"];
+if (!string.IsNullOrEmpty(imageStoragePath))
+{
+    try
+    {
+        // Create directory if it doesn't exist
+        if (!Directory.Exists(imageStoragePath))
+        {
+            Directory.CreateDirectory(imageStoragePath);
+            appLogger.LogInformation("Created ImageStoragePath directory: {Path}", imageStoragePath);
+        }
+
+        // Create access.txt file
+        var accessFilePath = Path.Combine(imageStoragePath, "access.txt");
+        var timestamp = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+        var accessMessage = $"Application started at {timestamp} UTC\n";
+
+        File.WriteAllText(accessFilePath, accessMessage);
+        appLogger.LogInformation("Created access.txt file at: {Path}", accessFilePath);
+    }
+    catch (Exception ex)
+    {
+        appLogger.LogError(ex, "Failed to initialize ImageStoragePath or create access.txt: {Error}", ex.Message);
+    }
+}
+else
+{
+    appLogger.LogWarning("AskBot:ImageStoragePath not configured in appsettings");
+}
+
 // Enhanced request logging middleware
 app.Use(async (context, next) =>
 {
