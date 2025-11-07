@@ -342,6 +342,16 @@ public sealed record ConversationEntry
     /// List of referenced memory IDs used in this response
     /// </summary>
     public List<Guid>? ReferencedMemoryIds { get; init; }
+
+    /// <summary>
+    /// Image data from user's message (if multi-modal request)
+    /// </summary>
+    public byte[]? ImageData { get; init; }
+
+    /// <summary>
+    /// Image format (e.g., "jpeg", "png") when ImageData is provided
+    /// </summary>
+    public string? ImageFormat { get; init; }
 }
 
 /// <summary>

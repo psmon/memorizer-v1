@@ -64,6 +64,8 @@ services:
       MEMORIZER_MultiModal__Temperature: '0.2'
       MEMORIZER_MultiModal__MaxTokens: '4096'
       MEMORIZER_MultiModal__Timeout: 00:02:00
+      # AskBot configuration
+      ASKBOT_IMAGE_STORAGE_PATH: /app/data/askbot-images
       # Neo4j configuration
       Neo4j__Uri: bolt://neo4j:7687
       Neo4j__User: neo4j
@@ -74,12 +76,15 @@ services:
       MEMORIZER_Server__UserName: admin
       MEMORIZER_Server__Password: admin123
       MEMORIZER_Server__ApiKey: your-api-key-here
+    volumes:
+      - askbot_images:/app/data/askbot-images
     depends_on:
       - postgres
-      - neo4j      
+      - neo4j
 volumes:
   neo4j_data:
   neo4j_logs:
   neo4j_import:
   neo4j_plugins:
   postgres_data:
+  askbot_images:

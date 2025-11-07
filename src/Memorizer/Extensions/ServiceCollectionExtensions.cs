@@ -19,6 +19,7 @@ public static class ServiceCollectionExtensions
         services.AddEmbeddings();
         services.AddLlmServices();
         services.AddMultiModalServices();
+        services.AddAskBotSettings();
         services.AddActorSystem();
         services.AddStorage();
         services.AddServerSettings();
@@ -177,6 +178,39 @@ public static class ServiceCollectionExtensions
 
             return new MultiModalService(httpClient, settings, logger.CreateLogger<MultiModalService>());
         });
+
+        return services;
+    }
+
+    public static IServiceCollection AddAskBotSettings(
+        this IServiceCollection services)
+    {
+        services
+            .AddSingleton<AskBotSettings>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var askBotSettings = config.GetSection("AskBot").Get<AskBotSettings>();
+
+                // If no settings, create default settings
+                if (askBotSettings == null)
+                {
+                    askBotSettings = new AskBotSettings
+                    {
+                        ImageStoragePath = Environment.GetEnvironmentVariable("ASKBOT_IMAGE_STORAGE_PATH") ?? "AskBotImages"
+                    };
+                }
+                else
+                {
+                    // Override with environment variable if present
+                    var envImageStoragePath = Environment.GetEnvironmentVariable("ASKBOT_IMAGE_STORAGE_PATH");
+                    if (!string.IsNullOrEmpty(envImageStoragePath))
+                    {
+                        askBotSettings.ImageStoragePath = envImageStoragePath;
+                    }
+                }
+
+                return askBotSettings;
+            });
 
         return services;
     }

@@ -415,3 +415,4 @@ FodyWeavers.xsd
 cookies.txt
 src/Memorizer/packages-microsoft-prod.deb
 src/Memorizer.IntegrationTests/test_output.txt
+/src/Memorizer/AskBotImages

@@ -177,6 +177,12 @@ AskBot 멀티모달 요청 기능 구현 - 이미지 업로드(버튼/드래그�
 
 - [AskBot-Multimodal](29-AskBot-Multimodal.md)
 
+## Version 1.2.4
+
+AskBot 공유 이미지 저장 기능 구현 - 멀티모달 요청 이미지 로컬 저장, Share 링크에서 이미지 표시, 설정 가능한 이미지 저장 경로(기본: AskBotImages)
+
+- [AskBot-SaveImage](30-AskBot-SaveImage.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

@@ -259,6 +259,7 @@
         }
 
         let referencedMemoriesMap = {}; // Store memory references by message index
+        let imagePathsMap = {}; // Store image paths by message index
 
         document.addEventListener('DOMContentLoaded', async function() {
             try {
@@ -284,8 +285,13 @@
                     });
                 }
 
-                // Render conversation with memory references
-                await renderConversation(data.content.messages);
+                // Store image paths if available
+                if (data.imagePaths) {
+                    imagePathsMap = data.imagePaths;
+                }
+
+                // Render conversation with memory references and images
+                await renderConversation(data.content.messages, shortCode);
 
             } catch (error) {
                 console.error('Error loading shared conversation:', error);
@@ -304,7 +310,7 @@
             document.getElementById('no-messages').style.display = 'block';
         }
 
-        async function renderConversation(messages) {
+        async function renderConversation(messages, shortCode) {
             const conversationDiv = document.getElementById('conversation');
             conversationDiv.innerHTML = '';
 
@@ -320,7 +326,19 @@
                 const role = msg.role === 'user' ? 'user' : 'assistant';
                 const roleLabel = msg.role === 'user' ? 'You' : 'AskBot';
 
+                let imageHtml = '';
                 let memoryReferencesHtml = '';
+
+                // Check if this user message has an image
+                if (msg.role === 'user' && imagePathsMap[index]) {
+                    const imagePath = imagePathsMap[index];
+                    const imageUrl = `/api/askbot/share/${shortCode}/images/${imagePath.split('/').pop()}`;
+                    imageHtml = `
+                        <div class="message-image" style="margin-bottom: 15px;">
+                            <img src="${imageUrl}" alt="Uploaded image" style="max-width: 100%; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);" />
+                        </div>
+                    `;
+                }
 
                 // Check if this message has referenced memories
                 if (msg.role === 'assistant' && referencedMemoriesMap[index]) {
@@ -364,6 +382,7 @@
                 messageDiv.innerHTML = `
                     <div class="message-role ${role}">${roleLabel}</div>
                     <div class="message-content-box ${role}">
+                        ${imageHtml}
                         <div class="markdown-content">${renderMarkdown(msg.content)}</div>
                         ${memoryReferencesHtml}
                     </div>

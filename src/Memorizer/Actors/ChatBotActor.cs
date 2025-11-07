@@ -398,7 +398,7 @@ Maintain conversation continuity and reference previous context when appropriate
             _conversationHistory.Add($"Assistant (memory-based): {llmResponse}");
 
             // Update conversation entries with referenced memory IDs
-            await UpdateConversationEntries(request.Message, llmResponse, true, usedMemoryIds);
+            await UpdateConversationEntries(request.Message, llmResponse, true, usedMemoryIds, request.ImageData, request.ImageFormat);
 
             // Create and return response
             var response = new ChatBotResponse
@@ -475,7 +475,7 @@ Maintain conversation continuity and reference previous context when appropriate
             _conversationHistory.Add($"Assistant (multi-modal): {llmResponse}");
 
             // Update conversation entries
-            await UpdateConversationEntries(request.Message, llmResponse, false);
+            await UpdateConversationEntries(request.Message, llmResponse, false, null, request.ImageData, request.ImageFormat);
 
             // Create and return response
             var response = new ChatBotResponse
@@ -534,7 +534,7 @@ Maintain conversation continuity and reference previous context when appropriate
             _conversationHistory.Add($"Assistant (general): {llmResponse}");
 
             // Update conversation entries
-            await UpdateConversationEntries(request.Message, llmResponse, false);
+            await UpdateConversationEntries(request.Message, llmResponse, false, null, request.ImageData, request.ImageFormat);
 
             // Create and return response
             var response = new ChatBotResponse
@@ -803,7 +803,7 @@ Maintain conversation continuity and reference previous context when appropriate
         return sb.ToString();
     }
 
-    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch, List<Guid>? referencedMemoryIds = null)
+    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch, List<Guid>? referencedMemoryIds = null, byte[]? imageData = null, string? imageFormat = null)
     {
         // Create new entry
         var newEntry = new ConversationEntry
@@ -811,7 +811,9 @@ Maintain conversation continuity and reference previous context when appropriate
             UserMessage = userMessage,
             BotResponse = botResponse,
             UsedMemorySearch = usedMemorySearch,
-            ReferencedMemoryIds = referencedMemoryIds
+            ReferencedMemoryIds = referencedMemoryIds,
+            ImageData = imageData,
+            ImageFormat = imageFormat
         };
 
         // Check if we need to prune old conversations

@@ -179,6 +179,12 @@ AskBot multi-modal request feature implementation - Image upload (button/drag-an
 
 - [AskBot-Multimodal](29-AskBot-Multimodal.md)
 
+## Version 1.2.4
+
+AskBot shared image saving feature implementation - Local storage of multi-modal request images, image display in Share links, configurable image storage path (default: AskBotImages)
+
+- [AskBot-SaveImage](30-AskBot-SaveImage.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

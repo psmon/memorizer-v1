@@ -3,6 +3,7 @@ using Akka.Event;
 using Akka.Hosting;
 using Memorizer.Actors;
 using Memorizer.Services;
+using Memorizer.Settings;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Collections.Concurrent;
@@ -25,6 +26,7 @@ public class AskBotController : ControllerBase
     private readonly ILogger<AskBotController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
     private readonly IStorage _storage;
+    private readonly AskBotSettings _askBotSettings;
 
     // Static dictionary to maintain ChatBotActors per session
     private static readonly ConcurrentDictionary<string, IActorRef> SessionActors = new();
@@ -40,6 +42,7 @@ public class AskBotController : ControllerBase
         ILogger<AskBotController> logger,
         Npgsql.NpgsqlDataSource dataSource,
         IStorage storage,
+        AskBotSettings askBotSettings,
         IMultiModalService? multiModalService = null)
     {
         _actorSystem = actorSystem;
@@ -50,6 +53,7 @@ public class AskBotController : ControllerBase
         _logger = logger;
         _dataSource = dataSource;
         _storage = storage;
+        _askBotSettings = askBotSettings;
     }
 
     /// <summary>
@@ -361,7 +365,8 @@ public class AskBotController : ControllerBase
                     {
                         role = "user",
                         content = entry.UserMessage,
-                        timestamp = entry.Timestamp
+                        timestamp = entry.Timestamp,
+                        hasImage = entry.ImageData != null && entry.ImageData.Length > 0
                     });
                     messages.Add(new
                     {
@@ -465,6 +470,40 @@ public class AskBotController : ControllerBase
                 ? System.Text.Json.JsonSerializer.Serialize(referencedMemories)
                 : null;
 
+            // Save images to disk and create image paths mapping
+            var imagePaths = new Dictionary<int, string>();
+            if (historyResponse != null)
+            {
+                int entryIndex = 0;
+                foreach (var entry in historyResponse.ConversationEntries)
+                {
+                    if (entry.ImageData != null && entry.ImageData.Length > 0)
+                    {
+                        try
+                        {
+                            // Save image to disk
+                            var imagePath = await SaveImageToDisk(shortCode, entryIndex, entry.ImageData, entry.ImageFormat ?? "jpeg");
+                            // Store mapping of message index (user message) to image path
+                            // User message index is entryIndex * 2 (because each entry has user + assistant messages)
+                            imagePaths[entryIndex * 2] = imagePath;
+
+                            _logger.LogInformation("Saved image for session {SessionId}, entry {EntryIndex} to {ImagePath}",
+                                request.SessionId, entryIndex, imagePath);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Failed to save image for session {SessionId}, entry {EntryIndex}",
+                                request.SessionId, entryIndex);
+                        }
+                    }
+                    entryIndex++;
+                }
+            }
+
+            var imagePathsJson = imagePaths.Count > 0
+                ? System.Text.Json.JsonSerializer.Serialize(imagePaths)
+                : null;
+
             // Insert or update in database
             if (existingShortCode != null)
             {
@@ -473,6 +512,7 @@ public class AskBotController : ControllerBase
                     UPDATE askbot_share_links
                     SET content = @content::jsonb,
                         referenced_memories = @referencedMemories::jsonb,
+                        image_paths = @imagePaths::jsonb,
                         updated_at = @updatedAt
                     WHERE short_code = @shortCode";
 
@@ -481,6 +521,8 @@ public class AskBotController : ControllerBase
                 cmd.Parameters.AddWithValue("content", contentJson);
                 cmd.Parameters.AddWithValue("referencedMemories",
                     referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
+                cmd.Parameters.AddWithValue("imagePaths",
+                    imagePathsJson != null ? (object)imagePathsJson : DBNull.Value);
                 cmd.Parameters.AddWithValue("updatedAt", DateTime.UtcNow);
 
                 await cmd.ExecuteNonQueryAsync();
@@ -492,8 +534,8 @@ public class AskBotController : ControllerBase
             {
                 // Insert new share
                 var insertQuery = @"
-                    INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, created_at)
-                    VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @createdAt)";
+                    INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, image_paths, created_at)
+                    VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @imagePaths::jsonb, @createdAt)";
 
                 await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
                 cmd.Parameters.AddWithValue("shortCode", shortCode);
@@ -501,6 +543,8 @@ public class AskBotController : ControllerBase
                 cmd.Parameters.AddWithValue("content", contentJson);
                 cmd.Parameters.AddWithValue("referencedMemories",
                     referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
+                cmd.Parameters.AddWithValue("imagePaths",
+                    imagePathsJson != null ? (object)imagePathsJson : DBNull.Value);
                 cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
 
                 await cmd.ExecuteNonQueryAsync();
@@ -530,7 +574,7 @@ public class AskBotController : ControllerBase
             await using var conn = await _dataSource.OpenConnectionAsync();
 
             var query = @"
-                SELECT session_id, created_at, content, referenced_memories
+                SELECT session_id, created_at, content, referenced_memories, image_paths
                 FROM askbot_share_links
                 WHERE short_code = @shortCode
                 LIMIT 1";
@@ -546,6 +590,7 @@ public class AskBotController : ControllerBase
                 var createdAt = reader.GetDateTime(1);
                 var contentJson = reader.IsDBNull(2) ? null : reader.GetString(2);
                 var referencedMemoriesJson = reader.IsDBNull(3) ? null : reader.GetString(3);
+                var imagePathsJson = reader.IsDBNull(4) ? null : reader.GetString(4);
 
                 _logger.LogInformation("Retrieved session {SessionId} for share code {ShortCode}",
                     sessionId, shortCode);
@@ -562,7 +607,13 @@ public class AskBotController : ControllerBase
                     referencedMemories = System.Text.Json.JsonSerializer.Deserialize<object>(referencedMemoriesJson);
                 }
 
-                return Ok(new { sessionId, createdAt, shortCode, content, referencedMemories });
+                object? imagePaths = null;
+                if (!string.IsNullOrEmpty(imagePathsJson))
+                {
+                    imagePaths = System.Text.Json.JsonSerializer.Deserialize<object>(imagePathsJson);
+                }
+
+                return Ok(new { sessionId, createdAt, shortCode, content, referencedMemories, imagePaths });
             }
 
             return NotFound(new { error = "Share link not found" });
@@ -571,6 +622,39 @@ public class AskBotController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving share link");
             return StatusCode(500, new { error = "Failed to retrieve share link" });
+        }
+    }
+
+    /// <summary>
+    /// Serve saved images for shared conversations
+    /// </summary>
+    [HttpGet("share/{shortCode}/images/{fileName}")]
+    [AllowAnonymous]
+    public IActionResult GetSharedImage(string shortCode, string fileName)
+    {
+        try
+        {
+            // Construct the image path
+            var imagePath = Path.Combine(Directory.GetCurrentDirectory(), _askBotSettings.ImageStoragePath, shortCode, fileName);
+
+            // Check if file exists
+            if (!System.IO.File.Exists(imagePath))
+            {
+                return NotFound(new { error = "Image not found" });
+            }
+
+            // Determine content type based on file extension
+            var extension = Path.GetExtension(fileName).ToLower();
+            var contentType = extension == ".png" ? "image/png" : "image/jpeg";
+
+            // Read and return the image file
+            var imageBytes = System.IO.File.ReadAllBytes(imagePath);
+            return File(imageBytes, contentType);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error serving image for share code {ShortCode}, file {FileName}", shortCode, fileName);
+            return StatusCode(500, new { error = "Failed to retrieve image" });
         }
     }
 
@@ -1117,6 +1201,27 @@ Return ONLY valid JSON, no markdown formatting:
 
             return actor;
         });
+    }
+
+    /// <summary>
+    /// Save image to disk for shared conversations
+    /// </summary>
+    private async Task<string> SaveImageToDisk(string shortCode, int entryIndex, byte[] imageData, string imageFormat)
+    {
+        // Ensure image storage directory exists
+        var storageDir = Path.Combine(Directory.GetCurrentDirectory(), _askBotSettings.ImageStoragePath, shortCode);
+        Directory.CreateDirectory(storageDir);
+
+        // Generate filename with entry index and extension
+        var extension = imageFormat.ToLower() == "png" ? "png" : "jpg";
+        var fileName = $"image_{entryIndex}.{extension}";
+        var fullPath = Path.Combine(storageDir, fileName);
+
+        // Save image to disk
+        await System.IO.File.WriteAllBytesAsync(fullPath, imageData);
+
+        // Return relative path for storage in database
+        return Path.Combine(shortCode, fileName).Replace("\\", "/");
     }
 }
 
