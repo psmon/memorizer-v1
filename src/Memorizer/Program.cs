@@ -98,6 +98,25 @@ builder.Services.AddMcpServer().WithHttpTransport().WithTools<MemoryTools>();
 // Add MVC support for web UI
 builder.Services.AddControllersWithViews();
 
+// Add Swagger/OpenAPI support
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
+    {
+        Title = "Memorizer LLM API",
+        Version = "v1",
+        Description = "OpenAI-compatible LLM API endpoints"
+    });
+
+    // Only include LLMController endpoints in Swagger
+    options.DocInclusionPredicate((docName, apiDesc) =>
+    {
+        var controllerName = apiDesc.ActionDescriptor.RouteValues["controller"];
+        return controllerName == "LLM";
+    });
+});
+
 // Configure routing options for lowercase URLs
 builder.Services.Configure<RouteOptions>(options =>
 {
@@ -200,6 +219,14 @@ app.Use(async (context, next) =>
 });
 
 app.UseCors();
+
+// Enable Swagger middleware
+app.UseSwagger();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "Memorizer API v1");
+    options.RoutePrefix = "swagger"; // Access at /swagger
+});
 
 app.UseStaticFiles();
 

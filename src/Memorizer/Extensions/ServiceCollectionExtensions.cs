@@ -16,6 +16,18 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services, bool initialize = true)
     {
         services.AddHttpClient(); // Add HttpClientFactory for service implementations
+
+        // Add named HttpClient for LLM API Controller
+        services.AddHttpClient("LLMClient", (sp, client) =>
+        {
+            var llmSettings = sp.GetRequiredService<LlmSettings>();
+            if (llmSettings.ApiUrl != null)
+            {
+                client.BaseAddress = llmSettings.ApiUrl;
+            }
+            client.Timeout = llmSettings.Timeout;
+        });
+
         services.AddEmbeddings();
         services.AddLlmServices();
         services.AddMultiModalServices();

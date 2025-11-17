@@ -35,11 +35,11 @@ public class AuthenticationMiddleware
             }
         }
 
-        // Skip authentication requirement for /api/askbot and /ui/askbot paths
+        // Skip authentication requirement for /api/askbot, /ui/askbot, and /api/llm paths
         // But still set authentication status based on session
-        if (path.StartsWith("/api/askbot") || path.StartsWith("/ui/askbot"))
+        if (path.StartsWith("/api/askbot") || path.StartsWith("/ui/askbot") || path.StartsWith("/api/llm"))
         {
-            _logger.LogDebug("AskBot path (authentication optional): {Path}", path);
+            _logger.LogDebug("Public API path (authentication optional): {Path}", path);
 
             // Set authentication status from session (but don't require it)
             var isAuthenticated = context.Session.GetString("IsAuthenticated") == "true";
@@ -102,6 +102,7 @@ public class AuthenticationMiddleware
             "/api/graph/sync",
             "/api/askbot",  // AskBot endpoints are public
             "/ui/askbot",   // AskBot UI is public
+            "/api/llm",     // LLM API endpoints are public
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -124,7 +125,13 @@ public class AuthenticationMiddleware
                 {
                     return false;
                 }
-                
+
+                // For /api/llm/, all methods are public (POST for completions, GET for health)
+                if (path.StartsWith("/api/llm"))
+                {
+                    return false;
+                }
+
                 // For other API endpoints, only GET is public
                 if (path.StartsWith("/api/") && method != "GET")
                 {

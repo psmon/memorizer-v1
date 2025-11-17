@@ -183,6 +183,12 @@ AskBot 공유 이미지 저장 기능 구현 - 멀티모달 요청 이미지 로
 
 - [AskBot-SaveImage](30-AskBot-SaveImage.md)
 
+## Version 1.2.5
+
+OpenAI 호환 LLM API 컨트롤러 구현 - 순수 LLM API 엔드포인트 제공, Chat Completions 및 Text Completions 지원, SSE 기반 스트리밍 구현, CORS 제한 없음, Swagger 문서화, 인증 불필요, 프론트엔드 통합 가이드 제공
+
+- [OpenLLM](31-OpenLLM.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

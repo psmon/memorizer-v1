@@ -185,6 +185,12 @@ AskBot shared image saving feature implementation - Local storage of multi-modal
 
 - [AskBot-SaveImage](30-AskBot-SaveImage.md)
 
+## Version 1.2.5
+
+OpenAI-compatible LLM API controller implementation - Pure LLM API endpoint provision, Chat Completions and Text Completions support, SSE-based streaming implementation, no CORS restrictions, Swagger documentation, no authentication required, frontend integration guide provided
+
+- [OpenLLM](31-OpenLLM.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
