@@ -189,6 +189,12 @@ OpenAI 호환 LLM API 컨트롤러 구현 - 순수 LLM API 엔드포인트 제�
 
 - [OpenLLM](31-OpenLLM.md)
 
+## Version 1.2.6
+
+ASKBOT 멀티 쿼리 검색 기능 구현 - 질문 유형 자동 분석(LLM 기반), 단일/다중 주제 적응형 검색 전략, 토픽별 독립 검색 및 결과 통합, Actor 모델 상태 관리 개선
+
+- [ASKBOT-MultiQA](32-ASKBOT-MultiQA.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

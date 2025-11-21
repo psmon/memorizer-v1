@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.2.5</VersionPrefix>
+    <VersionPrefix>1.2.6</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [OpenAI-compatible LLM API controller implementation - Pure LLM API endpoint provision, Chat Completions and Text Completions support, SSE-based streaming implementation, no CORS restrictions, Swagger documentation, no authentication required, frontend integration guide provided]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [ASKBOT multi-query search feature implementation - Automatic query type analysis (LLM-based), adaptive search strategy for single/multi topics, independent search per topic and result integration, improved Actor model state management]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

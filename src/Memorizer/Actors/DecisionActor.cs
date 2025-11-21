@@ -36,6 +36,27 @@ RELEVANT: YES or NO
 REASONING: Brief explanation of your decision(한글로답변)
 RELEVANT_IDS: Comma-separated list of relevant memory IDs (if any)";
 
+    private const string MultiTopicRelevancePrompt = @"
+You are evaluating search results from a multi-topic query where different topics were searched separately.
+
+User Query: {0}
+
+Search Results (grouped by topic):
+{1}
+
+Analyze the search results and determine:
+1. Are the found memories relevant to their respective topics?
+2. Do these memories collectively help answer the user's query?
+3. For comparison queries (e.g., 'A와 B의 차이'), are both topics adequately covered?
+
+BE INCLUSIVE - if memories contain information about the requested topics, they are relevant.
+
+Respond in the following format:
+RELEVANT: YES or NO
+REASONING: Brief explanation of your decision(한글로답변)
+RELEVANT_IDS: Comma-separated list of relevant memory IDs (if any)
+TOPICS_COVERED: Number of topics adequately covered (e.g., 2/2, 1/3)";
+
     public DecisionActor(ILlmService llmService)
     {
         _llmService = llmService;

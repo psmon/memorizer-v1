@@ -407,3 +407,107 @@ public sealed record GetConversationHistoryResponse : IChatBotMessage
     /// </summary>
     public required List<ConversationEntry> ConversationEntries { get; init; }
 }
+
+/// <summary>
+/// Request to analyze query type and extract search topics
+/// </summary>
+public sealed record AnalyzeQueryTypeRequest : IChatBotMessage
+{
+    /// <summary>
+    /// User query to analyze
+    /// </summary>
+    public required string Query { get; init; }
+
+    /// <summary>
+    /// Session identifier for tracking
+    /// </summary>
+    public required string SessionId { get; init; }
+}
+
+/// <summary>
+/// Response with query type analysis result
+/// </summary>
+public sealed record AnalyzeQueryTypeResponse : IChatBotMessage
+{
+    /// <summary>
+    /// Session identifier
+    /// </summary>
+    public required string SessionId { get; init; }
+
+    /// <summary>
+    /// Number of document types needed (1-3)
+    /// </summary>
+    public required int DocumentTypesNeeded { get; init; }
+
+    /// <summary>
+    /// List of topics/subjects to search for
+    /// </summary>
+    public required List<string> Topics { get; init; }
+
+    /// <summary>
+    /// Reasoning for the analysis
+    /// </summary>
+    public string? Reasoning { get; init; }
+}
+
+/// <summary>
+/// Request to search for multiple topics
+/// </summary>
+public sealed record MultiTopicSearchRequest : IChatBotMessage
+{
+    /// <summary>
+    /// Original user query
+    /// </summary>
+    public required string Query { get; init; }
+
+    /// <summary>
+    /// Session identifier
+    /// </summary>
+    public required string SessionId { get; init; }
+
+    /// <summary>
+    /// List of topics to search for
+    /// </summary>
+    public required List<string> Topics { get; init; }
+
+    /// <summary>
+    /// Number of results per topic
+    /// </summary>
+    public int ResultsPerTopic { get; init; } = 1;
+
+    /// <summary>
+    /// Minimum similarity threshold
+    /// </summary>
+    public double MinSimilarity { get; init; } = 0.3;
+}
+
+/// <summary>
+/// Response from multi-topic search
+/// </summary>
+public sealed record MultiTopicSearchResponse : IChatBotMessage
+{
+    /// <summary>
+    /// Session identifier
+    /// </summary>
+    public required string SessionId { get; init; }
+
+    /// <summary>
+    /// Original query
+    /// </summary>
+    public required string OriginalQuery { get; init; }
+
+    /// <summary>
+    /// Search results grouped by topic
+    /// </summary>
+    public required Dictionary<string, List<Models.Memory>> TopicResults { get; init; }
+
+    /// <summary>
+    /// All memories from all topics combined
+    /// </summary>
+    public required List<Models.Memory> AllMemories { get; init; }
+
+    /// <summary>
+    /// Number of topics searched
+    /// </summary>
+    public int TopicsSearched { get; init; }
+}

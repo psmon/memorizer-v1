@@ -191,6 +191,12 @@ OpenAI-compatible LLM API controller implementation - Pure LLM API endpoint prov
 
 - [OpenLLM](31-OpenLLM.md)
 
+## Version 1.2.6
+
+ASKBOT multi-query search feature implementation - Automatic query type analysis (LLM-based), adaptive search strategy for single/multi topics, independent search per topic and result integration, improved Actor model state management
+
+- [ASKBOT-MultiQA](32-ASKBOT-MultiQA.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

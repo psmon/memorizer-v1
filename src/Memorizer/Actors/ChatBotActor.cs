@@ -77,6 +77,8 @@ Maintain conversation continuity and reference previous context when appropriate
         // Set up message handlers
         Receive<UserChatRequest>(HandleUserChatRequest);
         Receive<SearchMemoryResponse>(HandleSearchMemoryResponse);
+        Receive<AnalyzeQueryTypeResponse>(HandleAnalyzeQueryTypeResponse);
+        Receive<MultiTopicSearchResponse>(HandleMultiTopicSearchResponse);
         Receive<EvaluateRelevanceResponse>(HandleEvaluateRelevanceResponse);
         Receive<SessionTimeout>(HandleSessionTimeout);
         Receive<ResetSessionTimer>(HandleResetSessionTimer);
@@ -124,26 +126,96 @@ Maintain conversation continuity and reference previous context when appropriate
                 return;
             }
 
-            // Send search request to SearchMemoryActor
-            var searchRequest = new SearchMemoryRequest
+            // Step 1: Analyze query type to determine if multi-topic search is needed
+            AddReasoningStep("Analyzing query to determine search strategy...");
+
+            var analyzeRequest = new AnalyzeQueryTypeRequest
             {
                 Query = request.Message,
-                SessionId = request.SessionId,
-                MaxResults = 5,
-                MinSimilarity = 0.3
+                SessionId = request.SessionId
             };
 
-            AddReasoningStep("Searching for relevant memories...");
-
             // Store context for continuation
-            Context.Become(WaitingForSearchResponse(request, originalSender));
+            Context.Become(WaitingForQueryTypeAnalysis(request, originalSender));
 
-            _searchMemoryActor.Tell(searchRequest, Self);
+            _searchMemoryActor.Tell(analyzeRequest, Self);
         }
         catch (Exception ex)
         {
             _logger.Error(ex, "Error processing chat request for session {0}", request.SessionId);
             SendErrorResponse(originalSender, request.SessionId, "An error occurred processing your request.");
+        }
+    }
+
+    private Receive WaitingForQueryTypeAnalysis(UserChatRequest originalRequest, IActorRef originalSender)
+    {
+        return message =>
+        {
+            if (message is AnalyzeQueryTypeResponse analysisResponse)
+            {
+                HandleAnalyzeQueryTypeResponseContinuation(analysisResponse, originalRequest, originalSender);
+                return true;
+            }
+            // Handle other message types while waiting
+            else if (message is SessionTimeout timeout)
+            {
+                HandleSessionTimeout(timeout);
+                return true;
+            }
+            else if (message is ResetSessionTimer reset)
+            {
+                HandleResetSessionTimer(reset);
+                return true;
+            }
+            else if (message is GetConversationHistoryRequest historyRequest)
+            {
+                HandleGetConversationHistoryRequest(historyRequest);
+                return true;
+            }
+            return false;
+        };
+    }
+
+    private void HandleAnalyzeQueryTypeResponseContinuation(
+        AnalyzeQueryTypeResponse analysisResponse,
+        UserChatRequest originalRequest,
+        IActorRef originalSender)
+    {
+        AddReasoningStep($"Query analysis: {analysisResponse.DocumentTypesNeeded} topic(s) identified");
+        AddReasoningStep($"Reasoning: {analysisResponse.Reasoning}");
+
+        // If only one topic, use traditional single search
+        if (analysisResponse.DocumentTypesNeeded == 1 || analysisResponse.Topics.Count == 0)
+        {
+            AddReasoningStep("Using single-topic search strategy...");
+
+            var searchRequest = new SearchMemoryRequest
+            {
+                Query = originalRequest.Message,
+                SessionId = originalRequest.SessionId,
+                MaxResults = 5,
+                MinSimilarity = 0.3
+            };
+
+            Context.Become(WaitingForSearchResponse(originalRequest, originalSender));
+            _searchMemoryActor.Tell(searchRequest, Self);
+        }
+        else
+        {
+            // Multi-topic search
+            AddReasoningStep($"Using multi-topic search strategy for topics: {string.Join(", ", analysisResponse.Topics)}");
+
+            var multiSearchRequest = new MultiTopicSearchRequest
+            {
+                Query = originalRequest.Message,
+                SessionId = originalRequest.SessionId,
+                Topics = analysisResponse.Topics,
+                ResultsPerTopic = 1, // 1 result per topic
+                MinSimilarity = 0.3
+            };
+
+            Context.Become(WaitingForMultiTopicSearchResponse(originalRequest, originalSender));
+            _searchMemoryActor.Tell(multiSearchRequest, Self);
         }
     }
 
@@ -177,6 +249,71 @@ Maintain conversation continuity and reference previous context when appropriate
         };
     }
 
+    private Receive WaitingForMultiTopicSearchResponse(UserChatRequest originalRequest, IActorRef originalSender)
+    {
+        return message =>
+        {
+            if (message is MultiTopicSearchResponse multiSearchResponse)
+            {
+                HandleMultiTopicSearchResponseContinuation(multiSearchResponse, originalRequest, originalSender);
+                return true;
+            }
+            // Handle other message types while waiting
+            else if (message is SessionTimeout timeout)
+            {
+                HandleSessionTimeout(timeout);
+                return true;
+            }
+            else if (message is ResetSessionTimer reset)
+            {
+                HandleResetSessionTimer(reset);
+                return true;
+            }
+            else if (message is GetConversationHistoryRequest historyRequest)
+            {
+                HandleGetConversationHistoryRequest(historyRequest);
+                return true;
+            }
+            return false;
+        };
+    }
+
+    private void HandleMultiTopicSearchResponseContinuation(
+        MultiTopicSearchResponse multiSearchResponse,
+        UserChatRequest originalRequest,
+        IActorRef originalSender)
+    {
+        if (multiSearchResponse.AllMemories.Count == 0)
+        {
+            AddReasoningStep($"No memories found across {multiSearchResponse.TopicsSearched} topics.");
+            GenerateGeneralResponse(originalRequest, originalSender);
+            SetupBaseHandlers();
+        }
+        else
+        {
+            AddReasoningStep($"Found {multiSearchResponse.AllMemories.Count} memories across {multiSearchResponse.TopicsSearched} topics.");
+
+            // Log topic-specific results
+            foreach (var topicResult in multiSearchResponse.TopicResults)
+            {
+                AddReasoningStep($"Topic '{topicResult.Key}': {topicResult.Value.Count} memory/memories found");
+            }
+
+            AddReasoningStep("Evaluating relevance of multi-topic search results...");
+
+            // Evaluate relevance of combined results
+            var evaluateRequest = new EvaluateRelevanceRequest
+            {
+                SessionId = originalRequest.SessionId,
+                Query = originalRequest.Message,
+                Memories = multiSearchResponse.AllMemories
+            };
+
+            Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
+            _decisionActor.Tell(evaluateRequest, Self);
+        }
+    }
+
     private void SetupBaseHandlers()
     {
         Context.Become(message =>
@@ -188,6 +325,12 @@ Maintain conversation continuity and reference previous context when appropriate
                     return true;
                 case SearchMemoryResponse resp:
                     HandleSearchMemoryResponse(resp);
+                    return true;
+                case AnalyzeQueryTypeResponse analysis:
+                    HandleAnalyzeQueryTypeResponse(analysis);
+                    return true;
+                case MultiTopicSearchResponse multiSearch:
+                    HandleMultiTopicSearchResponse(multiSearch);
                     return true;
                 case EvaluateRelevanceResponse eval:
                     HandleEvaluateRelevanceResponse(eval);
@@ -309,6 +452,18 @@ Maintain conversation continuity and reference previous context when appropriate
     {
         // This handler is for unexpected responses
         _logger.Warning("Received unexpected SearchMemoryResponse for session {0}", response.SessionId);
+    }
+
+    private void HandleAnalyzeQueryTypeResponse(AnalyzeQueryTypeResponse response)
+    {
+        // This handler is for unexpected responses
+        _logger.Warning("Received unexpected AnalyzeQueryTypeResponse for session {0}", response.SessionId);
+    }
+
+    private void HandleMultiTopicSearchResponse(MultiTopicSearchResponse response)
+    {
+        // This handler is for unexpected responses
+        _logger.Warning("Received unexpected MultiTopicSearchResponse for session {0}", response.SessionId);
     }
 
     private void HandleEvaluateRelevanceResponse(EvaluateRelevanceResponse response)
