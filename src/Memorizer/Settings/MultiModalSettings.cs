@@ -6,9 +6,20 @@ namespace Memorizer.Settings;
 public sealed class MultiModalSettings
 {
     /// <summary>
-    /// API URL for the Multi-modal service
+    /// Type of multi-modal service to use: "OpenAI", "Custom"
+    /// Default: Custom
+    /// </summary>
+    public string Type { get; set; } = "Custom";
+
+    /// <summary>
+    /// API URL for the Multi-modal service (used by Custom type)
     /// </summary>
     public Uri ApiUrl { get; set; } = new("http://localhost:1234");
+
+    /// <summary>
+    /// API Key for the Multi-modal service (required for OpenAI type)
+    /// </summary>
+    public string? ApiKey { get; set; }
 
     /// <summary>
     /// Model name to use for multi-modal operations

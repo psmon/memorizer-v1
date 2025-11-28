@@ -197,6 +197,12 @@ ASKBOT multi-query search feature implementation - Automatic query type analysis
 
 - [ASKBOT-MultiQA](32-ASKBOT-MultiQA.md)
 
+## Version 1.2.7
+
+Multi-modal LLM service OpenAI extension - Separate MultiModalService into Custom/OpenAI two implementations, add MultiModalOpenAIService based on OpenAI SDK, select implementation by Type in configuration files
+
+- [OpenLLM-fix](33-OpenLLM-fix.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

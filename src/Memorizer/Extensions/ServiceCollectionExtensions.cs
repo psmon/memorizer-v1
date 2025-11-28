@@ -180,15 +180,27 @@ public static class ServiceCollectionExtensions
                 return multiModalSettings;
             });
 
-        // Add MultiModalService
+        // Check if we should use OpenAI or Custom based on the Type setting
         services.AddSingleton<IMultiModalService>(sp =>
         {
             var settings = sp.GetRequiredService<MultiModalSettings>();
             var logger = sp.GetRequiredService<ILoggerFactory>();
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient();
 
-            return new MultiModalService(httpClient, settings, logger.CreateLogger<MultiModalService>());
+            string apiType = settings.Type.ToLower();
+
+            if (apiType.Equals("openai"))
+            {
+                return new MultiModalOpenAIService(settings, logger.CreateLogger<MultiModalOpenAIService>());
+            }
+            else
+            {
+                // Default to Custom service (no API key required)
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new MultiModalCustomService(httpClient, settings, logger.CreateLogger<MultiModalCustomService>());
+            }
         });
 
         return services;

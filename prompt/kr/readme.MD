@@ -195,6 +195,12 @@ ASKBOT 멀티 쿼리 검색 기능 구현 - 질문 유형 자동 분석(LLM 기�
 
 - [ASKBOT-MultiQA](32-ASKBOT-MultiQA.md)
 
+## Version 1.2.7
+
+멀티모달 LLM 서비스 OpenAI 확장 - MultiModalService를 Custom/OpenAI 두 가지 구현체로 분리, OpenAI SDK 기반 MultiModalOpenAIService 추가, 설정 파일에서 Type으로 구현체 선택
+
+- [OpenLLM-fix](33-OpenLLM-fix.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.2.6</VersionPrefix>
+    <VersionPrefix>1.2.7</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [ASKBOT multi-query search feature implementation - Automatic query type analysis (LLM-based), adaptive search strategy for single/multi topics, independent search per topic and result integration, improved Actor model state management]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [Multi-modal LLM service OpenAI extension - Separate MultiModalService into Custom/OpenAI two implementations, add MultiModalOpenAIService based on OpenAI SDK, select implementation by Type in configuration files]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

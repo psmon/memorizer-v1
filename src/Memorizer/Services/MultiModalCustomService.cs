@@ -8,18 +8,19 @@ namespace Memorizer.Services;
 /// <summary>
 /// Service for Multi-modal LLM that can process both images and text
 /// Compatible with OpenAI API format (LM Studio, etc.)
+/// Uses custom HTTP-based implementation without API key
 /// </summary>
-public sealed class MultiModalService : IMultiModalService
+public sealed class MultiModalCustomService : IMultiModalService
 {
     private readonly HttpClient _httpClient;
     private readonly MultiModalSettings _settings;
-    private readonly ILogger<MultiModalService> _logger;
+    private readonly ILogger<MultiModalCustomService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
 
-    public MultiModalService(
+    public MultiModalCustomService(
         HttpClient httpClient,
         MultiModalSettings settings,
-        ILogger<MultiModalService> logger)
+        ILogger<MultiModalCustomService> logger)
     {
         _httpClient = httpClient;
         _settings = settings;
