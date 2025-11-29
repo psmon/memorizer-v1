@@ -326,25 +326,27 @@ public class GraphSyncService : IGraphSyncService
                 {
                     try
                     {
-                        var suggestedRelations = JsonSerializer.Deserialize<List<Dictionary<string, object>>>(llmResponse);
-                        
+                        // Clean markdown code blocks if present (e.g., ```json ... ```)
+                        var cleanedResponse = ExtractJsonFromResponse(llmResponse);
+                        var suggestedRelations = JsonSerializer.Deserialize<List<Dictionary<string, JsonElement>>>(cleanedResponse);
+
                         if (suggestedRelations != null)
                         {
                             foreach (var relation in suggestedRelations)
                             {
-                                if (relation.TryGetValue("targetIndex", out var indexObj) &&
-                                    relation.TryGetValue("type", out var typeObj) &&
-                                    relation.TryGetValue("confidence", out var confObj))
+                                if (relation.TryGetValue("targetIndex", out var indexEl) &&
+                                    relation.TryGetValue("type", out var typeEl) &&
+                                    relation.TryGetValue("confidence", out var confEl))
                                 {
-                                    var index = Convert.ToInt32(indexObj) - 1;
+                                    var index = indexEl.GetInt32() - 1;
                                     if (index >= 0 && index < candidates.Count)
                                     {
                                         suggestions.Add(new GraphRelationship
                                         {
                                             FromId = sourceMemory.Id,
                                             ToId = candidates[index].id,
-                                            Type = typeObj.ToString() ?? "related-to",
-                                            Weight = Convert.ToDouble(confObj),
+                                            Type = typeEl.GetString() ?? "related-to",
+                                            Weight = confEl.GetDouble(),
                                             CreatedAt = DateTime.UtcNow
                                         });
                                     }
@@ -523,7 +525,49 @@ public class GraphSyncService : IGraphSyncService
             _ => "#94a3b8"
         };
     }
-    
+
+    /// <summary>
+    /// Extracts JSON from LLM response, handling markdown code blocks
+    /// </summary>
+    private static string ExtractJsonFromResponse(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+            return response;
+
+        var trimmed = response.Trim();
+
+        // Handle ```json ... ``` or ``` ... ``` blocks
+        if (trimmed.StartsWith("```"))
+        {
+            var firstNewline = trimmed.IndexOf('\n');
+            if (firstNewline > 0)
+            {
+                // Skip the opening ``` or ```json line
+                trimmed = trimmed.Substring(firstNewline + 1);
+            }
+
+            // Remove closing ```
+            var lastBackticks = trimmed.LastIndexOf("```");
+            if (lastBackticks > 0)
+            {
+                trimmed = trimmed.Substring(0, lastBackticks);
+            }
+        }
+
+        // Try to find JSON array or object boundaries
+        var jsonStart = trimmed.IndexOfAny(new[] { '[', '{' });
+        var jsonEndArray = trimmed.LastIndexOf(']');
+        var jsonEndObject = trimmed.LastIndexOf('}');
+        var jsonEnd = Math.Max(jsonEndArray, jsonEndObject);
+
+        if (jsonStart >= 0 && jsonEnd > jsonStart)
+        {
+            return trimmed.Substring(jsonStart, jsonEnd - jsonStart + 1);
+        }
+
+        return trimmed.Trim();
+    }
+
     private async Task<DateTime> GetLastSyncTimeAsync()
     {
         try

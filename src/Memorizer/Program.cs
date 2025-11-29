@@ -251,8 +251,12 @@ app.UseMiddleware<AuthenticationMiddleware>();
 appLogger.LogInformation("Mapping MCP endpoints...");
 try
 {
+    // Map MCP endpoints:
+    // - Streamable HTTP at / (POST) for ChatGPT, newer clients
+    // - Legacy SSE at /sse (GET) for Claude Desktop, existing MCP clients
+    // - Legacy message at /message (POST) for SSE message handling
     app.MapMcp();
-    appLogger.LogInformation("MCP endpoints mapped successfully");
+    appLogger.LogInformation("MCP endpoints mapped successfully (Streamable HTTP at POST /, Legacy SSE at /sse, /message)");
 }
 catch (Exception ex)
 {

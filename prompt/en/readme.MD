@@ -203,6 +203,12 @@ Multi-modal LLM service OpenAI extension - Separate MultiModalService into Custo
 
 - [OpenLLM-fix](33-OpenLLM-fix.md)
 
+## Version 1.2.8
+
+MCP OAuth 2.0 authentication method addition - OAuth 2.0 standard authentication implementation for ChatGPT MCP integration, JWT token issuance based on Client ID/Secret, compatible with existing ApiKey authentication, 24-hour token expiration setting
+
+- [Oauth-MCP](34-Oauth-MCP.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

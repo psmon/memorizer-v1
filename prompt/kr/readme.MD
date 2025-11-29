@@ -201,6 +201,12 @@ ASKBOT 멀티 쿼리 검색 기능 구현 - 질문 유형 자동 분석(LLM 기�
 
 - [OpenLLM-fix](33-OpenLLM-fix.md)
 
+## Version 1.2.8
+
+MCP OAuth 2.0 인증 방식 추가 - ChatGPT MCP 연동을 위한 OAuth 2.0 표준 인증 구현, Client ID/Secret 기반 JWT 토큰 발급, 기존 ApiKey 인증과 병행 가능, 24시간 토큰 만료 설정
+
+- [Oauth-MCP](34-Oauth-MCP.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

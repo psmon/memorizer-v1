@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.2.7</VersionPrefix>
+    <VersionPrefix>1.2.8</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [Multi-modal LLM service OpenAI extension - Separate MultiModalService into Custom/OpenAI two implementations, add MultiModalOpenAIService based on OpenAI SDK, select implementation by Type in configuration files]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [MCP OAuth 2.0 authentication method addition - OAuth 2.0 standard authentication implementation for ChatGPT MCP integration, JWT token issuance based on Client ID/Secret, compatible with existing ApiKey authentication, 24-hour token expiration setting]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

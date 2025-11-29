@@ -126,6 +126,18 @@ services:
       MEMORIZER_Server__UserName: admin
       MEMORIZER_Server__Password: admin123
       MEMORIZER_Server__ApiKey: your-api-key-here
+      # OAuth 2.0 Settings
+      MEMORIZER_OAuth__Enabled: "true"
+      MEMORIZER_OAuth__Issuer: memorizer
+      MEMORIZER_OAuth__Audience: memorizer-api
+      MEMORIZER_OAuth__SecretKey: your-super-secret-key-at-least-32-characters-long
+      MEMORIZER_OAuth__TokenExpirationHours: "24"
+      # OAuth Client (for ChatGPT MCP integration)
+      MEMORIZER_OAuth__Clients__0__ClientId: chatgpt-mcp
+      MEMORIZER_OAuth__Clients__0__ClientSecret: chatgpt-secret-key
+      MEMORIZER_OAuth__Clients__0__AllowedScopes__0: "mcp:read"
+      MEMORIZER_OAuth__Clients__0__AllowedScopes__1: "mcp:write"
+      MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0: "https://chatgpt.com/aip/g-callback"
     depends_on:
       - postgres
       - neo4j

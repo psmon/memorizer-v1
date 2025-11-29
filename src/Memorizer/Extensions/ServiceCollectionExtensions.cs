@@ -35,6 +35,7 @@ public static class ServiceCollectionExtensions
         services.AddActorSystem();
         services.AddStorage();
         services.AddServerSettings();
+        services.AddOAuthServices();
         services.AddGraphServices();
         if(initialize)
             services.AddHostedService<InitializationService>();
@@ -309,6 +310,18 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ServerSettings>(sp =>
             sp.GetRequiredService<IConfiguration>().GetSection("Server").Get<ServerSettings>() ??
             new ServerSettings());
+
+        return services;
+    }
+
+    public static IServiceCollection AddOAuthServices(
+        this IServiceCollection services)
+    {
+        services.AddSingleton<OAuthSettings>(sp =>
+            sp.GetRequiredService<IConfiguration>().GetSection("OAuth").Get<OAuthSettings>() ??
+            new OAuthSettings());
+
+        services.AddSingleton<IOAuthTokenService, OAuthTokenService>();
 
         return services;
     }

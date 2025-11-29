@@ -13,26 +13,89 @@ public class AuthenticationMiddleware
         _logger = logger;
     }
 
-    public async Task InvokeAsync(HttpContext context, IAuthenticationService authService)
+    public async Task InvokeAsync(HttpContext context, IAuthenticationService authService, IOAuthTokenService oauthService)
     {
         var path = context.Request.Path.Value?.ToLower() ?? "";
         var method = context.Request.Method;
 
         _logger.LogDebug("Authentication check for path: {Path}, Method: {Method}", path, method);
 
-        // Check if this is an SSE endpoint requiring API key
-        if (path == "/sse" || path.StartsWith("/mcp"))
+        // Skip authentication for OAuth endpoints (they handle their own auth)
+        if (path.StartsWith("/oauth/") || path.StartsWith("/.well-known/"))
         {
+            await _next(context);
+            return;
+        }
+
+        // Check if this is an MCP endpoint requiring authentication
+        // MCP endpoints:
+        // - POST / : Streamable HTTP (for ChatGPT, newer clients)
+        // - GET /sse : Legacy SSE connection (for Claude Desktop, existing MCP clients)
+        // - POST /message : Legacy SSE message handling
+        var isMcpEndpoint = path == "/sse" || path == "/message" ||
+                           (path == "/" && method == "POST");
+
+        if (isMcpEndpoint)
+        {
+            // Priority 1: Check for API Key (X-API-Key header or apikey query parameter)
             var apiKey = context.Request.Headers["X-API-Key"].FirstOrDefault() ??
                         context.Request.Query["apikey"].FirstOrDefault();
 
-            if (string.IsNullOrEmpty(apiKey) || !authService.ValidateApiKey(apiKey))
+            if (!string.IsNullOrEmpty(apiKey))
             {
-                _logger.LogWarning($"Invalid API key for SSE endpoint access attempt: {apiKey}");
-                context.Response.StatusCode = 401;
-                await context.Response.WriteAsync("Unauthorized: Invalid API Key");
-                return;
+                if (authService.ValidateApiKey(apiKey))
+                {
+                    _logger.LogDebug("API Key validated successfully for MCP endpoint");
+                    context.Items["AuthenticatedViaApiKey"] = true;
+                    await _next(context);
+                    return;
+                }
+                else
+                {
+                    _logger.LogWarning("Invalid API key for MCP endpoint: {ApiKey}", apiKey);
+                    context.Response.StatusCode = 401;
+                    await context.Response.WriteAsync("Unauthorized: Invalid API Key");
+                    return;
+                }
             }
+
+            // Priority 2: Fallback to Bearer token (OAuth 2.0) if no API Key provided
+            var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                var token = authHeader.Substring("Bearer ".Length).Trim();
+
+                if (oauthService.IsEnabled)
+                {
+                    var principal = oauthService.ValidateToken(token);
+                    if (principal != null)
+                    {
+                        _logger.LogDebug("OAuth Bearer token validated successfully for MCP endpoint");
+                        context.Items["AuthenticatedViaOAuth"] = true;
+                        context.Items["OAuthClientId"] = principal.FindFirst("client_id")?.Value;
+                        await _next(context);
+                        return;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Invalid OAuth Bearer token for MCP endpoint");
+                        context.Response.StatusCode = 401;
+                        context.Response.Headers["WWW-Authenticate"] = "Bearer error=\"invalid_token\"";
+                        await context.Response.WriteAsync("Unauthorized: Invalid Bearer token");
+                        return;
+                    }
+                }
+            }
+
+            // No valid authentication provided
+            _logger.LogWarning("No valid authentication for MCP endpoint");
+            context.Response.StatusCode = 401;
+            if (oauthService.IsEnabled)
+            {
+                context.Response.Headers["WWW-Authenticate"] = "Bearer";
+            }
+            await context.Response.WriteAsync("Unauthorized: X-API-Key or Bearer token required");
+            return;
         }
 
         // Skip authentication requirement for /api/askbot, /ui/askbot, and /api/llm paths
