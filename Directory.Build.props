@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.2.8</VersionPrefix>
+    <VersionPrefix>1.3.0</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [MCP OAuth 2.0 authentication method addition - OAuth 2.0 standard authentication implementation for ChatGPT MCP integration, JWT token issuance based on Client ID/Secret, compatible with existing ApiKey authentication, 24-hour token expiration setting]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [Memory Architecture feature implementation - Combine two memories to generate creative architecture ideas, streaming response, Mermaid diagrams and code samples generation, share functionality, light mode UI, infinite scroll share list]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

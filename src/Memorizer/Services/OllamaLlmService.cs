@@ -230,7 +230,7 @@ public sealed class OllamaLlmService : ILlmService
         try
         {
             _logger.LogDebug("Sending completion request to LLM model {Model}", _settings.Model);
-            
+
             // Use OllamaSharp API to generate completion without JSON format requirement
             var request = new OllamaSharp.Models.GenerateRequest
             {
@@ -238,15 +238,15 @@ public sealed class OllamaLlmService : ILlmService
                 Prompt = prompt,
                 Stream = true
             };
-            
+
             var responseStream = _ollamaClient.GenerateAsync(request, cancellationToken);
-            
+
             var responseBuilder = new StringBuilder();
             await foreach (var responseChunk in responseStream)
             {
                 responseBuilder.Append(responseChunk?.Response);
             }
-            
+
             var response = responseBuilder.ToString();
 
             if (string.IsNullOrEmpty(response))
@@ -261,6 +261,30 @@ public sealed class OllamaLlmService : ILlmService
         {
             _logger.LogError(ex, "Error generating completion from LLM");
             throw;
+        }
+    }
+
+    public async IAsyncEnumerable<string> CompleteStreamingAsync(
+        string prompt,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Sending streaming completion request to LLM model {Model}", _settings.Model);
+
+        var request = new OllamaSharp.Models.GenerateRequest
+        {
+            Model = _settings.Model,
+            Prompt = prompt,
+            Stream = true
+        };
+
+        var responseStream = _ollamaClient.GenerateAsync(request, cancellationToken);
+
+        await foreach (var responseChunk in responseStream.WithCancellation(cancellationToken))
+        {
+            if (!string.IsNullOrEmpty(responseChunk?.Response))
+            {
+                yield return responseChunk.Response;
+            }
         }
     }
 

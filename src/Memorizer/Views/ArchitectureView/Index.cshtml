@@ -1,0 +1,1496 @@
+@{
+    ViewData["Title"] = "Memory Architecture";
+    Layout = "_Layout";
+    ViewBag.Controller = "ArchitectureView";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/markdown-styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        /* Light mode base */
+        .architecture-page {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+
+        .memory-selector {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            min-height: 400px;
+            position: relative;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .memory-selector.left {
+            border-top: 4px solid #667eea;
+        }
+
+        .memory-selector.right {
+            border-top: 4px solid #764ba2;
+        }
+
+        .selector-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .selector-label {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .search-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            flex: 1;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px 15px;
+            color: #212529;
+            font-size: 0.9rem;
+        }
+
+        .search-input::placeholder {
+            color: #6c757d;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .similarity-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .similarity-slider {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 6px;
+            background: #dee2e6;
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .similarity-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .similarity-value {
+            color: #667eea;
+            font-weight: 600;
+            min-width: 45px;
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .btn-search, .btn-random {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-search {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-search:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .btn-random {
+            background: white;
+            border: 2px solid #667eea;
+            color: #667eea;
+        }
+
+        .btn-random:hover {
+            background: #f8f9fa;
+            color: #667eea;
+        }
+
+        .memory-card-preview {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 20px;
+            color: #212529;
+            min-height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .memory-card-preview.empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .memory-card-preview .memory-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #667eea;
+        }
+
+        .memory-card-preview .memory-type {
+            display: inline-block;
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            margin-bottom: 10px;
+        }
+
+        .memory-card-preview .memory-content {
+            color: #495057;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .memory-card-preview .memory-tags {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+
+        .memory-card-preview .memory-tags .badge {
+            background: rgba(118, 75, 162, 0.1);
+            color: #764ba2;
+            font-size: 0.7rem;
+        }
+
+        .search-results-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .search-results-dropdown.show {
+            display: block;
+        }
+
+        .search-result-item {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e9ecef;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .search-result-item:hover {
+            background: #f8f9fa;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-title {
+            color: #212529;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .search-result-type {
+            color: #667eea;
+            font-size: 0.75rem;
+        }
+
+        /* Idea Section - Light mode */
+        .idea-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+            border-top: 4px solid #00c6ff;
+        }
+
+        .idea-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .idea-title {
+            color: #212529;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .idea-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-generate-idea, .btn-regenerate {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-generate-idea {
+            background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+            border: none;
+            color: white;
+        }
+
+        .btn-generate-idea:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 114, 255, 0.4);
+            color: white;
+        }
+
+        .btn-generate-idea:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .btn-regenerate {
+            background: white;
+            border: 2px solid #0072ff;
+            color: #0072ff;
+        }
+
+        .btn-regenerate:hover {
+            background: #f8f9fa;
+            color: #0072ff;
+        }
+
+        .idea-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 120px;
+            border: 1px solid #e9ecef;
+        }
+
+        .idea-content .markdown-content {
+            color: #212529;
+        }
+
+        .idea-content .markdown-content h3 {
+            color: #0072ff;
+            font-size: 1.1rem;
+            margin-top: 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .idea-placeholder {
+            color: #6c757d;
+            text-align: center;
+            padding: 30px;
+        }
+
+        /* Architecture Section - Light mode */
+        .architecture-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+            border-top: 4px solid #f093fb;
+        }
+
+        .architecture-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .architecture-title {
+            color: #212529;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .architecture-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .language-select {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 8px 15px;
+            color: #212529;
+            font-size: 0.9rem;
+        }
+
+        .language-select:focus {
+            outline: none;
+            border-color: #f093fb;
+        }
+
+        .btn-generate-arch {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn-generate-arch:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(240, 147, 251, 0.4);
+            color: white;
+        }
+
+        .btn-generate-arch:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .architecture-viewer {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 25px;
+            min-height: 400px;
+            color: #212529;
+            border: 1px solid #e9ecef;
+        }
+
+        .architecture-viewer .markdown-content {
+            color: #212529;
+        }
+
+        .architecture-viewer .markdown-content h1,
+        .architecture-viewer .markdown-content h2,
+        .architecture-viewer .markdown-content h3 {
+            color: #764ba2;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        /* Code block styles - dark theme */
+        .markdown-content pre {
+            position: relative;
+            background: #1e1e1e !important;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin: 16px 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .markdown-content pre code {
+            display: block;
+            padding: 16px;
+            padding-top: 40px;
+            overflow-x: auto;
+            background: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+
+        .code-block-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+            font-size: 0.75rem;
+        }
+
+        .code-language {
+            color: #9cdcfe;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .code-copy-btn {
+            background: transparent;
+            border: 1px solid #555;
+            color: #ccc;
+            padding: 3px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: all 0.2s ease;
+        }
+
+        .code-copy-btn:hover {
+            background: #444;
+            border-color: #666;
+            color: white;
+        }
+
+        .code-copy-btn.copied {
+            background: #28a745;
+            border-color: #28a745;
+            color: white;
+        }
+
+        /* Mermaid diagram container */
+        .mermaid-container {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            text-align: center;
+        }
+
+        .mermaid-loading {
+            color: #6c757d;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .mermaid-loading i {
+            animation: spin 1s linear infinite;
+        }
+
+        .architecture-placeholder {
+            color: #6c757d;
+            text-align: center;
+            padding: 60px;
+        }
+
+        /* Share Section */
+        .share-section {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 20px;
+            gap: 10px;
+        }
+
+        .btn-share {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn-share:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        /* Footer - About Section */
+        .feature-footer {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .feature-footer h5 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        .about-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .about-description {
+            color: #495057;
+            font-size: 0.95rem;
+            line-height: 1.8;
+        }
+
+        .about-description .highlight {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .about-description .highlight strong {
+            color: #667eea;
+        }
+
+        .about-description ul {
+            list-style: none;
+            padding: 0;
+            margin: 15px 0 0 0;
+        }
+
+        .about-description ul li {
+            padding: 8px 0;
+            padding-left: 28px;
+            position: relative;
+        }
+
+        .about-description ul li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 12px;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 50%;
+        }
+
+        .about-description ul li::after {
+            content: '✓';
+            position: absolute;
+            left: 4px;
+            top: 10px;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+
+        .about-flow {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #e9ecef;
+        }
+
+        .about-flow h6 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .about-flow .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        @@media (max-width: 992px) {
+            .about-content {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Loading States */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Streaming text cursor */
+        .streaming-cursor::after {
+            content: '|';
+            animation: blink 0.7s infinite;
+            color: #667eea;
+        }
+
+        @@keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        /* Page header */
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            color: #212529;
+        }
+
+        .page-header p {
+            color: #6c757d;
+        }
+
+        /* Mobile responsive */
+        @@media (max-width: 768px) {
+            .memory-selectors-row {
+                flex-direction: column;
+            }
+
+            .architecture-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .architecture-controls {
+                width: 100%;
+                justify-content: space-between;
+            }
+        }
+    </style>
+}
+
+<div class="architecture-page">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="page-header">
+            <h1 class="h2">
+                <i class="fas fa-cubes me-2" style="color: #667eea;"></i>
+                Memory Architecture
+            </h1>
+            <p>Combine two memories to create innovative architecture ideas</p>
+            <a href="/ui/architecture/shares" class="btn btn-outline-primary mt-2" style="border-color: #667eea; color: #667eea;">
+                <i class="fas fa-folder-open me-1"></i> View Shared Architectures
+            </a>
+        </div>
+
+        <!-- Memory Selectors -->
+        <div class="row memory-selectors-row g-4">
+            <!-- Left Memory Selector -->
+            <div class="col-md-6">
+                <div class="memory-selector left">
+                    <div class="selector-header">
+                        <span class="selector-label">
+                            <i class="fas fa-brain me-1"></i> Memory A
+                        </span>
+                    </div>
+
+                    <div class="search-controls position-relative">
+                        <input type="text" class="search-input" id="searchA" placeholder="Search memories..." autocomplete="off">
+                        <div class="search-results-dropdown" id="resultsA"></div>
+                    </div>
+
+                    <div class="similarity-control">
+                        <label class="text-muted small">Similarity:</label>
+                        <input type="range" class="similarity-slider" id="similarityA" min="0.5" max="0.95" step="0.05" value="0.7">
+                        <span class="similarity-value" id="similarityValueA">0.70</span>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-search" onclick="searchMemories('A')">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+                        <button class="btn btn-random" onclick="getRandomMemory('A')">
+                            <i class="fas fa-random me-1"></i> Random
+                        </button>
+                    </div>
+
+                    <div class="memory-card-preview empty" id="previewA">
+                        <i class="fas fa-microchip fa-3x mb-3" style="color: #667eea;"></i>
+                        <p class="text-muted">Select a memory to preview</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Memory Selector -->
+            <div class="col-md-6">
+                <div class="memory-selector right">
+                    <div class="selector-header">
+                        <span class="selector-label">
+                            <i class="fas fa-brain me-1"></i> Memory B
+                        </span>
+                    </div>
+
+                    <div class="search-controls position-relative">
+                        <input type="text" class="search-input" id="searchB" placeholder="Search memories..." autocomplete="off">
+                        <div class="search-results-dropdown" id="resultsB"></div>
+                    </div>
+
+                    <div class="similarity-control">
+                        <label class="text-muted small">Similarity:</label>
+                        <input type="range" class="similarity-slider" id="similarityB" min="0.5" max="0.95" step="0.05" value="0.7">
+                        <span class="similarity-value" id="similarityValueB">0.70</span>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="btn btn-search" onclick="searchMemories('B')">
+                            <i class="fas fa-search me-1"></i> Search
+                        </button>
+                        <button class="btn btn-random" onclick="getRandomMemory('B')">
+                            <i class="fas fa-random me-1"></i> Random
+                        </button>
+                    </div>
+
+                    <div class="memory-card-preview empty" id="previewB">
+                        <i class="fas fa-microchip fa-3x mb-3" style="color: #764ba2;"></i>
+                        <p class="text-muted">Select a memory to preview</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Idea Generation Section -->
+        <div class="idea-section">
+            <div class="idea-header">
+                <h3 class="idea-title">
+                    <i class="fas fa-lightbulb me-2" style="color: #00c6ff;"></i> Creative Idea
+                </h3>
+                <div class="idea-actions">
+                    <button class="btn btn-generate-idea" id="btnGenerateIdea" onclick="generateIdea()" disabled>
+                        <i class="fas fa-magic me-1"></i> Generate Idea
+                    </button>
+                    <button class="btn btn-regenerate" id="btnRegenerateIdea" onclick="regenerateIdea()" style="display: none;">
+                        <i class="fas fa-sync-alt me-1"></i> Regenerate
+                    </button>
+                </div>
+            </div>
+
+            <div class="idea-content" id="ideaContent">
+                <div class="idea-placeholder" id="ideaPlaceholder">
+                    <i class="fas fa-wand-magic-sparkles fa-2x mb-2" style="color: #adb5bd;"></i>
+                    <p>Select two memories and click "Generate Idea" to create a creative combination</p>
+                </div>
+                <div class="markdown-content" id="ideaMarkdown" style="display: none;"></div>
+            </div>
+        </div>
+
+        <!-- Architecture Generation Section -->
+        <div class="architecture-section">
+            <div class="architecture-header">
+                <h3 class="architecture-title">
+                    <i class="fas fa-sitemap me-2" style="color: #f093fb;"></i> Architecture Design
+                </h3>
+                <div class="architecture-controls">
+                    <select class="language-select" id="languageSelect">
+                        <option value="C#">C#</option>
+                        <option value="Python">Python</option>
+                        <option value="Java">Java</option>
+                        <option value="TypeScript">TypeScript</option>
+                        <option value="JavaScript">JavaScript</option>
+                        <option value="Go">Go</option>
+                        <option value="Rust">Rust</option>
+                        <option value="Kotlin">Kotlin</option>
+                    </select>
+                    <button class="btn btn-generate-arch" id="btnGenerateArch" onclick="generateArchitecture()" disabled>
+                        <i class="fas fa-cogs me-1"></i> Generate Architecture
+                    </button>
+                    <button class="btn btn-stop" id="btnStopArch" onclick="stopGeneration()">
+                        <i class="fas fa-stop me-1"></i> Stop
+                    </button>
+                </div>
+            </div>
+
+            <div class="architecture-viewer" id="architectureViewer">
+                <div class="architecture-placeholder" id="archPlaceholder">
+                    <i class="fas fa-drafting-compass fa-3x mb-3" style="color: #adb5bd;"></i>
+                    <p>Generate an idea first, then create the architecture design</p>
+                </div>
+                <div class="markdown-content" id="archContent" style="display: none;"></div>
+            </div>
+
+            <div class="share-section" id="shareSection" style="display: none;">
+                <button class="btn btn-share" onclick="shareArchitecture()">
+                    <i class="fas fa-share-alt me-1"></i> Share Architecture
+                </button>
+            </div>
+        </div>
+
+        <!-- Feature Footer -->
+        <div class="feature-footer">
+            <h5><i class="fas fa-info-circle me-2"></i> Memory Architecture 소개</h5>
+            <div class="about-content">
+                <div class="about-description">
+                    <div class="highlight">
+                        <strong>지식 융합 아키텍처 생성기</strong><br>
+                        서로 다른 두 개의 메모리(지식)를 AI가 창의적으로 조합하여<br>
+                        새로운 아키텍처 아이디어를 만들어냅니다.
+                    </div>
+                    <ul>
+                        <li><strong>메모리 선택</strong> - 검색 또는 랜덤으로 두 개의 지식을 선택</li>
+                        <li><strong>아이디어 생성</strong> - AI가 두 지식을 융합한 창의적 컨셉 도출</li>
+                        <li><strong>아키텍처 설계</strong> - Mermaid 다이어그램 + 샘플 코드 생성</li>
+                        <li><strong>공유하기</strong> - 생성된 아키텍처를 링크로 공유</li>
+                    </ul>
+                </div>
+                <div class="about-flow">
+                    <h6><i class="fas fa-project-diagram me-1"></i> 작동 플로우</h6>
+                    <div class="mermaid" id="aboutMermaid">
+flowchart TB
+    subgraph SELECT["1️⃣ 메모리 선택"]
+        A[("Memory A")]
+        B[("Memory B")]
+    end
+
+    subgraph IDEA["2️⃣ 아이디어 생성"]
+        C["🤖 AI 융합"]
+        D["💡 Creative Idea"]
+    end
+
+    subgraph ARCH["3️⃣ 아키텍처 설계"]
+        E["📊 Mermaid 다이어그램"]
+        F["💻 샘플 코드"]
+    end
+
+    subgraph SHARE["4️⃣ 공유"]
+        G["🔗 Share Link"]
+    end
+
+    A --> C
+    B --> C
+    C --> D
+    D --> E
+    D --> F
+    E --> G
+    F --> G
+
+    style SELECT fill:#667eea,color:#fff
+    style IDEA fill:#00c6ff,color:#fff
+    style ARCH fill:#f093fb,color:#fff
+    style SHARE fill:#764ba2,color:#fff
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareModalLabel">
+                    <i class="fas fa-share-alt me-2"></i> Share Architecture
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Share this architecture design with others:</p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="shareUrlInput" readonly>
+                    <button class="btn btn-outline-primary" type="button" onclick="copyShareUrl()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-success d-none mt-2" id="copySuccess">
+                    <i class="fas fa-check me-1"></i> Copied to clipboard!
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+
+    <script>
+        // State
+        let selectedMemoryA = null;
+        let selectedMemoryB = null;
+        let currentIdea = '';
+        let currentArchitecture = '';
+        let isGenerating = false;
+        let abortController = null;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize mermaid
+            if (typeof mermaid !== 'undefined') {
+                mermaid.initialize({
+                    startOnLoad: false,
+                    theme: 'default',
+                    securityLevel: 'loose'
+                });
+
+                // Render about section mermaid diagram
+                const aboutMermaid = document.getElementById('aboutMermaid');
+                if (aboutMermaid) {
+                    mermaid.run({ nodes: [aboutMermaid] });
+                }
+            }
+
+            // Setup similarity sliders
+            setupSlider('A');
+            setupSlider('B');
+
+            // Setup search input events
+            setupSearchInput('A');
+            setupSearchInput('B');
+        });
+
+        function setupSlider(side) {
+            const slider = document.getElementById(`similarity${side}`);
+            const value = document.getElementById(`similarityValue${side}`);
+            slider.addEventListener('input', function() {
+                value.textContent = parseFloat(this.value).toFixed(2);
+            });
+        }
+
+        function setupSearchInput(side) {
+            const input = document.getElementById(`search${side}`);
+            const results = document.getElementById(`results${side}`);
+
+            input.addEventListener('input', debounce(function() {
+                if (this.value.length >= 2) {
+                    searchMemories(side);
+                } else {
+                    results.classList.remove('show');
+                }
+            }, 300));
+
+            input.addEventListener('focus', function() {
+                if (results.children.length > 0) {
+                    results.classList.add('show');
+                }
+            });
+
+            document.addEventListener('click', function(e) {
+                if (!input.contains(e.target) && !results.contains(e.target)) {
+                    results.classList.remove('show');
+                }
+            });
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func.apply(this, args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        async function searchMemories(side) {
+            const query = document.getElementById(`search${side}`).value.trim();
+            if (!query) return;
+
+            const similarity = document.getElementById(`similarity${side}`).value;
+            const resultsDiv = document.getElementById(`results${side}`);
+
+            try {
+                const response = await fetch(`/api/memory/search?query=${encodeURIComponent(query)}&minSimilarity=${similarity}&limit=10`);
+                const results = await response.json();
+
+                resultsDiv.innerHTML = '';
+                if (results.length === 0) {
+                    resultsDiv.innerHTML = '<div class="search-result-item text-muted">No results found</div>';
+                } else {
+                    results.forEach(memory => {
+                        const item = document.createElement('div');
+                        item.className = 'search-result-item';
+                        item.innerHTML = `
+                            <div class="search-result-title">${escapeHtml(memory.title || 'Untitled')}</div>
+                            <div class="search-result-type">${escapeHtml(memory.type)}</div>
+                        `;
+                        item.onclick = () => selectMemory(side, memory);
+                        resultsDiv.appendChild(item);
+                    });
+                }
+                resultsDiv.classList.add('show');
+            } catch (error) {
+                console.error('Search error:', error);
+            }
+        }
+
+        async function getRandomMemory(side) {
+            try {
+                let excludeId = null;
+                if (side === 'B' && selectedMemoryA) {
+                    excludeId = selectedMemoryA.id;
+                } else if (side === 'A' && selectedMemoryB) {
+                    excludeId = selectedMemoryB.id;
+                }
+
+                const url = excludeId
+                    ? `/api/architecture/random?excludeId=${excludeId}`
+                    : '/api/architecture/random';
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to get random memory');
+
+                const memory = await response.json();
+                selectMemory(side, memory);
+            } catch (error) {
+                console.error('Random memory error:', error);
+                alert('Failed to get random memory. Please try again.');
+            }
+        }
+
+        function selectMemory(side, memory) {
+            if (side === 'A') {
+                selectedMemoryA = memory;
+            } else {
+                selectedMemoryB = memory;
+            }
+
+            // Update preview
+            const preview = document.getElementById(`preview${side}`);
+            preview.classList.remove('empty');
+            preview.innerHTML = `
+                <div class="memory-type">${escapeHtml(memory.type)}</div>
+                <div class="memory-title">${escapeHtml(memory.title || 'Untitled')}</div>
+                <div class="memory-content">${escapeHtml(truncateText(memory.text, 300))}</div>
+                ${memory.tags && memory.tags.length > 0 ? `
+                    <div class="memory-tags">
+                        ${memory.tags.slice(0, 5).map(tag => `<span class="badge">${escapeHtml(tag)}</span>`).join('')}
+                    </div>
+                ` : ''}
+            `;
+
+            // Hide results dropdown
+            document.getElementById(`results${side}`).classList.remove('show');
+
+            // Update button states
+            updateButtonStates();
+        }
+
+        function updateButtonStates() {
+            const canGenerateIdea = selectedMemoryA && selectedMemoryB;
+            document.getElementById('btnGenerateIdea').disabled = !canGenerateIdea;
+
+            const canGenerateArch = canGenerateIdea && currentIdea.trim().length > 0;
+            document.getElementById('btnGenerateArch').disabled = !canGenerateArch;
+        }
+
+        async function generateIdea() {
+            if (!selectedMemoryA || !selectedMemoryB) return;
+
+            const btn = document.getElementById('btnGenerateIdea');
+            const placeholder = document.getElementById('ideaPlaceholder');
+            const markdown = document.getElementById('ideaMarkdown');
+
+            btn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+            btn.disabled = true;
+            placeholder.style.display = 'none';
+            markdown.style.display = 'block';
+            markdown.innerHTML = '';
+            currentIdea = '';
+
+            try {
+                const response = await fetch('/api/architecture/generate-idea', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        memory1Id: selectedMemoryA.id,
+                        memory2Id: selectedMemoryB.id
+                    })
+                });
+
+                await streamResponse(response, (content) => {
+                    currentIdea += content;
+                    renderIdeaMarkdown();
+                });
+
+                // Show regenerate button
+                document.getElementById('btnRegenerateIdea').style.display = 'inline-block';
+                updateButtonStates();
+            } catch (error) {
+                console.error('Idea generation error:', error);
+                markdown.innerHTML = '<p class="text-danger">Error generating idea. Please try again.</p>';
+            } finally {
+                btn.innerHTML = '<i class="fas fa-magic me-1"></i> Generate Idea';
+                btn.disabled = false;
+            }
+        }
+
+        function renderIdeaMarkdown() {
+            const markdown = document.getElementById('ideaMarkdown');
+            if (typeof marked !== 'undefined') {
+                markdown.innerHTML = marked.parse(currentIdea);
+                // Process code blocks
+                processCodeBlocks(markdown);
+                // Highlight code
+                if (typeof hljs !== 'undefined') {
+                    markdown.querySelectorAll('pre code').forEach((block) => {
+                        hljs.highlightElement(block);
+                    });
+                }
+            } else {
+                markdown.innerHTML = escapeHtml(currentIdea).replace(/\n/g, '<br>');
+            }
+        }
+
+        async function regenerateIdea() {
+            if (!selectedMemoryA || !selectedMemoryB) return;
+
+            const btn = document.getElementById('btnRegenerateIdea');
+            const markdown = document.getElementById('ideaMarkdown');
+            const previousIdea = currentIdea;
+
+            btn.innerHTML = '<span class="loading-spinner"></span>';
+            btn.disabled = true;
+            currentIdea = '';
+            markdown.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/architecture/generate-idea', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        memory1Id: selectedMemoryA.id,
+                        memory2Id: selectedMemoryB.id,
+                        previousIdea: previousIdea
+                    })
+                });
+
+                await streamResponse(response, (content) => {
+                    currentIdea += content;
+                    renderIdeaMarkdown();
+                });
+
+                updateButtonStates();
+            } catch (error) {
+                console.error('Idea regeneration error:', error);
+                currentIdea = previousIdea;
+                renderIdeaMarkdown();
+            } finally {
+                btn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Regenerate';
+                btn.disabled = false;
+            }
+        }
+
+        async function generateArchitecture() {
+            if (!selectedMemoryA || !selectedMemoryB || !currentIdea) return;
+
+            const btnGenerate = document.getElementById('btnGenerateArch');
+            const btnStop = document.getElementById('btnStopArch');
+            const placeholder = document.getElementById('archPlaceholder');
+            const content = document.getElementById('archContent');
+            const language = document.getElementById('languageSelect').value;
+
+            btnGenerate.style.display = 'none';
+            btnStop.style.display = 'inline-block';
+            placeholder.style.display = 'none';
+            content.style.display = 'block';
+            content.innerHTML = '';
+            currentArchitecture = '';
+            isGenerating = true;
+
+            abortController = new AbortController();
+
+            try {
+                const response = await fetch('/api/architecture/generate-architecture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        memory1Id: selectedMemoryA.id,
+                        memory2Id: selectedMemoryB.id,
+                        ideaPrompt: currentIdea,
+                        language: language
+                    }),
+                    signal: abortController.signal
+                });
+
+                await streamResponse(response, (chunk) => {
+                    currentArchitecture += chunk;
+                    renderArchitectureContent(false);  // During streaming
+                });
+
+                // Final render with mermaid diagrams
+                renderArchitectureContent(true);
+
+                // Show share button
+                document.getElementById('shareSection').style.display = 'flex';
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    console.log('Generation stopped by user');
+                } else {
+                    console.error('Architecture generation error:', error);
+                    content.innerHTML = '<p class="text-danger">Error generating architecture. Please try again.</p>';
+                }
+            } finally {
+                btnGenerate.style.display = 'inline-block';
+                btnStop.style.display = 'none';
+                isGenerating = false;
+                abortController = null;
+            }
+        }
+
+        function stopGeneration() {
+            if (abortController) {
+                abortController.abort();
+            }
+        }
+
+        async function streamResponse(response, onChunk) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.content) {
+                                onChunk(data.content);
+                            }
+                        } catch (e) {
+                            // Ignore parse errors
+                        }
+                    }
+                }
+            }
+        }
+
+        function renderArchitectureContent(isFinal = false) {
+            const content = document.getElementById('archContent');
+
+            // Render markdown
+            if (typeof marked !== 'undefined') {
+                content.innerHTML = marked.parse(currentArchitecture);
+            } else {
+                content.innerHTML = escapeHtml(currentArchitecture).replace(/\n/g, '<br>');
+            }
+
+            // Process code blocks (add header with language and copy button)
+            processCodeBlocks(content);
+
+            // Highlight code blocks
+            if (typeof hljs !== 'undefined') {
+                content.querySelectorAll('pre code').forEach((block) => {
+                    if (!block.classList.contains('language-mermaid')) {
+                        hljs.highlightElement(block);
+                    }
+                });
+            }
+
+            // Only render mermaid diagrams after streaming is complete
+            if (isFinal) {
+                renderMermaidInContent(content);
+            } else {
+                // Show placeholder for mermaid during streaming
+                content.querySelectorAll('pre > code.language-mermaid').forEach((block) => {
+                    const pre = block.parentElement;
+                    if (!pre.classList.contains('mermaid-pending')) {
+                        pre.classList.add('mermaid-pending');
+                        const header = pre.querySelector('.code-block-header');
+                        if (header) {
+                            header.querySelector('.code-language').textContent = 'MERMAID (렌더링 대기 중...)';
+                        }
+                    }
+                });
+            }
+        }
+
+        function processCodeBlocks(container) {
+            container.querySelectorAll('pre > code').forEach((codeBlock, index) => {
+                const pre = codeBlock.parentElement;
+
+                // Skip if already processed
+                if (pre.querySelector('.code-block-header')) return;
+
+                // Detect language from class
+                let language = 'code';
+                const classList = codeBlock.className.split(' ');
+                for (const cls of classList) {
+                    if (cls.startsWith('language-')) {
+                        language = cls.replace('language-', '');
+                        break;
+                    }
+                }
+
+                // Create header
+                const header = document.createElement('div');
+                header.className = 'code-block-header';
+                header.innerHTML = `
+                    <span class="code-language">${escapeHtml(language)}</span>
+                    <button class="code-copy-btn" onclick="copyCodeBlock(this)" data-index="${index}">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                `;
+
+                pre.insertBefore(header, pre.firstChild);
+            });
+        }
+
+        function copyCodeBlock(button) {
+            const pre = button.closest('pre');
+            const code = pre.querySelector('code');
+            const text = code.textContent;
+
+            navigator.clipboard.writeText(text).then(() => {
+                button.classList.add('copied');
+                button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+
+                setTimeout(() => {
+                    button.classList.remove('copied');
+                    button.innerHTML = '<i class="fas fa-copy"></i> Copy';
+                }, 2000);
+            }).catch(err => {
+                console.error('Copy failed:', err);
+            });
+        }
+
+        async function renderMermaidInContent(container) {
+            if (typeof mermaid === 'undefined') return;
+
+            const mermaidBlocks = container.querySelectorAll('pre > code.language-mermaid');
+
+            for (let i = 0; i < mermaidBlocks.length; i++) {
+                const codeBlock = mermaidBlocks[i];
+                const pre = codeBlock.parentElement;
+                const mermaidCode = codeBlock.textContent.trim();
+
+                // Create mermaid container
+                const mermaidContainer = document.createElement('div');
+                mermaidContainer.className = 'mermaid-container';
+
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = mermaidCode;
+                mermaidContainer.appendChild(mermaidDiv);
+
+                pre.parentNode.replaceChild(mermaidContainer, pre);
+
+                try {
+                    await mermaid.run({ nodes: [mermaidDiv] });
+                } catch (error) {
+                    console.error('Mermaid render error:', error);
+                    mermaidContainer.innerHTML = `
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            다이어그램 렌더링 실패
+                        </div>
+                        <details class="mt-2">
+                            <summary class="text-muted" style="cursor:pointer;">원본 코드 보기</summary>
+                            <pre style="background:#f8f9fa; padding:10px; margin-top:10px; font-size:0.8rem;"><code>${escapeHtml(mermaidCode)}</code></pre>
+                        </details>
+                    `;
+                }
+            }
+        }
+
+        async function shareArchitecture() {
+            if (!currentArchitecture) return;
+
+            try {
+                const response = await fetch('/api/architecture/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        memory1Id: selectedMemoryA.id,
+                        memory2Id: selectedMemoryB.id,
+                        memory1Title: selectedMemoryA.title,
+                        memory2Title: selectedMemoryB.title,
+                        ideaPrompt: currentIdea,
+                        architecture: currentArchitecture,
+                        language: document.getElementById('languageSelect').value
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to create share link');
+
+                const data = await response.json();
+                const shareUrl = `${window.location.origin}/ui/architecture/share/${data.shortCode}`;
+
+                document.getElementById('shareUrlInput').value = shareUrl;
+                new bootstrap.Modal(document.getElementById('shareModal')).show();
+            } catch (error) {
+                console.error('Share error:', error);
+                alert('Failed to create share link. Please try again.');
+            }
+        }
+
+        function copyShareUrl() {
+            const input = document.getElementById('shareUrlInput');
+            navigator.clipboard.writeText(input.value).then(() => {
+                const success = document.getElementById('copySuccess');
+                success.classList.remove('d-none');
+                setTimeout(() => success.classList.add('d-none'), 3000);
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function truncateText(text, maxLength) {
+            if (!text) return '';
+            if (text.length <= maxLength) return text;
+            return text.substring(0, maxLength) + '...';
+        }
+    </script>
+}

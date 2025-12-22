@@ -131,7 +131,7 @@ public sealed class CustomLlmService : ILlmService
             _logger.LogDebug("Sending completion request to Custom API");
 
             var response = await SendChatRequest(null, prompt, cancellationToken);
-            
+
             _logger.LogDebug("Completion request successful");
 
             return response;
@@ -141,6 +141,93 @@ public sealed class CustomLlmService : ILlmService
             _logger.LogError(ex, "Error during completion: {ErrorMessage}", ex.Message);
             throw;
         }
+    }
+
+    public async IAsyncEnumerable<string> CompleteStreamingAsync(
+        string prompt,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Sending streaming completion request to Custom API");
+
+        var messages = new List<object>
+        {
+            new { role = "user", content = prompt }
+        };
+
+        var request = new
+        {
+            model = _settings.Model ?? DefaultModel,
+            messages = messages,
+            max_tokens = DefaultMaxTokens,
+            temperature = 0.7,
+            stream = true
+        };
+
+        var json = JsonSerializer.Serialize(request, _jsonOptions);
+        var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+        using var httpRequest = new HttpRequestMessage(HttpMethod.Post, "/v1/chat/completions")
+        {
+            Content = content
+        };
+
+        using var response = await _httpClient.SendAsync(
+            httpRequest,
+            HttpCompletionOption.ResponseHeadersRead,
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            _logger.LogError("Custom API streaming request failed: {StatusCode} - {Error}",
+                response.StatusCode, errorContent);
+            throw new HttpRequestException($"Custom API request failed: {response.StatusCode}");
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var reader = new StreamReader(stream);
+
+        while (!reader.EndOfStream && !cancellationToken.IsCancellationRequested)
+        {
+            var line = await reader.ReadLineAsync(cancellationToken);
+            if (string.IsNullOrEmpty(line)) continue;
+            if (!line.StartsWith("data: ")) continue;
+
+            var data = line.Substring(6);
+            if (data == "[DONE]") break;
+
+            string? delta = null;
+            try
+            {
+                var chunk = JsonSerializer.Deserialize<StreamingChunk>(data, _jsonOptions);
+                delta = chunk?.Choices?.FirstOrDefault()?.Delta?.Content;
+            }
+            catch (JsonException)
+            {
+                // Ignore parsing errors for individual chunks
+            }
+
+            if (!string.IsNullOrEmpty(delta))
+            {
+                yield return delta;
+            }
+        }
+    }
+
+    // Streaming response models
+    private class StreamingChunk
+    {
+        public List<StreamingChoice>? Choices { get; set; }
+    }
+
+    private class StreamingChoice
+    {
+        public StreamingDelta? Delta { get; set; }
+    }
+
+    private class StreamingDelta
+    {
+        public string? Content { get; set; }
     }
 
     public async Task<LlmHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default)

@@ -207,6 +207,18 @@ MCP OAuth 2.0 인증 방식 추가 - ChatGPT MCP 연동을 위한 OAuth 2.0 표�
 
 - [Oauth-MCP](34-Oauth-MCP.md)
 
+## Version 1.2.9
+
+AI 기반 아이디어 생성 - 기존 지침들을 기반으로 새로운 아이디어 구현을 위한 지침 자동 생성
+
+- [Ai-Driven-Idea](35-Ai-Driven-Idea.md)
+
+## Version 1.3.0
+
+Memory Architecture 기능 구현 - 두 개의 메모리를 조합하여 창의적인 아키텍처 아이디어 생성, 스트리밍 응답, Mermaid 다이어그램 및 코드 샘플 생성, 공유 기능, 라이트 모드 UI, 무한 스크롤 공유 목록
+
+- [Memory-Architecture](36-AskBot2.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

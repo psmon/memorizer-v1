@@ -228,7 +228,7 @@ public sealed class OpenAILlmService : ILlmService
         try
         {
             _logger.LogDebug("Sending completion request to OpenAI model {Model}", _settings.Model);
-            
+
             var messages = new List<ChatMessage>
             {
                 ChatMessage.CreateUserMessage(prompt)
@@ -237,7 +237,7 @@ public sealed class OpenAILlmService : ILlmService
             var chatRequest = new ChatCompletionOptions
             {
                 Temperature = 0.7f,
-                MaxOutputTokenCount = 500
+                MaxOutputTokenCount = 4000
             };
 
             var response = await _chatClient.CompleteChatAsync(messages, chatRequest, cancellationToken);
@@ -248,7 +248,7 @@ public sealed class OpenAILlmService : ILlmService
             }
 
             var responseText = response.Value.Content[0].Text;
-            
+
             if (string.IsNullOrEmpty(responseText))
             {
                 throw new InvalidOperationException("Empty response text from OpenAI service");
@@ -261,6 +261,38 @@ public sealed class OpenAILlmService : ILlmService
         {
             _logger.LogError(ex, "Error generating completion from OpenAI");
             throw;
+        }
+    }
+
+    public async IAsyncEnumerable<string> CompleteStreamingAsync(
+        string prompt,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Sending streaming completion request to OpenAI model {Model}", _settings.Model);
+
+        var messages = new List<ChatMessage>
+        {
+            ChatMessage.CreateUserMessage(prompt)
+        };
+
+        var chatRequest = new ChatCompletionOptions
+        {
+            Temperature = 0.7f,
+            MaxOutputTokenCount = 4000
+        };
+
+        AsyncCollectionResult<StreamingChatCompletionUpdate> streamingUpdates =
+            _chatClient.CompleteChatStreamingAsync(messages, chatRequest, cancellationToken);
+
+        await foreach (var update in streamingUpdates.WithCancellation(cancellationToken))
+        {
+            foreach (var contentPart in update.ContentUpdate)
+            {
+                if (!string.IsNullOrEmpty(contentPart.Text))
+                {
+                    yield return contentPart.Text;
+                }
+            }
         }
     }
 

@@ -38,7 +38,15 @@ public interface ILlmService : IDisposable
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>The LLM's response</returns>
     Task<string> CompleteAsync(string prompt, CancellationToken cancellationToken = default);
-    
+
+    /// <summary>
+    /// Sends a completion request to the LLM with streaming response
+    /// </summary>
+    /// <param name="prompt">The prompt to send to the LLM</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Async enumerable of response chunks</returns>
+    IAsyncEnumerable<string> CompleteStreamingAsync(string prompt, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Extracts keywords from content for creating NodeWord relationships
     /// </summary>

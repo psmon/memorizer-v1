@@ -75,13 +75,31 @@
                                 <i class="fas fa-robot me-2"></i>
                                 ASK Bot
                             </a>
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link py-1 @(currentController == "ShareListView" ? "active" : "")"
+                                       href="/ui/sharelist" style="font-size: 0.9rem;">
+                                        <i class="fas fa-brain me-2"></i>
+                                        Knowledges
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link @(currentController == "ShareListView" ? "active" : "")"
-                               href="/ui/sharelist">
-                                <i class="fas fa-brain me-2"></i>
-                                AI-Knowledges
+                            <a class="nav-link @(currentController == "ArchitectureView" ? "active" : "")"
+                               href="/ui/architecture">
+                                <i class="fas fa-cubes me-2"></i>
+                                Memory Architecture
                             </a>
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link py-1"
+                                       href="/ui/architecture/shares" style="font-size: 0.9rem;">
+                                        <i class="fas fa-folder-open me-2"></i>
+                                        Architectures
+                                    </a>
+                                </li>
+                            </ul>
                         </li>
                         @if (isAuthenticated)
                         {

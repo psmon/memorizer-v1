@@ -209,6 +209,18 @@ MCP OAuth 2.0 authentication method addition - OAuth 2.0 standard authentication
 
 - [Oauth-MCP](34-Oauth-MCP.md)
 
+## Version 1.2.9
+
+AI-driven idea generation - Auto-generate instructions for new idea implementations based on existing instructions
+
+- [Ai-Driven-Idea](35-Ai-Driven-Idea.md)
+
+## Version 1.3.0
+
+Memory Architecture feature implementation - Combine two memories to generate creative architecture ideas, streaming response, Mermaid diagrams and code samples generation, share functionality, light mode UI, infinite scroll share list
+
+- [Memory-Architecture](36-AskBot2.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
