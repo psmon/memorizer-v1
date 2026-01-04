@@ -54,15 +54,18 @@ public class PrdMakerViewController : Controller
 public class PrdMakerController : ControllerBase
 {
     private readonly ILlmExService _llmExService;
+    private readonly ILlmService _llmService;
     private readonly ILogger<PrdMakerController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
 
     public PrdMakerController(
         ILlmExService llmExService,
+        ILlmService llmService,
         ILogger<PrdMakerController> logger,
         Npgsql.NpgsqlDataSource dataSource)
     {
         _llmExService = llmExService;
+        _llmService = llmService;
         _logger = logger;
         _dataSource = dataSource;
     }
@@ -244,6 +247,58 @@ public class PrdMakerController : ControllerBase
     }
 
     /// <summary>
+    /// Generate a title for PRD analysis using LLM
+    /// </summary>
+    [HttpPost("generate-title")]
+    public async Task<ActionResult> GenerateTitle([FromBody] GenerateTitleRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.PrdContent))
+            {
+                return BadRequest(new { error = "PRD content is required" });
+            }
+
+            var prompt = $@"다음 PRD(Product Requirements Document) 내용을 읽고, 이 문서를 대표할 수 있는 간결한 제목을 만들어주세요.
+
+## PRD 내용 (앞부분)
+{request.PrdContent.Substring(0, Math.Min(request.PrdContent.Length, 500))}
+
+## 규칙
+- 제목은 반드시 30자 이내로 작성
+- 핵심 기능이나 프로젝트명을 포함
+- 한국어로 작성
+- 제목만 출력 (설명, 따옴표, 접두사 없이)
+
+제목:";
+
+            var title = await _llmService.CompleteAsync(prompt);
+
+            // Clean up the title
+            title = title.Trim()
+                .Replace("\"", "")
+                .Replace("제목:", "")
+                .Replace("Title:", "")
+                .Trim();
+
+            // Ensure max 30 characters
+            if (title.Length > 30)
+            {
+                title = title.Substring(0, 27) + "...";
+            }
+
+            _logger.LogInformation("Generated PRD title: {Title}", title);
+
+            return Ok(new { title });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating PRD title");
+            return StatusCode(500, new { error = "Failed to generate title" });
+        }
+    }
+
+    /// <summary>
     /// Share PRD analysis result
     /// </summary>
     [HttpPost("share")]
@@ -258,10 +313,10 @@ public class PrdMakerController : ControllerBase
             var insertQuery = @"
                 INSERT INTO prd_share_links
                     (short_code, title, prd_content, event_storming_result,
-                     discussion_result, example_mapping_result, created_at)
+                     discussion_result, example_mapping_result, refined_prd_result, created_at)
                 VALUES
                     (@shortCode, @title, @prdContent, @eventStormingResult,
-                     @discussionResult, @exampleMappingResult, @createdAt)";
+                     @discussionResult, @exampleMappingResult, @refinedPrdResult, @createdAt)";
 
             await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
             cmd.Parameters.AddWithValue("shortCode", shortCode);
@@ -270,6 +325,7 @@ public class PrdMakerController : ControllerBase
             cmd.Parameters.AddWithValue("eventStormingResult", request.EventStormingResult);
             cmd.Parameters.AddWithValue("discussionResult", request.DiscussionResult ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("exampleMappingResult", request.ExampleMappingResult ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("refinedPrdResult", request.RefinedPrdResult ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
 
             await cmd.ExecuteNonQueryAsync();
@@ -297,7 +353,7 @@ public class PrdMakerController : ControllerBase
 
             var query = @"
                 SELECT title, prd_content, event_storming_result,
-                       discussion_result, example_mapping_result, created_at
+                       discussion_result, example_mapping_result, refined_prd_result, created_at
                 FROM prd_share_links
                 WHERE short_code = @shortCode
                 LIMIT 1";
@@ -315,9 +371,10 @@ public class PrdMakerController : ControllerBase
                     prdContent = reader.GetString(1),
                     eventStormingResult = reader.GetString(2),
                     discussionResult = reader.IsDBNull(3) ? null : reader.GetString(3),
-                    exampleMappingResult = reader.IsDBNull(4) ? null : reader.GetString(4)
+                    exampleMappingResult = reader.IsDBNull(4) ? null : reader.GetString(4),
+                    refinedPrdResult = reader.IsDBNull(5) ? null : reader.GetString(5)
                 };
-                var createdAt = reader.GetDateTime(5);
+                var createdAt = reader.GetDateTime(6);
 
                 return Ok(new { content, createdAt, shortCode });
             }
@@ -480,6 +537,14 @@ public class RefinedPrdRequest
 }
 
 /// <summary>
+/// Request for generating PRD title
+/// </summary>
+public class GenerateTitleRequest
+{
+    public string PrdContent { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Request for sharing PRD analysis
 /// </summary>
 public class SharePrdRequest
@@ -489,4 +554,5 @@ public class SharePrdRequest
     public string EventStormingResult { get; set; } = string.Empty;
     public string? DiscussionResult { get; set; }
     public string? ExampleMappingResult { get; set; }
+    public string? RefinedPrdResult { get; set; }
 }

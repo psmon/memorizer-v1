@@ -181,21 +181,57 @@
             padding-bottom: 10px;
         }
 
+        /* Table responsive wrapper */
+        .table-responsive-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 15px 0;
+        }
+
         .markdown-content table {
             width: 100%;
+            min-width: 500px;
             border-collapse: collapse;
-            margin: 15px 0;
+            table-layout: auto;
         }
 
         .markdown-content th, .markdown-content td {
             border: 1px solid #dee2e6;
-            padding: 10px;
+            padding: 12px 15px;
             text-align: left;
+            min-width: 120px;
+            word-wrap: break-word;
+            line-height: 1.5;
         }
 
         .markdown-content th {
             background: #f8f9fa;
             font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .markdown-content td {
+            vertical-align: top;
+        }
+
+        .markdown-content td:first-child {
+            min-width: 80px;
+        }
+
+        .markdown-content td:not(:first-child) {
+            min-width: 180px;
+        }
+
+        @@media (max-width: 768px) {
+            .markdown-content table {
+                min-width: 600px;
+                font-size: 0.9rem;
+            }
+
+            .markdown-content th, .markdown-content td {
+                padding: 10px 12px;
+            }
         }
 
         /* Progress indicator */
@@ -528,6 +564,9 @@
             <div class="action-buttons" id="exampleMappingActions" style="display: none;">
                 <button class="btn btn-next-step" id="btnStep4" onclick="startRefinedPrd()">
                     <i class="fas fa-magic me-1"></i> 보완된 PRD 생성
+                </button>
+                <button class="btn btn-share" onclick="sharePrd()">
+                    <i class="fas fa-share-alt me-1"></i> 여기까지 공유하기
                 </button>
             </div>
         </div>
@@ -993,6 +1032,7 @@ graph LR
                 markdown.innerHTML = escapeHtml(content).replace(/\n/g, '<br>');
             }
             processCodeBlocks(markdown);
+            wrapTablesForResponsive(markdown);
             if (typeof hljs !== 'undefined') {
                 markdown.querySelectorAll('pre code').forEach((block) => {
                     if (!block.classList.contains('language-mermaid')) {
@@ -1000,6 +1040,17 @@ graph LR
                     }
                 });
             }
+        }
+
+        function wrapTablesForResponsive(container) {
+            container.querySelectorAll('table').forEach((table) => {
+                if (table.parentElement.classList.contains('table-responsive-wrapper')) return;
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'table-responsive-wrapper';
+                table.parentNode.insertBefore(wrapper, table);
+                wrapper.appendChild(table);
+            });
         }
 
         async function renderMermaidInElement(container) {
@@ -1069,9 +1120,37 @@ graph LR
         }
 
         async function sharePrd() {
-            const title = document.getElementById('shareTitle')?.value || 'PRD 분석';
-
             try {
+                // Show loading indicator
+                const shareButtons = document.querySelectorAll('.btn-share');
+                shareButtons.forEach(btn => {
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="loading-spinner"></span> 제목 생성 중...';
+                });
+
+                // Generate title using LLM
+                let title = 'PRD 분석';
+                try {
+                    const titleResponse = await fetch('/api/prd/generate-title', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prdContent })
+                    });
+
+                    if (titleResponse.ok) {
+                        const titleData = await titleResponse.json();
+                        title = titleData.title || 'PRD 분석';
+                    }
+                } catch (titleError) {
+                    console.warn('Title generation failed, using default:', titleError);
+                }
+
+                // Update button text
+                shareButtons.forEach(btn => {
+                    btn.innerHTML = '<span class="loading-spinner"></span> 공유 링크 생성 중...';
+                });
+
+                // Create share link
                 const response = await fetch('/api/prd/share', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -1080,7 +1159,8 @@ graph LR
                         prdContent,
                         eventStormingResult,
                         discussionResult,
-                        exampleMappingResult
+                        exampleMappingResult,
+                        refinedPrdResult
                     })
                 });
 
@@ -1089,11 +1169,23 @@ graph LR
                 const data = await response.json();
                 const shareUrl = `${window.location.origin}/ui/prd/share/${data.shortCode}`;
 
+                document.getElementById('shareTitle').value = title;
                 document.getElementById('shareUrlInput').value = shareUrl;
                 new bootstrap.Modal(document.getElementById('shareModal')).show();
             } catch (error) {
                 console.error('Share error:', error);
                 alert('공유 링크 생성에 실패했습니다.');
+            } finally {
+                // Restore buttons
+                const shareButtons = document.querySelectorAll('.btn-share');
+                shareButtons.forEach(btn => {
+                    btn.disabled = false;
+                    if (btn.closest('#exampleMappingActions')) {
+                        btn.innerHTML = '<i class="fas fa-share-alt me-1"></i> 여기까지 공유하기';
+                    } else {
+                        btn.innerHTML = '<i class="fas fa-share-alt me-1"></i> 결과 공유하기';
+                    }
+                });
             }
         }
 
