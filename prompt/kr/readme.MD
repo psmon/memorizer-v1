@@ -219,6 +219,12 @@ Memory Architecture 기능 구현 - 두 개의 메모리를 조합하여 창의�
 
 - [Memory-Architecture](36-AskBot2.md)
 
+## Version 1.3.1
+
+PRD Maker 기능 구현 - LLM-EX(120B 모델) 기반 심층 분석, 이벤트 스토밍으로 PRD 해석, 가상 협업자(PM/Dev/QA/UX) 예제 맵핑 토론, 5단계 반복 정제 프로세스(PRD 입력 → 이벤트 스토밍 → 토론 → 예제 맵핑 → 보완된 PRD), SSE 스트리밍, Mermaid 다이어그램, 숏링크 공유
+
+- [PRD-Maker](37-PRD-Maker.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

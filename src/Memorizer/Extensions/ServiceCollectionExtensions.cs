@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
 
         services.AddEmbeddings();
         services.AddLlmServices();
+        services.AddLlmExServices();
         services.AddMultiModalServices();
         services.AddAskBotSettings();
         services.AddActorSystem();
@@ -139,6 +140,43 @@ public static class ServiceCollectionExtensions
                 return new OllamaLlmService(httpClient, settings, logger.CreateLogger<OllamaLlmService>());
             }
             
+        });
+
+        return services;
+    }
+
+    public static IServiceCollection AddLlmExServices(
+        this IServiceCollection services)
+    {
+        services
+            .AddSingleton<LlmExSettings>(sp =>
+            {
+                var config = sp.GetRequiredService<IConfiguration>();
+                var llmExSettings = config.GetSection("LLM-EX").Get<LlmExSettings>();
+
+                // If no settings, create default settings
+                if (llmExSettings == null)
+                {
+                    llmExSettings = new LlmExSettings
+                    {
+                        ApiUrl = new Uri("http://localhost:1234"),
+                        Model = "openai/gpt-oss-120b"
+                    };
+                }
+
+                return llmExSettings;
+            });
+
+        // LLM-EX uses Custom API (internal network)
+        services.AddSingleton<ILlmExService>(sp =>
+        {
+            var settings = sp.GetRequiredService<LlmExSettings>();
+            var logger = sp.GetRequiredService<ILoggerFactory>();
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient();
+            httpClient.BaseAddress = settings.ApiUrl;
+            httpClient.Timeout = settings.Timeout;
+            return new CustomLlmExService(httpClient, settings, logger.CreateLogger<CustomLlmExService>());
         });
 
         return services;

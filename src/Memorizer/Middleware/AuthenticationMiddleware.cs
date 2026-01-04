@@ -98,10 +98,11 @@ public class AuthenticationMiddleware
             return;
         }
 
-        // Skip authentication requirement for /api/askbot, /ui/askbot, /api/llm, and /api/architecture paths
+        // Skip authentication requirement for /api/askbot, /ui/askbot, /api/llm, /api/architecture, and /api/prd paths
         // But still set authentication status based on session
         if (path.StartsWith("/api/askbot") || path.StartsWith("/ui/askbot") ||
-            path.StartsWith("/api/llm") || path.StartsWith("/api/architecture") || path.StartsWith("/ui/architecture"))
+            path.StartsWith("/api/llm") || path.StartsWith("/api/architecture") || path.StartsWith("/ui/architecture") ||
+            path.StartsWith("/api/prd") || path.StartsWith("/ui/prd"))
         {
             _logger.LogDebug("Public API path (authentication optional): {Path}", path);
 
@@ -169,6 +170,8 @@ public class AuthenticationMiddleware
             "/api/llm",     // LLM API endpoints are public
             "/api/architecture",  // Architecture API endpoints are public
             "/ui/architecture",   // Architecture UI is public
+            "/api/prd",     // PRD Maker API endpoints are public
+            "/ui/prd",      // PRD Maker UI is public
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -206,6 +209,18 @@ public class AuthenticationMiddleware
 
                 // For /ui/architecture/, all methods are public
                 if (path.StartsWith("/ui/architecture"))
+                {
+                    return false;
+                }
+
+                // For /api/prd/, all methods are public
+                if (path.StartsWith("/api/prd"))
+                {
+                    return false;
+                }
+
+                // For /ui/prd/, all methods are public
+                if (path.StartsWith("/ui/prd"))
                 {
                     return false;
                 }

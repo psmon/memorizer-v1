@@ -221,6 +221,12 @@ Memory Architecture feature implementation - Combine two memories to generate cr
 
 - [Memory-Architecture](36-AskBot2.md)
 
+## Version 1.3.1
+
+PRD Maker feature implementation - Deep analysis based on LLM-EX (120B model), PRD interpretation through Event Storming, Example Mapping discussion with virtual collaborators (PM/Dev/QA/UX), 5-step iterative refinement process (PRD Input → Event Storming → Discussion → Example Mapping → Refined PRD), SSE streaming, Mermaid diagrams, short link sharing
+
+- [PRD-Maker](37-PRD-Maker.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

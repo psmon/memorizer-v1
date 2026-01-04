@@ -118,6 +118,11 @@ services:
       MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
       MEMORIZER_LLM__Model: qwen2:0.5b
       MEMORIZER_LLM__Timeout: 00:02:00
+      # LLM-EX Settings (for deep analysis features like PRD Maker)
+      MEMORIZER_LLM-EX__Type: Custom
+      MEMORIZER_LLM-EX__ApiUrl: http://192.168.0.64:1234
+      MEMORIZER_LLM-EX__Model: openai/gpt-oss-120b
+      MEMORIZER_LLM-EX__Timeout: 00:05:00
       Neo4j__Uri: bolt://neo4j:7687
       Neo4j__User: neo4j
       Neo4j__Password: password

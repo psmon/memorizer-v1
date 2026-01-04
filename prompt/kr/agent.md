@@ -23,8 +23,13 @@
     - ui/architecture - 메모리 아키텍처 생성 페이지
     - ui/architecture/share/{숏링크} - 공유된 아키텍처 보기 페이지
     - ui/architecture/shares - 공유된 아키텍처 목록 페이지
+    - ui/prd - PRD Maker 페이지 (이벤트 스토밍 + 예제 맵핑)
+    - ui/prd/share/{숏링크} - 공유된 PRD 분석 보기 페이지
+    - ui/prd/shares - 공유된 PRD 분석 목록 페이지
+- src/Memorizer/Services/ILlmExService.cs - 심층분석용 LLM-EX 서비스 (120B 모델)
+- src/Memorizer/Services/PrdMakerPrompts.cs - PRD Maker 프롬프트 (이벤트스토밍, 예제맵핑)
 - src/Memorizer.IntegrationTests/Actors : 기존 유닛테스트가 있습니다. 유닛테스트 방법을 참고
 
 
-마지막 자동수정일시분 : 2025-12-23 00:00:00
-마지막 버전 반영 : 1.3.0
+마지막 자동수정일시분 : 2026-01-04 00:00:00
+마지막 버전 반영 : 37

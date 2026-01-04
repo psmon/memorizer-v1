@@ -1,0 +1,1116 @@
+@{
+    ViewData["Title"] = "PRD Maker";
+    Layout = "_Layout";
+    ViewBag.Controller = "PrdMakerView";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/markdown-styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+    <style>
+        .prd-page {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            color: #212529;
+        }
+
+        /* Feature intro section */
+        .feature-intro {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .feature-intro h5 {
+            color: white;
+            margin-bottom: 15px;
+        }
+
+        .feature-intro ul {
+            margin-bottom: 0;
+            padding-left: 20px;
+        }
+
+        .feature-intro li {
+            margin-bottom: 8px;
+        }
+
+        .feature-intro .highlight {
+            background: rgba(255,255,255,0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+
+        /* PRD Input Section */
+        .prd-input-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+            border-top: 4px solid #667eea;
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .prd-textarea {
+            width: 100%;
+            min-height: 250px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 12px;
+            padding: 15px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            resize: vertical;
+            color: #212529;
+        }
+
+        .prd-textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .btn-analyze, .btn-next-step {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-analyze:hover:not(:disabled), .btn-next-step:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .btn-analyze:disabled, .btn-next-step:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        /* Result Sections */
+        .result-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .result-section.event-storming { border-top: 4px solid #00c6ff; }
+        .result-section.discussion { border-top: 4px solid #f093fb; }
+        .result-section.example-mapping { border-top: 4px solid #11998e; }
+        .result-section.refined-prd { border-top: 4px solid #ff6b6b; }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .section-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-badge.pending { background: #e9ecef; color: #6c757d; }
+        .status-badge.in-progress { background: #fff3cd; color: #856404; }
+        .status-badge.completed { background: #d4edda; color: #155724; }
+
+        .result-content {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            min-height: 100px;
+            border: 1px solid #e9ecef;
+        }
+
+        .result-placeholder {
+            color: #6c757d;
+            text-align: center;
+            padding: 30px;
+        }
+
+        .markdown-content { color: #212529; }
+        .markdown-content h3 {
+            color: #667eea;
+            border-bottom: 1px solid #e9ecef;
+            padding-bottom: 10px;
+        }
+
+        .markdown-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .markdown-content th, .markdown-content td {
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            text-align: left;
+        }
+
+        .markdown-content th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        /* Progress indicator */
+        .progress-container {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .step-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            border: 2px solid #dee2e6;
+            background: white;
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+
+        .step-circle.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+        }
+
+        .step-circle.completed {
+            border-color: #28a745;
+            background: #28a745;
+            color: white;
+        }
+
+        .step-label {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-align: center;
+            max-width: 80px;
+        }
+
+        .step-connector {
+            width: 30px;
+            height: 2px;
+            background: #dee2e6;
+            margin-top: 20px;
+        }
+
+        /* Code block styles */
+        .markdown-content pre {
+            position: relative;
+            background: #1e1e1e !important;
+            border: 1px solid #333;
+            border-radius: 8px;
+            margin: 16px 0;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .markdown-content pre code {
+            display: block;
+            padding: 16px;
+            padding-top: 40px;
+            overflow-x: auto;
+            background: #1e1e1e !important;
+            color: #d4d4d4 !important;
+        }
+
+        .code-block-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            background: #2d2d2d;
+            border-bottom: 1px solid #444;
+            font-size: 0.75rem;
+        }
+
+        .code-language {
+            color: #9cdcfe;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        /* Mermaid container */
+        .mermaid-container {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 16px 0;
+            text-align: center;
+            overflow-x: auto;
+        }
+
+        /* Share section */
+        .share-section {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .btn-share {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        .btn-share:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-stop {
+            background: #dc3545;
+            border: none;
+            color: white;
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+        }
+
+        /* Process diagram section */
+        .process-diagram-section {
+            background: white;
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+        }
+
+        .process-diagram-section h5 {
+            color: #667eea;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+}
+
+<div class="prd-page">
+    <div class="container-fluid py-4">
+        <!-- Header -->
+        <div class="page-header">
+            <h1 class="h2">
+                <i class="fas fa-file-alt me-2" style="color: #667eea;"></i>
+                PRD Maker
+            </h1>
+            <p>PRD를 이벤트 스토밍과 예제 맵핑으로 분석하고 요구사항을 보완합니다</p>
+            <a href="/ui/prd/shares" class="btn btn-outline-primary mt-2" style="border-color: #667eea; color: #667eea;">
+                <i class="fas fa-folder-open me-1"></i> 공유된 분석 결과 보기
+            </a>
+        </div>
+
+        <!-- Feature Introduction -->
+        <div class="feature-intro">
+            <h5><i class="fas fa-lightbulb me-2"></i> PRD Maker 안내</h5>
+            <ul>
+                <li><strong>요구사항이 빈약해도 괜찮습니다!</strong> - 초기 아이디어 수준의 PRD로 시작해도 됩니다.</li>
+                <li>AI가 <span class="highlight">이벤트 스토밍</span>과 <span class="highlight">예제 맵핑</span>을 통해 요구사항의 빈틈을 찾아냅니다.</li>
+                <li>마지막 단계에서 <strong>보완된 PRD</strong>를 생성하여 더 완성도 높은 요구사항을 얻을 수 있습니다.</li>
+                <li>생성된 PRD로 다시 분석을 시작하면 <strong>반복적으로 요구사항을 정제</strong>할 수 있습니다.</li>
+            </ul>
+        </div>
+
+        <!-- Progress Steps -->
+        <div class="progress-container">
+            <div class="progress-step">
+                <div class="step-circle active" id="step1Circle">1</div>
+                <span class="step-label">PRD 입력</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="progress-step">
+                <div class="step-circle" id="step2Circle">2</div>
+                <span class="step-label">이벤트 스토밍</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="progress-step">
+                <div class="step-circle" id="step3Circle">3</div>
+                <span class="step-label">예제 맵핑 토론</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="progress-step">
+                <div class="step-circle" id="step4Circle">4</div>
+                <span class="step-label">예제 맵핑 완성</span>
+            </div>
+            <div class="step-connector"></div>
+            <div class="progress-step">
+                <div class="step-circle" id="step5Circle">5</div>
+                <span class="step-label">PRD 보완</span>
+            </div>
+        </div>
+
+        <!-- PRD Input Section -->
+        <div class="prd-input-section">
+            <div class="section-title">
+                <i class="fas fa-edit" style="color: #667eea;"></i>
+                1단계: PRD 입력
+            </div>
+            <textarea id="prdInput" class="prd-textarea" placeholder="여기에 PRD(Product Requirements Document) 내용을 입력하세요...
+
+완벽하지 않아도 괜찮습니다! 간단한 아이디어로 시작해보세요.
+
+예시:
+## 프로젝트 개요
+커뮤니티 사이트를 만들고 싶습니다.
+
+## 주요 기능
+- 회원가입/로그인
+- 게시글 작성
+- 댓글 기능"></textarea>
+            <div class="action-buttons">
+                <button class="btn btn-analyze" id="btnStep1" onclick="startEventStorming()">
+                    <i class="fas fa-play me-1"></i> 이벤트 스토밍 시작
+                </button>
+            </div>
+        </div>
+
+        <!-- Event Storming Section -->
+        <div class="result-section event-storming" id="eventStormingSection">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="fas fa-bolt" style="color: #00c6ff;"></i>
+                    2단계: 이벤트 스토밍
+                </div>
+                <div class="section-status">
+                    <span class="status-badge pending" id="eventStormingStatus">대기 중</span>
+                    <button class="btn btn-stop" id="btnStopEventStorming" onclick="stopGeneration('eventStorming')" style="display: none;">
+                        <i class="fas fa-stop me-1"></i> 중지
+                    </button>
+                </div>
+            </div>
+            <div class="result-content" id="eventStormingContent">
+                <div class="result-placeholder" id="eventStormingPlaceholder">
+                    <i class="fas fa-bolt fa-2x mb-2" style="color: #adb5bd;"></i>
+                    <p>PRD를 입력하고 분석을 시작하면 이벤트 스토밍 결과가 표시됩니다</p>
+                </div>
+                <div class="markdown-content" id="eventStormingMarkdown" style="display: none;"></div>
+            </div>
+            <div class="action-buttons" id="eventStormingActions" style="display: none;">
+                <button class="btn btn-next-step" id="btnStep2" onclick="startDiscussion()">
+                    <i class="fas fa-comments me-1"></i> 예제 맵핑 토론 시작
+                </button>
+            </div>
+        </div>
+
+        <!-- Discussion Section -->
+        <div class="result-section discussion" id="discussionSection">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="fas fa-users" style="color: #f093fb;"></i>
+                    3단계: 예제 맵핑 토론
+                </div>
+                <div class="section-status">
+                    <span class="status-badge pending" id="discussionStatus">대기 중</span>
+                    <button class="btn btn-stop" id="btnStopDiscussion" onclick="stopGeneration('discussion')" style="display: none;">
+                        <i class="fas fa-stop me-1"></i> 중지
+                    </button>
+                </div>
+            </div>
+            <div class="result-content" id="discussionContent">
+                <div class="result-placeholder" id="discussionPlaceholder">
+                    <i class="fas fa-users fa-2x mb-2" style="color: #adb5bd;"></i>
+                    <p>이벤트 스토밍 완료 후 토론을 시작할 수 있습니다</p>
+                </div>
+                <div class="markdown-content" id="discussionMarkdown" style="display: none;"></div>
+            </div>
+            <div class="action-buttons" id="discussionActions" style="display: none;">
+                <button class="btn btn-next-step" id="btnStep3" onclick="startExampleMapping()">
+                    <i class="fas fa-clipboard-check me-1"></i> 예제 맵핑 완성
+                </button>
+            </div>
+        </div>
+
+        <!-- Example Mapping Result Section -->
+        <div class="result-section example-mapping" id="exampleMappingSection">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="fas fa-map" style="color: #11998e;"></i>
+                    4단계: 예제 맵핑 결과
+                </div>
+                <div class="section-status">
+                    <span class="status-badge pending" id="exampleMappingStatus">대기 중</span>
+                    <button class="btn btn-stop" id="btnStopExampleMapping" onclick="stopGeneration('exampleMapping')" style="display: none;">
+                        <i class="fas fa-stop me-1"></i> 중지
+                    </button>
+                </div>
+            </div>
+            <div class="result-content" id="exampleMappingContent">
+                <div class="result-placeholder" id="exampleMappingPlaceholder">
+                    <i class="fas fa-map fa-2x mb-2" style="color: #adb5bd;"></i>
+                    <p>토론 완료 후 예제 맵핑을 완성할 수 있습니다</p>
+                </div>
+                <div class="markdown-content" id="exampleMappingMarkdown" style="display: none;"></div>
+            </div>
+            <div class="action-buttons" id="exampleMappingActions" style="display: none;">
+                <button class="btn btn-next-step" id="btnStep4" onclick="startRefinedPrd()">
+                    <i class="fas fa-magic me-1"></i> 보완된 PRD 생성
+                </button>
+            </div>
+        </div>
+
+        <!-- Refined PRD Section -->
+        <div class="result-section refined-prd" id="refinedPrdSection">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="fas fa-file-signature" style="color: #ff6b6b;"></i>
+                    5단계: 보완된 PRD
+                </div>
+                <div class="section-status">
+                    <span class="status-badge pending" id="refinedPrdStatus">대기 중</span>
+                    <button class="btn btn-stop" id="btnStopRefinedPrd" onclick="stopGeneration('refinedPrd')" style="display: none;">
+                        <i class="fas fa-stop me-1"></i> 중지
+                    </button>
+                </div>
+            </div>
+            <div class="result-content" id="refinedPrdContent">
+                <div class="result-placeholder" id="refinedPrdPlaceholder">
+                    <i class="fas fa-file-signature fa-2x mb-2" style="color: #adb5bd;"></i>
+                    <p>예제 맵핑 완료 후 보완된 PRD를 생성할 수 있습니다</p>
+                </div>
+                <div class="markdown-content" id="refinedPrdMarkdown" style="display: none;"></div>
+            </div>
+            <div class="share-section" id="shareSection" style="display: none;">
+                <button class="btn btn-outline-primary" onclick="copyRefinedPrdToInput()">
+                    <i class="fas fa-redo me-1"></i> 보완된 PRD로 재분석
+                </button>
+                <button class="btn btn-share" onclick="sharePrd()">
+                    <i class="fas fa-share-alt me-1"></i> 결과 공유하기
+                </button>
+            </div>
+        </div>
+
+        <!-- Process Diagram -->
+        <div class="process-diagram-section">
+            <h5><i class="fas fa-project-diagram me-2"></i> PRD Maker 프로세스</h5>
+            <div class="mermaid-container">
+                <div class="mermaid" id="processDiagram">
+graph LR
+    A[PRD Input] --> B[Event Storming]
+    B --> C[Example Mapping Discussion]
+    C --> D[Example Mapping Result]
+    D --> E[Refined PRD]
+    E -.->|Iterate| A
+
+    style A fill:#667eea,color:#fff
+    style B fill:#00c6ff,color:#fff
+    style C fill:#f093fb,color:#fff
+    style D fill:#11998e,color:#fff
+    style E fill:#ff6b6b,color:#fff
+                </div>
+            </div>
+            <p class="text-center text-muted mt-3">
+                <small>보완된 PRD로 다시 분석을 시작하면 요구사항을 반복적으로 정제할 수 있습니다.</small>
+            </p>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareModalLabel">
+                    <i class="fas fa-share-alt me-2"></i> PRD 분석 결과 공유
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="shareTitle" class="form-label">제목</label>
+                    <input type="text" class="form-control" id="shareTitle" placeholder="PRD 분석 제목">
+                </div>
+                <p class="text-muted">이 링크를 공유하세요:</p>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="shareUrlInput" readonly>
+                    <button class="btn btn-outline-primary" type="button" onclick="copyShareUrl()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-success d-none mt-2" id="copySuccess">
+                    <i class="fas fa-check me-1"></i> 클립보드에 복사되었습니다!
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.6.1/dist/mermaid.min.js"></script>
+
+    <script>
+        // State
+        let prdContent = '';
+        let eventStormingResult = '';
+        let discussionResult = '';
+        let exampleMappingResult = '';
+        let refinedPrdResult = '';
+        let currentStep = 1;
+        let abortControllers = {
+            eventStorming: null,
+            discussion: null,
+            exampleMapping: null,
+            refinedPrd: null
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof mermaid !== 'undefined') {
+                mermaid.initialize({
+                    startOnLoad: true,
+                    theme: 'default',
+                    securityLevel: 'loose'
+                });
+            }
+        });
+
+        function updateStepProgress(step) {
+            currentStep = step;
+            for (let i = 1; i <= 5; i++) {
+                const circle = document.getElementById(`step${i}Circle`);
+                circle.classList.remove('active', 'completed');
+                if (i < step) {
+                    circle.classList.add('completed');
+                    circle.innerHTML = '<i class="fas fa-check"></i>';
+                } else if (i === step) {
+                    circle.classList.add('active');
+                    circle.textContent = i;
+                } else {
+                    circle.textContent = i;
+                }
+            }
+        }
+
+        function updateStatus(section, status) {
+            const statusBadge = document.getElementById(`${section}Status`);
+            statusBadge.className = 'status-badge';
+            statusBadge.style.background = '';
+            statusBadge.style.color = '';
+            switch (status) {
+                case 'pending':
+                    statusBadge.classList.add('pending');
+                    statusBadge.textContent = '대기 중';
+                    break;
+                case 'in-progress':
+                    statusBadge.classList.add('in-progress');
+                    statusBadge.textContent = '진행 중...';
+                    break;
+                case 'completed':
+                    statusBadge.classList.add('completed');
+                    statusBadge.textContent = '완료';
+                    break;
+                case 'error':
+                    statusBadge.style.background = '#f8d7da';
+                    statusBadge.style.color = '#721c24';
+                    statusBadge.textContent = '오류';
+                    break;
+            }
+        }
+
+        function setButtonState(btnId, loading) {
+            const btn = document.getElementById(btnId);
+            if (!btn) return;
+            if (loading) {
+                btn.dataset.originalHtml = btn.innerHTML;
+                btn.innerHTML = '<span class="loading-spinner"></span> 진행 중...';
+                btn.disabled = true;
+            } else {
+                if (btn.dataset.originalHtml) {
+                    btn.innerHTML = btn.dataset.originalHtml;
+                }
+                btn.disabled = false;
+            }
+        }
+
+        async function startEventStorming() {
+            prdContent = document.getElementById('prdInput').value.trim();
+            if (!prdContent) {
+                alert('PRD 내용을 입력해주세요.');
+                return;
+            }
+
+            // Reset all results
+            resetAllResults();
+
+            const stopBtn = document.getElementById('btnStopEventStorming');
+            const placeholder = document.getElementById('eventStormingPlaceholder');
+            const markdown = document.getElementById('eventStormingMarkdown');
+            const actions = document.getElementById('eventStormingActions');
+
+            setButtonState('btnStep1', true);
+            stopBtn.style.display = 'inline-block';
+            placeholder.style.display = 'none';
+            markdown.style.display = 'block';
+            markdown.innerHTML = '';
+            actions.style.display = 'none';
+            eventStormingResult = '';
+
+            updateStepProgress(2);
+            updateStatus('eventStorming', 'in-progress');
+
+            abortControllers.eventStorming = new AbortController();
+
+            try {
+                const response = await fetch('/api/prd/event-storming', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prdContent }),
+                    signal: abortControllers.eventStorming.signal
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                await streamResponse(response, (content) => {
+                    eventStormingResult += content;
+                    renderMarkdown('eventStorming', eventStormingResult);
+                });
+
+                updateStatus('eventStorming', 'completed');
+                actions.style.display = 'flex';
+
+                // Render mermaid diagrams after completion
+                await renderMermaidInElement(markdown);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    updateStatus('eventStorming', 'pending');
+                } else {
+                    console.error('Event Storming error:', error);
+                    markdown.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> 분석 중 오류가 발생했습니다. 다시 시도해주세요.</p>';
+                    updateStatus('eventStorming', 'error');
+                }
+            } finally {
+                setButtonState('btnStep1', false);
+                stopBtn.style.display = 'none';
+            }
+        }
+
+        async function startDiscussion() {
+            if (!eventStormingResult) return;
+
+            const stopBtn = document.getElementById('btnStopDiscussion');
+            const placeholder = document.getElementById('discussionPlaceholder');
+            const markdown = document.getElementById('discussionMarkdown');
+            const actions = document.getElementById('discussionActions');
+
+            setButtonState('btnStep2', true);
+            stopBtn.style.display = 'inline-block';
+            placeholder.style.display = 'none';
+            markdown.style.display = 'block';
+            markdown.innerHTML = '';
+            actions.style.display = 'none';
+            discussionResult = '';
+
+            updateStepProgress(3);
+            updateStatus('discussion', 'in-progress');
+
+            abortControllers.discussion = new AbortController();
+
+            try {
+                const response = await fetch('/api/prd/example-mapping-discussion', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prdContent, eventStormingResult }),
+                    signal: abortControllers.discussion.signal
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                await streamResponse(response, (content) => {
+                    discussionResult += content;
+                    renderMarkdown('discussion', discussionResult);
+                });
+
+                updateStatus('discussion', 'completed');
+                actions.style.display = 'flex';
+
+                await renderMermaidInElement(markdown);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    updateStatus('discussion', 'pending');
+                } else {
+                    console.error('Discussion error:', error);
+                    markdown.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> 토론 생성 중 오류가 발생했습니다.</p>';
+                    updateStatus('discussion', 'error');
+                }
+            } finally {
+                setButtonState('btnStep2', false);
+                stopBtn.style.display = 'none';
+            }
+        }
+
+        async function startExampleMapping() {
+            if (!discussionResult) return;
+
+            const stopBtn = document.getElementById('btnStopExampleMapping');
+            const placeholder = document.getElementById('exampleMappingPlaceholder');
+            const markdown = document.getElementById('exampleMappingMarkdown');
+            const actions = document.getElementById('exampleMappingActions');
+
+            setButtonState('btnStep3', true);
+            stopBtn.style.display = 'inline-block';
+            placeholder.style.display = 'none';
+            markdown.style.display = 'block';
+            markdown.innerHTML = '';
+            actions.style.display = 'none';
+            exampleMappingResult = '';
+
+            updateStepProgress(4);
+            updateStatus('exampleMapping', 'in-progress');
+
+            abortControllers.exampleMapping = new AbortController();
+
+            try {
+                const response = await fetch('/api/prd/example-mapping-result', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prdContent, eventStormingResult, discussionResult }),
+                    signal: abortControllers.exampleMapping.signal
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                await streamResponse(response, (content) => {
+                    exampleMappingResult += content;
+                    renderMarkdown('exampleMapping', exampleMappingResult);
+                });
+
+                updateStatus('exampleMapping', 'completed');
+                actions.style.display = 'flex';
+
+                await renderMermaidInElement(markdown);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    updateStatus('exampleMapping', 'pending');
+                } else {
+                    console.error('Example Mapping error:', error);
+                    markdown.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> 예제 맵핑 생성 중 오류가 발생했습니다.</p>';
+                    updateStatus('exampleMapping', 'error');
+                }
+            } finally {
+                setButtonState('btnStep3', false);
+                stopBtn.style.display = 'none';
+            }
+        }
+
+        async function startRefinedPrd() {
+            if (!exampleMappingResult) return;
+
+            const stopBtn = document.getElementById('btnStopRefinedPrd');
+            const placeholder = document.getElementById('refinedPrdPlaceholder');
+            const markdown = document.getElementById('refinedPrdMarkdown');
+            const shareSection = document.getElementById('shareSection');
+
+            setButtonState('btnStep4', true);
+            stopBtn.style.display = 'inline-block';
+            placeholder.style.display = 'none';
+            markdown.style.display = 'block';
+            markdown.innerHTML = '';
+            shareSection.style.display = 'none';
+            refinedPrdResult = '';
+
+            updateStepProgress(5);
+            updateStatus('refinedPrd', 'in-progress');
+
+            abortControllers.refinedPrd = new AbortController();
+
+            try {
+                const response = await fetch('/api/prd/refined-prd', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prdContent, eventStormingResult, discussionResult, exampleMappingResult }),
+                    signal: abortControllers.refinedPrd.signal
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                await streamResponse(response, (content) => {
+                    refinedPrdResult += content;
+                    renderMarkdown('refinedPrd', refinedPrdResult);
+                });
+
+                updateStatus('refinedPrd', 'completed');
+                shareSection.style.display = 'flex';
+
+                await renderMermaidInElement(markdown);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    updateStatus('refinedPrd', 'pending');
+                } else {
+                    console.error('Refined PRD error:', error);
+                    markdown.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> PRD 생성 중 오류가 발생했습니다.</p>';
+                    updateStatus('refinedPrd', 'error');
+                }
+            } finally {
+                setButtonState('btnStep4', false);
+                stopBtn.style.display = 'none';
+            }
+        }
+
+        function resetAllResults() {
+            eventStormingResult = '';
+            discussionResult = '';
+            exampleMappingResult = '';
+            refinedPrdResult = '';
+
+            ['eventStorming', 'discussion', 'exampleMapping', 'refinedPrd'].forEach(section => {
+                document.getElementById(`${section}Placeholder`).style.display = 'block';
+                document.getElementById(`${section}Markdown`).style.display = 'none';
+                document.getElementById(`${section}Markdown`).innerHTML = '';
+                updateStatus(section, 'pending');
+            });
+
+            document.getElementById('eventStormingActions').style.display = 'none';
+            document.getElementById('discussionActions').style.display = 'none';
+            document.getElementById('exampleMappingActions').style.display = 'none';
+            document.getElementById('shareSection').style.display = 'none';
+
+            updateStepProgress(1);
+        }
+
+        function stopGeneration(type) {
+            if (abortControllers[type]) {
+                abortControllers[type].abort();
+            }
+        }
+
+        async function streamResponse(response, onChunk) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.content) {
+                                onChunk(data.content);
+                            }
+                        } catch (e) {}
+                    }
+                }
+            }
+        }
+
+        function renderMarkdown(section, content) {
+            const markdown = document.getElementById(`${section}Markdown`);
+            if (typeof marked !== 'undefined') {
+                markdown.innerHTML = marked.parse(content);
+            } else {
+                markdown.innerHTML = escapeHtml(content).replace(/\n/g, '<br>');
+            }
+            processCodeBlocks(markdown);
+            if (typeof hljs !== 'undefined') {
+                markdown.querySelectorAll('pre code').forEach((block) => {
+                    if (!block.classList.contains('language-mermaid')) {
+                        hljs.highlightElement(block);
+                    }
+                });
+            }
+        }
+
+        async function renderMermaidInElement(container) {
+            if (typeof mermaid === 'undefined') return;
+
+            const mermaidBlocks = container.querySelectorAll('pre > code.language-mermaid');
+
+            for (const codeBlock of mermaidBlocks) {
+                const pre = codeBlock.parentElement;
+                const mermaidCode = codeBlock.textContent.trim();
+
+                const mermaidContainer = document.createElement('div');
+                mermaidContainer.className = 'mermaid-container';
+
+                const mermaidDiv = document.createElement('div');
+                mermaidDiv.className = 'mermaid';
+                mermaidDiv.textContent = mermaidCode;
+                mermaidContainer.appendChild(mermaidDiv);
+
+                pre.parentNode.replaceChild(mermaidContainer, pre);
+
+                try {
+                    await mermaid.run({ nodes: [mermaidDiv] });
+                } catch (error) {
+                    console.error('Mermaid render error:', error);
+                    mermaidContainer.innerHTML = `<div class="alert alert-warning mb-0"><i class="fas fa-exclamation-triangle me-2"></i>다이어그램 렌더링 실패</div>`;
+                }
+            }
+        }
+
+        function processCodeBlocks(container) {
+            container.querySelectorAll('pre > code').forEach((codeBlock) => {
+                const pre = codeBlock.parentElement;
+                if (pre.querySelector('.code-block-header')) return;
+                if (codeBlock.classList.contains('language-mermaid')) return;
+
+                let language = 'code';
+                for (const cls of codeBlock.className.split(' ')) {
+                    if (cls.startsWith('language-')) {
+                        language = cls.replace('language-', '');
+                        break;
+                    }
+                }
+
+                const header = document.createElement('div');
+                header.className = 'code-block-header';
+                header.innerHTML = `<span class="code-language">${escapeHtml(language)}</span><button class="btn btn-sm btn-outline-light" onclick="copyCodeBlock(this)"><i class="fas fa-copy"></i></button>`;
+                pre.insertBefore(header, pre.firstChild);
+            });
+        }
+
+        function copyCodeBlock(button) {
+            const pre = button.closest('pre');
+            const code = pre.querySelector('code');
+            navigator.clipboard.writeText(code.textContent).then(() => {
+                button.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => { button.innerHTML = '<i class="fas fa-copy"></i>'; }, 2000);
+            });
+        }
+
+        function copyRefinedPrdToInput() {
+            if (refinedPrdResult) {
+                document.getElementById('prdInput').value = refinedPrdResult;
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                resetAllResults();
+            }
+        }
+
+        async function sharePrd() {
+            const title = document.getElementById('shareTitle')?.value || 'PRD 분석';
+
+            try {
+                const response = await fetch('/api/prd/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        prdContent,
+                        eventStormingResult,
+                        discussionResult,
+                        exampleMappingResult
+                    })
+                });
+
+                if (!response.ok) throw new Error('Failed to create share link');
+
+                const data = await response.json();
+                const shareUrl = `${window.location.origin}/ui/prd/share/${data.shortCode}`;
+
+                document.getElementById('shareUrlInput').value = shareUrl;
+                new bootstrap.Modal(document.getElementById('shareModal')).show();
+            } catch (error) {
+                console.error('Share error:', error);
+                alert('공유 링크 생성에 실패했습니다.');
+            }
+        }
+
+        function copyShareUrl() {
+            const input = document.getElementById('shareUrlInput');
+            navigator.clipboard.writeText(input.value).then(() => {
+                const success = document.getElementById('copySuccess');
+                success.classList.remove('d-none');
+                setTimeout(() => success.classList.add('d-none'), 3000);
+            });
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+}

@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.3.0</VersionPrefix>
+    <VersionPrefix>1.3.1</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [Memory Architecture feature implementation - Combine two memories to generate creative architecture ideas, streaming response, Mermaid diagrams and code samples generation, share functionality, light mode UI, infinite scroll share list]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [PRD Maker feature implementation - Deep analysis based on LLM-EX 120B model, Event Storming, Example Mapping with virtual collaborators, 5-step iterative refinement process, SSE streaming, Mermaid diagrams, short link sharing]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>
