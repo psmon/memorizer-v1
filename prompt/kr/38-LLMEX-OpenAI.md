@@ -5,7 +5,7 @@ PostgreSQL를 이용한 검색및 벡터검색이 가능하고 Neo4j를 활용 �
 프로젝트 위치및 설명,로컬 테스트방법 을 참고해 지침을 수행해주세요
 
 # 지침
-- 최근 prompt/kr/38-LLMEX-OpenAI.md 활동이 구현되었으며 , LLMEX를 추가로 사용하게 되었습니다.
+- 최근 prompt/kr/37-PRD-Maker.md 활동이 구현되었으며 , LLMEX를 추가로 사용하게 되었습니다.
 - 기본 LLM의 경우 CUSTOM을 포함 Ollama, OpenAI등 호환을 지원합니다.
   - CUSTOM은 LM Studio가 제공하는 API스펙과 호환을 맞춘버전입니다. 
   - LLMEX 에서 OpenAI 사용시 API Key가 없다는 오류가 뜨는것같은데 기존 구현된 LLM 인터페이스및 구현체를 참고 설정에따라 지원되게 해주세요

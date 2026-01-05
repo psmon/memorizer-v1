@@ -321,4 +321,163 @@ graph TB
 
 **중요: 반드시 한국어로 응답하세요. 원본 PRD의 내용을 유지하면서 분석 결과를 반영하여 보완해주세요.**";
     }
+
+    /// <summary>
+    /// Generate Bounded Context definition based on all analysis results
+    /// </summary>
+    public static string GetBoundedContextPrompt(string prdContent, string eventStormingResult, string exampleMappingResult, string refinedPrdResult)
+    {
+        return $@"당신은 DDD(Domain-Driven Design) 전문가이자 시스템 아키텍트입니다.
+이전 분석 결과들을 종합하여 바운디드 컨텍스트(Bounded Context)를 정의해주세요.
+
+## 원본 PRD
+{prdContent}
+
+## 이벤트 스토밍 결과
+{eventStormingResult}
+
+## 예제 맵핑 결과
+{exampleMappingResult}
+
+## 보완된 PRD
+{refinedPrdResult}
+
+## 바운디드 컨텍스트 정의 과제
+위의 분석 결과들을 종합하여 DDD 원칙에 따른 바운디드 컨텍스트를 정의해주세요.
+
+## 분석 기준 (반드시 모든 기준을 적용하여 분석)
+
+### 1. 서브도메인 분해 (Strategic DDD)
+- **Core Domain**: 경쟁우위/차별화 영역 → 모델을 깊게, 독립적으로 설계
+- **Supporting Domain**: 핵심을 돕는 업무 → 비교적 단순/유연하게 설계
+- **Generic Domain**: 범용 기능(로그인, 알림 등) → 패키지/외부 서비스 고려
+
+### 2. 유비쿼터스 언어(용어) 충돌
+- 같은 단어가 팀/업무에 따라 의미가 다르면 BC 분리 신호
+- 예: ""정산""이 결제팀, 판매팀, 회계팀에서 다른 의미로 사용되는 경우
+
+### 3. 변경 이유 기준
+- 규칙/정책이 바뀌는 축이 다르면 BC 분리 후보
+- 할인 정책이 자주 바뀌는 영역 vs 주문 규칙이 안정적인 영역
+
+### 4. 트랜잭션/일관성 경계
+- 한 번에 같이 저장/롤백되어야 하는 것은 같은 BC
+- 도메인 이벤트 + 최종적 일관성으로 분리 가능한 영역
+
+### 5. 데이터 소유권 (Write Model)
+- ""누가 이 데이터를 쓴다(write)?""를 기준으로 소유 BC 결정
+- 다른 BC는 조회(read model) 또는 이벤트/ACL로 접근
+
+### 6. 조직/팀 경계 (Conway's Law)
+- 팀이 다르면 BC도 분리되는 것이 자연스러울 수 있음
+- 단, 결합도(변경/트랜잭션/용어)가 함께 맞을 때만 분리 확정
+
+## 응답 형식 (Markdown)
+
+# 바운디드 컨텍스트 정의
+
+## 1. 서브도메인 분석
+
+### 1.1 Core Domain
+| 서브도메인 | 설명 | 경쟁우위 요소 |
+|-----------|------|--------------|
+| [서브도메인명] | [설명] | [차별화 포인트] |
+
+### 1.2 Supporting Domain
+| 서브도메인 | 설명 | 지원 대상 |
+|-----------|------|----------|
+| [서브도메인명] | [설명] | [Core 중 지원 대상] |
+
+### 1.3 Generic Domain
+| 서브도메인 | 설명 | 구현 전략 |
+|-----------|------|----------|
+| [서브도메인명] | [설명] | [자체 구현/외부 서비스/패키지] |
+
+## 2. 바운디드 컨텍스트 도출
+
+### BC 1: [컨텍스트명]
+- **서브도메인 유형**: [Core/Supporting/Generic]
+- **핵심 책임**: [이 BC가 담당하는 주요 업무]
+- **주요 애그리거트**: [애그리거트 목록]
+- **데이터 소유권**: [Write하는 주요 엔티티]
+- **유비쿼터스 언어**: [이 컨텍스트 내 핵심 용어와 정의]
+
+### BC 2: [컨텍스트명]
+...
+
+(각 BC에 대해 동일한 형식으로 작성)
+
+## 3. 컨텍스트 맵 (Context Map)
+
+### 3.1 컨텍스트 관계 다이어그램
+```mermaid
+graph TB
+    subgraph Core[Core Domain]
+        BC1[Bounded Context 1]
+        BC2[Bounded Context 2]
+    end
+    subgraph Supporting[Supporting Domain]
+        BC3[Bounded Context 3]
+    end
+    subgraph Generic[Generic Domain]
+        BC4[Bounded Context 4]
+    end
+
+    BC1 -->|Upstream/Downstream| BC2
+    BC1 -->|ACL| BC3
+    BC3 -->|Event| BC4
+```
+
+### 3.2 컨텍스트 관계 상세
+| 상류 BC | 하류 BC | 관계 패턴 | 설명 |
+|---------|---------|----------|------|
+| [상류 BC] | [하류 BC] | [U/D, ACL, OHS, PL, CF 등] | [관계 설명] |
+
+**관계 패턴 설명**:
+- **U/D (Upstream/Downstream)**: 상류가 하류에 영향을 줌
+- **ACL (Anti-Corruption Layer)**: 하류가 상류 모델 변환층 사용
+- **OHS (Open Host Service)**: 상류가 공개 API 제공
+- **PL (Published Language)**: 공유 언어/스키마 사용
+- **CF (Conformist)**: 하류가 상류 모델을 그대로 수용
+
+## 4. 이벤트 흐름 다이어그램
+```mermaid
+sequenceDiagram
+    participant BC1 as Context 1
+    participant BC2 as Context 2
+    participant BC3 as Context 3
+
+    BC1->>BC2: DomainEvent1
+    BC2->>BC3: DomainEvent2
+```
+
+## 5. BC 분리 근거 체크리스트
+
+| BC명 | 언어 충돌 | 변경 이유 분리 | 팀 분리 | 트랜잭션 독립 | 외부 연동 | 데이터 소유권 | 총점 |
+|------|----------|--------------|--------|--------------|----------|-------------|------|
+| [BC명] | ✓/✗ | ✓/✗ | ✓/✗ | ✓/✗ | ✓/✗ | ✓/✗ | N/6 |
+
+*2-3개 이상 해당 시 분리 후보로 강력 권장*
+
+## 6. 주의사항 및 권장사항
+
+### 6.1 흔한 실수 회피
+- [ ] DB 테이블 기준으로 자르지 않았는지 확인
+- [ ] 너무 미세하게 쪼개지 않았는지 확인
+- [ ] 공유 모델을 강요하지 않았는지 확인
+
+### 6.2 구현 권장사항
+- [구체적인 권장 사항들]
+
+### 6.3 다음 단계
+- [향후 개발 진행 시 고려사항]
+
+**중요: Mermaid 다이어그램 작성 규칙**
+- 다이어그램 내부의 노드명, 레이블, subgraph 이름은 반드시 **영문**으로 작성
+- 괄호 () 대신 대괄호 [] 사용
+- 특수문자 사용 금지
+- 한글 설명은 다이어그램 외부에 별도로 작성
+
+**중요: 반드시 한국어로 응답하세요. 실무에서 바로 활용할 수 있는 구체적인 바운디드 컨텍스트 정의를 작성해주세요.**";
+    }
 }

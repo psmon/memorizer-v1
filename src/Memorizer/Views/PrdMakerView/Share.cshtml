@@ -68,6 +68,10 @@
             border-top: 4px solid #ff6b6b;
         }
 
+        .result-section.bounded-context {
+            border-top: 4px solid #6f42c1;
+        }
+
         .section-title {
             font-size: 1.3rem;
             font-weight: 600;
@@ -333,6 +337,17 @@
                     <div class="markdown-content" id="refinedPrdContent"></div>
                 </div>
             </div>
+
+            <!-- Bounded Context -->
+            <div class="result-section bounded-context" id="boundedContextSection" style="display: none;">
+                <div class="section-title">
+                    <i class="fas fa-project-diagram" style="color: #6f42c1;"></i>
+                    바운디드 컨텍스트 정의
+                </div>
+                <div class="section-content">
+                    <div class="markdown-content" id="boundedContextContent"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -400,6 +415,11 @@
                 if (data.content.refinedPrdResult) {
                     document.getElementById('refinedPrdSection').style.display = 'block';
                     renderMarkdown('refinedPrdContent', data.content.refinedPrdResult);
+                }
+
+                if (data.content.boundedContextResult) {
+                    document.getElementById('boundedContextSection').style.display = 'block';
+                    renderMarkdown('boundedContextContent', data.content.boundedContextResult);
                 }
             } catch (error) {
                 console.error('Load error:', error);

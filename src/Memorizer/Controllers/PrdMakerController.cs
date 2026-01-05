@@ -247,6 +247,54 @@ public class PrdMakerController : ControllerBase
     }
 
     /// <summary>
+    /// Generate Bounded Context definition based on all analysis results (streaming)
+    /// </summary>
+    [HttpPost("bounded-context")]
+    public async Task GenerateBoundedContext([FromBody] BoundedContextRequest request)
+    {
+        Response.Headers.Append("Content-Type", "text/event-stream");
+        Response.Headers.Append("Cache-Control", "no-cache");
+        Response.Headers.Append("Connection", "keep-alive");
+        Response.Headers.Append("X-Accel-Buffering", "no");
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.PrdContent) ||
+                string.IsNullOrWhiteSpace(request.EventStormingResult) ||
+                string.IsNullOrWhiteSpace(request.ExampleMappingResult) ||
+                string.IsNullOrWhiteSpace(request.RefinedPrdResult))
+            {
+                await WriteSSEEvent("error", new { message = "All previous results are required" });
+                return;
+            }
+
+            var prompt = PrdMakerPrompts.GetBoundedContextPrompt(
+                request.PrdContent,
+                request.EventStormingResult,
+                request.ExampleMappingResult,
+                request.RefinedPrdResult);
+
+            _logger.LogInformation("Generating Bounded Context definition");
+
+            await foreach (var chunk in _llmExService.CompleteStreamingAsync(prompt, HttpContext.RequestAborted))
+            {
+                await WriteSSEEvent("chunk", new { content = chunk });
+            }
+
+            await WriteSSEEvent("done", new { success = true });
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Bounded Context generation cancelled by client");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating Bounded Context definition");
+            await WriteSSEEvent("error", new { message = "Failed to generate Bounded Context definition" });
+        }
+    }
+
+    /// <summary>
     /// Generate a title for PRD analysis using LLM
     /// </summary>
     [HttpPost("generate-title")]
@@ -313,10 +361,10 @@ public class PrdMakerController : ControllerBase
             var insertQuery = @"
                 INSERT INTO prd_share_links
                     (short_code, title, prd_content, event_storming_result,
-                     discussion_result, example_mapping_result, refined_prd_result, created_at)
+                     discussion_result, example_mapping_result, refined_prd_result, bounded_context_result, created_at)
                 VALUES
                     (@shortCode, @title, @prdContent, @eventStormingResult,
-                     @discussionResult, @exampleMappingResult, @refinedPrdResult, @createdAt)";
+                     @discussionResult, @exampleMappingResult, @refinedPrdResult, @boundedContextResult, @createdAt)";
 
             await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
             cmd.Parameters.AddWithValue("shortCode", shortCode);
@@ -326,6 +374,7 @@ public class PrdMakerController : ControllerBase
             cmd.Parameters.AddWithValue("discussionResult", request.DiscussionResult ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("exampleMappingResult", request.ExampleMappingResult ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("refinedPrdResult", request.RefinedPrdResult ?? (object)DBNull.Value);
+            cmd.Parameters.AddWithValue("boundedContextResult", request.BoundedContextResult ?? (object)DBNull.Value);
             cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
 
             await cmd.ExecuteNonQueryAsync();
@@ -353,7 +402,7 @@ public class PrdMakerController : ControllerBase
 
             var query = @"
                 SELECT title, prd_content, event_storming_result,
-                       discussion_result, example_mapping_result, refined_prd_result, created_at
+                       discussion_result, example_mapping_result, refined_prd_result, bounded_context_result, created_at
                 FROM prd_share_links
                 WHERE short_code = @shortCode
                 LIMIT 1";
@@ -372,9 +421,10 @@ public class PrdMakerController : ControllerBase
                     eventStormingResult = reader.GetString(2),
                     discussionResult = reader.IsDBNull(3) ? null : reader.GetString(3),
                     exampleMappingResult = reader.IsDBNull(4) ? null : reader.GetString(4),
-                    refinedPrdResult = reader.IsDBNull(5) ? null : reader.GetString(5)
+                    refinedPrdResult = reader.IsDBNull(5) ? null : reader.GetString(5),
+                    boundedContextResult = reader.IsDBNull(6) ? null : reader.GetString(6)
                 };
-                var createdAt = reader.GetDateTime(6);
+                var createdAt = reader.GetDateTime(7);
 
                 return Ok(new { content, createdAt, shortCode });
             }
@@ -537,6 +587,17 @@ public class RefinedPrdRequest
 }
 
 /// <summary>
+/// Request for Bounded Context generation
+/// </summary>
+public class BoundedContextRequest
+{
+    public string PrdContent { get; set; } = string.Empty;
+    public string EventStormingResult { get; set; } = string.Empty;
+    public string ExampleMappingResult { get; set; } = string.Empty;
+    public string RefinedPrdResult { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Request for generating PRD title
 /// </summary>
 public class GenerateTitleRequest
@@ -555,4 +616,5 @@ public class SharePrdRequest
     public string? DiscussionResult { get; set; }
     public string? ExampleMappingResult { get; set; }
     public string? RefinedPrdResult { get; set; }
+    public string? BoundedContextResult { get; set; }
 }

@@ -133,6 +133,7 @@
         .result-section.discussion { border-top: 4px solid #f093fb; }
         .result-section.example-mapping { border-top: 4px solid #11998e; }
         .result-section.refined-prd { border-top: 4px solid #ff6b6b; }
+        .result-section.bounded-context { border-top: 4px solid #6f42c1; }
 
         .section-header {
             display: flex;
@@ -457,6 +458,11 @@
                 <div class="step-circle" id="step5Circle">5</div>
                 <span class="step-label">PRD 보완</span>
             </div>
+            <div class="step-connector"></div>
+            <div class="progress-step">
+                <div class="step-circle" id="step6Circle">6</div>
+                <span class="step-label">BC 정의</span>
+            </div>
         </div>
 
         <!-- PRD Input Section -->
@@ -592,6 +598,37 @@
                 </div>
                 <div class="markdown-content" id="refinedPrdMarkdown" style="display: none;"></div>
             </div>
+            <div class="action-buttons" id="refinedPrdActions" style="display: none;">
+                <button class="btn btn-next-step" id="btnStep5" onclick="startBoundedContext()">
+                    <i class="fas fa-project-diagram me-1"></i> 바운디드 컨텍스트 정의
+                </button>
+                <button class="btn btn-share" onclick="sharePrd()">
+                    <i class="fas fa-share-alt me-1"></i> 여기까지 공유하기
+                </button>
+            </div>
+        </div>
+
+        <!-- Bounded Context Section -->
+        <div class="result-section bounded-context" id="boundedContextSection">
+            <div class="section-header">
+                <div class="section-title">
+                    <i class="fas fa-project-diagram" style="color: #6f42c1;"></i>
+                    6단계: 바운디드 컨텍스트 정의
+                </div>
+                <div class="section-status">
+                    <span class="status-badge pending" id="boundedContextStatus">대기 중</span>
+                    <button class="btn btn-stop" id="btnStopBoundedContext" onclick="stopGeneration('boundedContext')" style="display: none;">
+                        <i class="fas fa-stop me-1"></i> 중지
+                    </button>
+                </div>
+            </div>
+            <div class="result-content" id="boundedContextContent">
+                <div class="result-placeholder" id="boundedContextPlaceholder">
+                    <i class="fas fa-project-diagram fa-2x mb-2" style="color: #adb5bd;"></i>
+                    <p>보완된 PRD 완료 후 바운디드 컨텍스트를 정의할 수 있습니다</p>
+                </div>
+                <div class="markdown-content" id="boundedContextMarkdown" style="display: none;"></div>
+            </div>
             <div class="share-section" id="shareSection" style="display: none;">
                 <button class="btn btn-outline-primary" onclick="copyRefinedPrdToInput()">
                     <i class="fas fa-redo me-1"></i> 보완된 PRD로 재분석
@@ -612,13 +649,15 @@ graph LR
     B --> C[Example Mapping Discussion]
     C --> D[Example Mapping Result]
     D --> E[Refined PRD]
-    E -.->|Iterate| A
+    E --> F[Bounded Context]
+    F -.->|Iterate| A
 
     style A fill:#667eea,color:#fff
     style B fill:#00c6ff,color:#fff
     style C fill:#f093fb,color:#fff
     style D fill:#11998e,color:#fff
     style E fill:#ff6b6b,color:#fff
+    style F fill:#6f42c1,color:#fff
                 </div>
             </div>
             <p class="text-center text-muted mt-3">
@@ -670,12 +709,14 @@ graph LR
         let discussionResult = '';
         let exampleMappingResult = '';
         let refinedPrdResult = '';
+        let boundedContextResult = '';
         let currentStep = 1;
         let abortControllers = {
             eventStorming: null,
             discussion: null,
             exampleMapping: null,
-            refinedPrd: null
+            refinedPrd: null,
+            boundedContext: null
         };
 
         // Initialize
@@ -691,7 +732,7 @@ graph LR
 
         function updateStepProgress(step) {
             currentStep = step;
-            for (let i = 1; i <= 5; i++) {
+            for (let i = 1; i <= 6; i++) {
                 const circle = document.getElementById(`step${i}Circle`);
                 circle.classList.remove('active', 'completed');
                 if (i < step) {
@@ -923,14 +964,14 @@ graph LR
             const stopBtn = document.getElementById('btnStopRefinedPrd');
             const placeholder = document.getElementById('refinedPrdPlaceholder');
             const markdown = document.getElementById('refinedPrdMarkdown');
-            const shareSection = document.getElementById('shareSection');
+            const actions = document.getElementById('refinedPrdActions');
 
             setButtonState('btnStep4', true);
             stopBtn.style.display = 'inline-block';
             placeholder.style.display = 'none';
             markdown.style.display = 'block';
             markdown.innerHTML = '';
-            shareSection.style.display = 'none';
+            actions.style.display = 'none';
             refinedPrdResult = '';
 
             updateStepProgress(5);
@@ -954,7 +995,7 @@ graph LR
                 });
 
                 updateStatus('refinedPrd', 'completed');
-                shareSection.style.display = 'flex';
+                actions.style.display = 'flex';
 
                 await renderMermaidInElement(markdown);
             } catch (error) {
@@ -971,13 +1012,68 @@ graph LR
             }
         }
 
+        async function startBoundedContext() {
+            if (!refinedPrdResult) return;
+
+            const stopBtn = document.getElementById('btnStopBoundedContext');
+            const placeholder = document.getElementById('boundedContextPlaceholder');
+            const markdown = document.getElementById('boundedContextMarkdown');
+            const shareSection = document.getElementById('shareSection');
+
+            setButtonState('btnStep5', true);
+            stopBtn.style.display = 'inline-block';
+            placeholder.style.display = 'none';
+            markdown.style.display = 'block';
+            markdown.innerHTML = '';
+            shareSection.style.display = 'none';
+            boundedContextResult = '';
+
+            updateStepProgress(6);
+            updateStatus('boundedContext', 'in-progress');
+
+            abortControllers.boundedContext = new AbortController();
+
+            try {
+                const response = await fetch('/api/prd/bounded-context', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prdContent, eventStormingResult, exampleMappingResult, refinedPrdResult }),
+                    signal: abortControllers.boundedContext.signal
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
+                await streamResponse(response, (content) => {
+                    boundedContextResult += content;
+                    renderMarkdown('boundedContext', boundedContextResult);
+                });
+
+                updateStatus('boundedContext', 'completed');
+                shareSection.style.display = 'flex';
+
+                await renderMermaidInElement(markdown);
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    updateStatus('boundedContext', 'pending');
+                } else {
+                    console.error('Bounded Context error:', error);
+                    markdown.innerHTML = '<p class="text-danger"><i class="fas fa-exclamation-circle me-1"></i> 바운디드 컨텍스트 생성 중 오류가 발생했습니다.</p>';
+                    updateStatus('boundedContext', 'error');
+                }
+            } finally {
+                setButtonState('btnStep5', false);
+                stopBtn.style.display = 'none';
+            }
+        }
+
         function resetAllResults() {
             eventStormingResult = '';
             discussionResult = '';
             exampleMappingResult = '';
             refinedPrdResult = '';
+            boundedContextResult = '';
 
-            ['eventStorming', 'discussion', 'exampleMapping', 'refinedPrd'].forEach(section => {
+            ['eventStorming', 'discussion', 'exampleMapping', 'refinedPrd', 'boundedContext'].forEach(section => {
                 document.getElementById(`${section}Placeholder`).style.display = 'block';
                 document.getElementById(`${section}Markdown`).style.display = 'none';
                 document.getElementById(`${section}Markdown`).innerHTML = '';
@@ -987,6 +1083,7 @@ graph LR
             document.getElementById('eventStormingActions').style.display = 'none';
             document.getElementById('discussionActions').style.display = 'none';
             document.getElementById('exampleMappingActions').style.display = 'none';
+            document.getElementById('refinedPrdActions').style.display = 'none';
             document.getElementById('shareSection').style.display = 'none';
 
             updateStepProgress(1);
@@ -1160,7 +1257,8 @@ graph LR
                         eventStormingResult,
                         discussionResult,
                         exampleMappingResult,
-                        refinedPrdResult
+                        refinedPrdResult,
+                        boundedContextResult
                     })
                 });
 
