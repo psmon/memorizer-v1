@@ -167,16 +167,36 @@ public static class ServiceCollectionExtensions
                 return llmExSettings;
             });
 
-        // LLM-EX uses Custom API (internal network)
+        // Check if we should use OpenAI, Custom, or Ollama based on the Type setting
         services.AddSingleton<ILlmExService>(sp =>
         {
             var settings = sp.GetRequiredService<LlmExSettings>();
             var logger = sp.GetRequiredService<ILoggerFactory>();
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient();
-            httpClient.BaseAddress = settings.ApiUrl;
-            httpClient.Timeout = settings.Timeout;
-            return new CustomLlmExService(httpClient, settings, logger.CreateLogger<CustomLlmExService>());
+
+            string apiType = settings.Type.ToLower();
+
+            if (apiType.Equals("openai"))
+            {
+                return new OpenAILlmExService(settings, logger.CreateLogger<OpenAILlmExService>());
+            }
+            else if (apiType.Equals("ollama"))
+            {
+                // Use Ollama service
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new OllamaLlmExService(httpClient, settings, logger.CreateLogger<OllamaLlmExService>());
+            }
+            else
+            {
+                // Default to Custom service (internal network API)
+                var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+                var httpClient = httpClientFactory.CreateClient();
+                httpClient.BaseAddress = settings.ApiUrl;
+                httpClient.Timeout = settings.Timeout;
+                return new CustomLlmExService(httpClient, settings, logger.CreateLogger<CustomLlmExService>());
+            }
         });
 
         return services;

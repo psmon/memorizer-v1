@@ -225,6 +225,12 @@ PRD Maker 기능 구현 - LLM-EX(120B 모델) 기반 심층 분석, 이벤트 �
 
 - [PRD-Maker](37-PRD-Maker.md)
 
+## Version 1.3.2
+
+LLM-EX OpenAI 지원 추가 - LLM-EX 서비스에서 Custom, Ollama, OpenAI 세 가지 공급자 선택 지원, 환경변수 기반 공급자 타입 선택, OAuth 설정 샘플 docker-compose 파일 통합, docker-compose.md 구성 가이드 문서 추가
+
+- [LLMEX-OpenAI](38-LLMEX-OpenAI.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

@@ -26,10 +26,15 @@
     - ui/prd - PRD Maker 페이지 (이벤트 스토밍 + 예제 맵핑)
     - ui/prd/share/{숏링크} - 공유된 PRD 분석 보기 페이지
     - ui/prd/shares - 공유된 PRD 분석 목록 페이지
-- src/Memorizer/Services/ILlmExService.cs - 심층분석용 LLM-EX 서비스 (120B 모델)
+- src/Memorizer/Services/ILlmExService.cs - 심층분석용 LLM-EX 서비스 인터페이스
+- src/Memorizer/Services/CustomLlmExService.cs - LLM-EX Custom 구현체 (LM Studio 호환)
+- src/Memorizer/Services/OllamaLlmExService.cs - LLM-EX Ollama 구현체
+- src/Memorizer/Services/OpenAILlmExService.cs - LLM-EX OpenAI 구현체
+- src/Memorizer/Settings/LlmExSettings.cs - LLM-EX 설정 (Type으로 Custom/Ollama/OpenAI 선택)
 - src/Memorizer/Services/PrdMakerPrompts.cs - PRD Maker 프롬프트 (이벤트스토밍, 예제맵핑)
+- docker-compose.md - 환경별 docker-compose 설정 가이드
 - src/Memorizer.IntegrationTests/Actors : 기존 유닛테스트가 있습니다. 유닛테스트 방법을 참고
 
 
-마지막 자동수정일시분 : 2026-01-04 00:00:00
-마지막 버전 반영 : 37
+마지막 자동수정일시분 : 2026-01-05 00:00:00
+마지막 버전 반영 : 38

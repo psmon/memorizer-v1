@@ -115,6 +115,11 @@ services:
       MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
       MEMORIZER_LLM__Model: qwen2:0.5b
       MEMORIZER_LLM__Timeout: 00:02:00
+      # LLM-EX configuration (Ollama)
+      MEMORIZER_LLM-EX__Type: Ollama
+      MEMORIZER_LLM-EX__ApiUrl: http://ollama:11434
+      MEMORIZER_LLM-EX__Model: qwen2:0.5b
+      MEMORIZER_LLM-EX__Timeout: 00:05:00
       Neo4j__Uri: bolt://neo4j:7687
       Neo4j__User: neo4j
       Neo4j__Password: password
@@ -123,6 +128,18 @@ services:
       MEMORIZER_Server__UserName: admin
       MEMORIZER_Server__Password: admin123
       MEMORIZER_Server__ApiKey: your_api_key_here
+      # OAuth 2.0 Settings
+      MEMORIZER_OAuth__Enabled: "true"
+      MEMORIZER_OAuth__Issuer: memorizer
+      MEMORIZER_OAuth__Audience: memorizer-api
+      MEMORIZER_OAuth__SecretKey: your-super-secret-key-at-least-32-characters-long
+      MEMORIZER_OAuth__TokenExpirationHours: "24"
+      # OAuth Client (for ChatGPT MCP integration)
+      MEMORIZER_OAuth__Clients__0__ClientId: chatgpt-mcp
+      MEMORIZER_OAuth__Clients__0__ClientSecret: chatgpt-secret-key
+      MEMORIZER_OAuth__Clients__0__AllowedScopes__0: "mcp:read"
+      MEMORIZER_OAuth__Clients__0__AllowedScopes__1: "mcp:write"
+      MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0: "https://chatgpt.com/aip/g-callback"
     depends_on:
       - postgres
       - neo4j
