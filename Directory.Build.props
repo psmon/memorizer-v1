@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.3.2</VersionPrefix>
+    <VersionPrefix>1.3.3</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [LLM-EX OpenAI support - Three provider types (Custom, Ollama, OpenAI) in LLM-EX service, environment variable-based provider selection, OAuth settings in docker-compose files, docker-compose.md configuration guide]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [PRD Maker improvements - 6th step Bounded Context definition (DDD-based subdomain decomposition, ubiquitous language conflict analysis, transaction boundaries), Memory search integration in Example Mapping discussion with Memoriz virtual discussant, Mermaid diagrams, short link sharing]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

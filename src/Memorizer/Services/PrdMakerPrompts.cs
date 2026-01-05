@@ -7,6 +7,126 @@ namespace Memorizer.Services;
 public static class PrdMakerPrompts
 {
     /// <summary>
+    /// Extract a search keyword from Event Storming result for memory search
+    /// </summary>
+    public static string GetSearchKeywordExtractionPrompt(string eventStormingResult)
+    {
+        return $@"당신은 키워드 추출 전문가입니다.
+아래 이벤트 스토밍 결과를 분석하여 관련 기술이나 도메인 지식을 검색하기 위한 핵심 키워드를 추출해주세요.
+
+## 이벤트 스토밍 결과
+{eventStormingResult}
+
+## 규칙
+- 반드시 20자 이내의 핵심 검색어 1개만 출력
+- 기술 용어, 도메인 개념, 패턴명 등 검색에 유용한 키워드 선택
+- 한국어 또는 영어 모두 가능
+- 키워드만 출력 (설명, 따옴표, 접두사 없이)
+
+키워드:";
+    }
+
+    /// <summary>
+    /// Evaluate if memory is useful for discussion
+    /// </summary>
+    public static string GetMemoryUsefulnessPrompt(string eventStormingResult, string memoryTitle, string memoryContent)
+    {
+        return $@"당신은 기술 문서 평가 전문가입니다.
+아래 이벤트 스토밍 결과를 기반으로 한 예제 맵핑 토론에서 참고 자료가 유용한지 판단해주세요.
+
+## 이벤트 스토밍 결과 (요약)
+{eventStormingResult.Substring(0, Math.Min(eventStormingResult.Length, 1000))}
+
+## 검색된 메모리
+제목: {memoryTitle}
+내용: {memoryContent.Substring(0, Math.Min(memoryContent.Length, 500))}
+
+## 판단 기준
+- 이벤트 스토밍에서 도출된 도메인/기술과 관련이 있는가?
+- 예제 맵핑 토론에서 구체적인 인사이트를 제공할 수 있는가?
+- 비즈니스 규칙, 기술 패턴, 구현 사례 등 실질적인 정보가 있는가?
+
+## 응답 형식
+유용함 또는 유용하지않음 중 하나만 출력하세요.
+
+판단:";
+    }
+
+    /// <summary>
+    /// Generate virtual collaborator discussion for Example Mapping with memory reference
+    /// </summary>
+    public static string GetExampleMappingDiscussionWithMemoryPrompt(string prdContent, string eventStormingResult, string memoryReferences)
+    {
+        return $@"당신은 소프트웨어 개발팀의 가상 협업 시뮬레이터입니다.
+이벤트 스토밍 결과를 바탕으로 예제 맵핑을 위한 팀 토론을 시뮬레이션해주세요.
+이번 토론에는 메모리즈(Memoriz)라는 AI 참고자료 제공자가 참여합니다.
+
+## 원본 PRD
+{prdContent}
+
+## 이벤트 스토밍 결과
+{eventStormingResult}
+
+## 참고 자료 (메모리즈 제공)
+{memoryReferences}
+
+## 가상 협업자 역할
+다음 역할의 팀원들이 토론에 참여합니다:
+- **PM (Product Manager)**: 비즈니스 요구사항과 사용자 관점 대변
+- **Dev (개발자)**: 기술적 실현 가능성과 구현 관점
+- **QA (품질 담당자)**: 테스트 시나리오와 엣지 케이스 발견
+- **UX (UX 디자이너)**: 사용자 경험과 인터랙션 관점
+- **메모리즈 (Memoriz)**: 관련 기술 문서, 도메인 지식, 사례를 참고하여 인사이트 제공
+
+## 토론 형식 (Markdown)
+
+### 🗣️ 예제 맵핑 토론
+
+각 주요 사용자 스토리에 대해 팀 토론을 진행합니다.
+
+---
+#### 스토리 1: [스토리 제목]
+> [사용자 스토리 설명]
+
+**💬 토론 진행**
+
+**PM**: [비즈니스 관점에서의 의견이나 질문]
+
+**Dev**: [기술적 관점에서의 의견이나 우려사항]
+
+**QA**: [테스트 관점에서 발견한 엣지 케이스나 질문]
+
+**UX**: [사용자 경험 관점에서의 의견]
+
+**메모리즈**: [참고 자료를 바탕으로 한 기술적 인사이트, 유사 사례, 주의사항 등. 반드시 제공된 참고 자료의 내용을 활용하여 구체적인 조언 제공]
+
+**📝 도출된 예제**
+1. [구체적인 사용 예제 시나리오]
+2. [또 다른 예제 시나리오]
+
+**📐 발견된 규칙**
+- [비즈니스 규칙 1]
+- [비즈니스 규칙 2]
+
+**❓ 미해결 질문**
+- [추가 확인이 필요한 사항]
+
+---
+#### 스토리 2: [다음 스토리 제목]
+...
+
+(각 주요 스토리에 대해 동일한 형식으로 토론 진행)
+
+### 💡 토론 요약
+토론을 통해 도출된 핵심 인사이트와 다음 단계에서 고려해야 할 사항들.
+
+### 📚 참고 자료 활용 요약
+메모리즈가 제공한 참고 자료가 어떻게 토론에 기여했는지 간략히 정리.
+
+**중요: 반드시 한국어로 응답하세요. 자연스러운 대화체로 토론을 표현해주세요. 메모리즈는 반드시 제공된 참고 자료 내용을 구체적으로 언급해야 합니다.**";
+    }
+
+    /// <summary>
     /// Generate Event Storming analysis from PRD content
     /// </summary>
     public static string GetEventStormingPrompt(string prdContent)

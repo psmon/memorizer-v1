@@ -55,17 +55,20 @@ public class PrdMakerController : ControllerBase
 {
     private readonly ILlmExService _llmExService;
     private readonly ILlmService _llmService;
+    private readonly IStorage _storage;
     private readonly ILogger<PrdMakerController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
 
     public PrdMakerController(
         ILlmExService llmExService,
         ILlmService llmService,
+        IStorage storage,
         ILogger<PrdMakerController> logger,
         Npgsql.NpgsqlDataSource dataSource)
     {
         _llmExService = llmExService;
         _llmService = llmService;
+        _storage = storage;
         _logger = logger;
         _dataSource = dataSource;
     }
@@ -113,6 +116,7 @@ public class PrdMakerController : ControllerBase
 
     /// <summary>
     /// Generate Example Mapping discussion from Event Storming result (streaming)
+    /// Enhanced with memory search to provide relevant reference materials
     /// </summary>
     [HttpPost("example-mapping-discussion")]
     public async Task GenerateExampleMappingDiscussion([FromBody] ExampleMappingRequest request)
@@ -130,16 +134,119 @@ public class PrdMakerController : ControllerBase
                 return;
             }
 
-            var prompt = PrdMakerPrompts.GetExampleMappingDiscussionPrompt(request.PrdContent, request.EventStormingResult);
+            // Phase 1: Memory Search
+            await WriteSSEEvent("phase", new { phase = "searching", message = "관련 지식 검색 중..." });
+            _logger.LogInformation("Phase 1: Searching for relevant memories");
 
-            _logger.LogInformation("Generating Example Mapping discussion");
+            string? memoryReferences = null;
+            try
+            {
+                // Step 1: Extract search keyword from Event Storming result
+                var keywordPrompt = PrdMakerPrompts.GetSearchKeywordExtractionPrompt(request.EventStormingResult);
+                var searchKeyword = await _llmExService.CompleteAsync(keywordPrompt, HttpContext.RequestAborted);
+                searchKeyword = searchKeyword?.Trim().Replace("\"", "").Replace("'", "");
+
+                if (!string.IsNullOrWhiteSpace(searchKeyword) && searchKeyword.Length <= 30)
+                {
+                    _logger.LogInformation("Extracted search keyword: {Keyword}", searchKeyword);
+
+                    // Step 2: Search memories with 0.4 similarity threshold, max 3 results
+                    var memories = await _storage.Search(
+                        searchKeyword,
+                        limit: 3,
+                        minSimilarity: 0.4,
+                        cancellationToken: HttpContext.RequestAborted
+                    );
+
+                    if (memories.Count > 0)
+                    {
+                        _logger.LogInformation("Found {Count} memories for keyword: {Keyword}", memories.Count, searchKeyword);
+
+                        // Step 3: Evaluate usefulness of each memory
+                        var usefulMemories = new List<(string Title, string Content)>();
+
+                        foreach (var memory in memories)
+                        {
+                            var usefulnessPrompt = PrdMakerPrompts.GetMemoryUsefulnessPrompt(
+                                request.EventStormingResult,
+                                memory.Title ?? "제목 없음",
+                                memory.Text ?? ""
+                            );
+
+                            var usefulnessResult = await _llmExService.CompleteAsync(usefulnessPrompt, HttpContext.RequestAborted);
+
+                            if (usefulnessResult?.Contains("유용함") == true)
+                            {
+                                usefulMemories.Add((memory.Title ?? "제목 없음", memory.Text ?? ""));
+                                _logger.LogInformation("Memory '{Title}' evaluated as useful", memory.Title);
+                            }
+                        }
+
+                        // Step 4: Build memory references if useful memories found
+                        if (usefulMemories.Count > 0)
+                        {
+                            var sb = new StringBuilder();
+                            for (int i = 0; i < usefulMemories.Count; i++)
+                            {
+                                sb.AppendLine($"### 참고자료 {i + 1}: {usefulMemories[i].Title}");
+                                sb.AppendLine(usefulMemories[i].Content.Length > 1000
+                                    ? usefulMemories[i].Content.Substring(0, 1000) + "..."
+                                    : usefulMemories[i].Content);
+                                sb.AppendLine();
+                            }
+                            memoryReferences = sb.ToString();
+
+                            await WriteSSEEvent("memory_found", new {
+                                count = usefulMemories.Count,
+                                titles = usefulMemories.Select(m => m.Title).ToArray()
+                            });
+                        }
+                        else
+                        {
+                            await WriteSSEEvent("memory_found", new { count = 0, message = "유용한 참고자료를 찾지 못했습니다." });
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogInformation("No memories found for keyword: {Keyword}", searchKeyword);
+                        await WriteSSEEvent("memory_found", new { count = 0, message = "관련 메모리를 찾지 못했습니다." });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Memory search failed, proceeding without references");
+                await WriteSSEEvent("memory_found", new { count = 0, message = "메모리 검색 중 오류 발생" });
+            }
+
+            // Phase 2: Generate Discussion
+            await WriteSSEEvent("phase", new { phase = "generating", message = "토론 생성 중..." });
+            _logger.LogInformation("Phase 2: Generating Example Mapping discussion");
+
+            // Choose prompt based on whether memory references were found
+            string prompt;
+            if (!string.IsNullOrWhiteSpace(memoryReferences))
+            {
+                prompt = PrdMakerPrompts.GetExampleMappingDiscussionWithMemoryPrompt(
+                    request.PrdContent,
+                    request.EventStormingResult,
+                    memoryReferences);
+                _logger.LogInformation("Using discussion prompt with memory references (메모리즈 참여)");
+            }
+            else
+            {
+                prompt = PrdMakerPrompts.GetExampleMappingDiscussionPrompt(
+                    request.PrdContent,
+                    request.EventStormingResult);
+                _logger.LogInformation("Using standard discussion prompt (메모리즈 미참여)");
+            }
 
             await foreach (var chunk in _llmExService.CompleteStreamingAsync(prompt, HttpContext.RequestAborted))
             {
                 await WriteSSEEvent("chunk", new { content = chunk });
             }
 
-            await WriteSSEEvent("done", new { success = true });
+            await WriteSSEEvent("done", new { success = true, hadMemoryReferences = !string.IsNullOrWhiteSpace(memoryReferences) });
         }
         catch (OperationCanceledException)
         {

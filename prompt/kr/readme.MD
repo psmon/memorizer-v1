@@ -231,6 +231,12 @@ LLM-EX OpenAI 지원 추가 - LLM-EX 서비스에서 Custom, Ollama, OpenAI 세 
 
 - [LLMEX-OpenAI](38-LLMEX-OpenAI.md)
 
+## Version 1.3.3
+
+PRD Maker 기능 개선 - 6단계 바운디드 컨텍스트(BC) 정의 기능 추가(DDD 원칙 기반 서브도메인 분해, 유비쿼터스 언어 충돌, 트랜잭션 경계 분석), 3단계 예제 맵핑 토론에 메모리 검색 통합("메모리즈" 가상 토론자로 관련 지식 참여), Mermaid 다이어그램 포함, 숏링크 공유 기능
+
+- [PRD-Maker-02](39-PRD-Maker-02.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

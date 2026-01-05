@@ -159,7 +159,30 @@
 
         .status-badge.pending { background: #e9ecef; color: #6c757d; }
         .status-badge.in-progress { background: #fff3cd; color: #856404; }
+        .status-badge.searching { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        .status-badge.generating { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
         .status-badge.completed { background: #d4edda; color: #155724; }
+
+        .memory-search-status {
+            text-align: center;
+            padding: 20px;
+            color: #f093fb;
+            font-size: 1.1rem;
+        }
+
+        .memory-found-info {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border: 1px solid #667eea40;
+            border-radius: 8px;
+            padding: 10px 15px;
+            margin-bottom: 15px;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+
+        .memory-found-info i {
+            color: #764ba2;
+        }
 
         .result-content {
             background: #f8f9fa;
@@ -646,15 +669,20 @@
                 <div class="mermaid" id="processDiagram">
 graph LR
     A[PRD Input] --> B[Event Storming]
-    B --> C[Example Mapping Discussion]
-    C --> D[Example Mapping Result]
+    B --> M{Memory Search}
+    M -->|Found| C1[Discussion with Memoriz]
+    M -->|Not Found| C2[Standard Discussion]
+    C1 --> D[Example Mapping Result]
+    C2 --> D
     D --> E[Refined PRD]
     E --> F[Bounded Context]
     F -.->|Iterate| A
 
     style A fill:#667eea,color:#fff
     style B fill:#00c6ff,color:#fff
-    style C fill:#f093fb,color:#fff
+    style M fill:#f093fb,color:#fff
+    style C1 fill:#764ba2,color:#fff
+    style C2 fill:#f093fb,color:#fff
     style D fill:#11998e,color:#fff
     style E fill:#ff6b6b,color:#fff
     style F fill:#6f42c1,color:#fff
@@ -760,6 +788,14 @@ graph LR
                 case 'in-progress':
                     statusBadge.classList.add('in-progress');
                     statusBadge.textContent = '진행 중...';
+                    break;
+                case 'searching':
+                    statusBadge.classList.add('searching');
+                    statusBadge.textContent = '메모리 검색 중...';
+                    break;
+                case 'generating':
+                    statusBadge.classList.add('generating');
+                    statusBadge.textContent = '토론 생성 중...';
                     break;
                 case 'completed':
                     statusBadge.classList.add('completed');
@@ -867,7 +903,7 @@ graph LR
             discussionResult = '';
 
             updateStepProgress(3);
-            updateStatus('discussion', 'in-progress');
+            updateStatus('discussion', 'searching'); // Start with searching phase
 
             abortControllers.discussion = new AbortController();
 
@@ -881,7 +917,8 @@ graph LR
 
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
-                await streamResponse(response, (content) => {
+                // Custom stream handler with phase support
+                await streamResponseWithPhases(response, markdown, (content) => {
                     discussionResult += content;
                     renderMarkdown('discussion', discussionResult);
                 });
@@ -901,6 +938,67 @@ graph LR
             } finally {
                 setButtonState('btnStep2', false);
                 stopBtn.style.display = 'none';
+            }
+        }
+
+        // Stream response handler with phase events support
+        async function streamResponseWithPhases(response, markdownElement, onChunk) {
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+
+                buffer += decoder.decode(value, { stream: true });
+                const lines = buffer.split('\n');
+                buffer = lines.pop() || '';
+
+                for (const line of lines) {
+                    if (line.startsWith('event:')) {
+                        const eventType = line.substring(6).trim();
+                        continue;
+                    }
+                    if (line.startsWith('data:')) {
+                        const data = line.substring(5).trim();
+                        if (!data) continue;
+
+                        try {
+                            const parsed = JSON.parse(data);
+
+                            // Handle phase changes
+                            if (parsed.phase) {
+                                if (parsed.phase === 'searching') {
+                                    updateStatus('discussion', 'searching');
+                                    markdownElement.innerHTML = '<div class="memory-search-status"><i class="fas fa-search fa-spin me-2"></i>관련 지식 검색 중...</div>';
+                                } else if (parsed.phase === 'generating') {
+                                    updateStatus('discussion', 'generating');
+                                    markdownElement.innerHTML = '';
+                                }
+                            }
+                            // Handle memory found notification
+                            else if (parsed.count !== undefined && parsed.titles) {
+                                if (parsed.count > 0) {
+                                    const memoryInfo = document.createElement('div');
+                                    memoryInfo.className = 'memory-found-info';
+                                    memoryInfo.innerHTML = `<i class="fas fa-brain me-2"></i>메모리즈 참여: ${parsed.titles.join(', ')}`;
+                                    markdownElement.prepend(memoryInfo);
+                                }
+                            }
+                            // Handle content chunks
+                            else if (parsed.content) {
+                                onChunk(parsed.content);
+                            }
+                            // Handle errors
+                            else if (parsed.message && !parsed.phase) {
+                                console.log('Memory search info:', parsed.message);
+                            }
+                        } catch (e) {
+                            console.error('Parse error:', e);
+                        }
+                    }
+                }
             }
         }
 

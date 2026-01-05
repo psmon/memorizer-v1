@@ -233,6 +233,12 @@ LLM-EX OpenAI support addition - Support for three provider types (Custom, Ollam
 
 - [LLMEX-OpenAI](38-LLMEX-OpenAI.md)
 
+## Version 1.3.3
+
+PRD Maker feature improvements - Added 6th step Bounded Context (BC) definition feature (DDD-based subdomain decomposition, ubiquitous language conflict analysis, transaction boundary analysis), Memory search integration in step 3 Example Mapping discussion ("Memoriz" virtual discussant with related knowledge participation), Mermaid diagrams included, short link sharing functionality
+
+- [PRD-Maker-02](39-PRD-Maker-02.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
