@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>채팅 시스템 - PRD 데모</title>
+    <!-- CDN 링크 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        body { background: #f8f9fa; }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .card-custom {
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.1);
+        }
+        .btn-primary:hover { opacity: .9; }
+    </style>
+</head>
+<body>
+
+<header class="py-3 gradient-bg text-center">
+    <h1 class="display-5 fw-bold mb-0">채팅 시스템 데모</h1>
+    <p class="mb-0">PRD 기반 UI/UX 시뮬레이션</p>
+</header>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="#">Demo Menu</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarsExample07" aria-controls="navbarsExample07"
+                aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="navbarsExample07">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <li class="nav-item"><a class="nav-link active" href="#join">방 입장</a></li>
+                <li class="nav-item"><a class="nav-link" href="#send">메시지 전송</a></li>
+                <li class="nav-item"><a class="nav-link" href="#read">읽음 처리</a></li>
+                <li class="nav-item"><a class="nav-link" href="#ban">방 차단</a></li>
+            </ul>
+        </div>
+    </div>
+</nav>
+
+<main class="container py-4">
+
+    <!-- 방 입장 -->
+    <section id="join" class="mb-5">
+        <h2 class="mb-3"><i class="fas fa-door-open me-2"></i>방 입장</h2>
+        <div class="card card-custom p-4">
+            <form id="joinForm" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">사용자 ID</label>
+                    <input type="text" class="form-control" id="joinUserId" placeholder="예: user123" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">방 ID</label>
+                    <input type="text" class="form-control" id="joinRoomId" placeholder="예: room01" required>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-sign-in-alt me-1"></i>입장</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- 메시지 전송 -->
+    <section id="send" class="mb-5">
+        <h2 class="mb-3"><i class="fas fa-paper-plane me-2"></i>메시지 전송</h2>
+        <div class="card card-custom p-4">
+            <form id="msgForm" class="row g-3">
+                <div class="col-md-8">
+                    <label class="form-label">보낼 내용</label>
+                    <textarea class="form-control" id="msgContent" rows="2" placeholder="메시지를 입력하세요..." required></textarea>
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100"><i class="fas fa-paper-plane me-1"></i>전송</button>
+                </div>
+            </form>
+
+            <ul id="msgList" class="list-group list-group-flush mt-3"></ul>
+        </div>
+    </section>
+
+    <!-- 읽음 처리 -->
+    <section id="read" class="mb-5">
+        <h2 class="mb-3"><i class="fas fa-eye me-2"></i>읽음 처리</h2>
+        <div class="card card-custom p-4">
+            <p>아래 메시지를 클릭하면 읽음 상태가 전송됩니다.</p>
+            <ul id="readList" class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    안녕하세요! (User A)
+                    <button class="btn btn-outline-primary btn-sm read-btn"><i class="fas fa-check"></i> 읽음</button>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    오늘 회의 언제죠? (User B)
+                    <button class="btn btn-outline-primary btn-sm read-btn"><i class="fas fa-check"></i> 읽음</button>
+                </li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- 방 차단 -->
+    <section id="ban" class="mb-5">
+        <h2 class="mb-3"><i class="fas fa-ban me-2"></i>방 차단 (Admin)</h2>
+        <div class="card card-custom p-4">
+            <form id="banForm" class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label">관리자 ID</label>
+                    <input type="text" class="form-control" id="adminId" placeholder="예: admin01" required>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label">차단 대상 사용자 ID</label>
+                    <input type="text" class="form-control" id="targetUserId" placeholder="예: user123" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-danger w-100"><i class="fas fa-ban me-1"></i>차단</button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-white text-center py-3 shadow-sm">
+    <small>&copy; 2026 Chat System Demo. All rights reserved.</small>
+</footer>
+
+<!-- Toast container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+    <div id="toast" class="toast align-items-center text-bg-primary border-0" role="alert" aria-live="assertive"
+         aria-atomic="true">
+        <div class="d-flex">
+            <div class="toast-body"></div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"
+                    aria-label="Close"></button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Utility for toast
+    const showToast = (msg, bg='primary') => {
+        const toastEl = document.getElementById('toast');
+        toastEl.querySelector('.toast-body').textContent = msg;
+        toastEl.className = `toast align-items-center text-bg-${bg} border-0`;
+        const bsToast = new bootstrap.Toast(toastEl);
+        bsToast.show();
+    };
+
+    // Join Room simulation
+    document.getElementById('joinForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const user = document.getElementById('joinUserId').value.trim();
+        const room = document.getElementById('joinRoomId').value.trim();
+        if (room === 'fullRoom') {
+            showToast('인원 초과: 방에 입장할 수 없습니다.', 'danger');
+        } else {
+            showToast(`${user}님이 ${room} 방에 들어왔습니다.`);
+        }
+    });
+
+    // Send Message simulation
+    document.getElementById('msgForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const content = document.getElementById('msgContent').value;
+        if (content.length > 2000) {
+            showToast('메시지 길이 초과(2000자)', 'danger');
+            return;
+        }
+        if (/badword|금칙어/i.test(content)) {
+            showToast('금칙어가 포함되어 전송이 차단되었습니다.', 'warning');
+            return;
+        }
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex justify-content-between align-items-center';
+        li.innerHTML = `<span>${content}</span>
+                        <i class="fas fa-spinner fa-spin text-muted"></i>`;
+        document.getElementById('msgList').prepend(li);
+        setTimeout(() => {
+            li.querySelector('i').className = 'fas fa-check text-success';
+        }, 150); // simulate delivery latency
+        document.getElementById('msgContent').value = '';
+    });
+
+    // Read Message simulation
+    document.querySelectorAll('.read-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const li = btn.closest('li');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-check"></i> 읽음 처리';
+            setTimeout(() => {
+                showToast('읽음 상태가 전송되었습니다.');
+                btn.remove();
+                li.classList.add('list-group-item-success');
+            }, 500);
+        });
+    });
+
+    // Ban User simulation
+    document.getElementById('banForm').addEventListener('submit', e => {
+        e.preventDefault();
+        const admin = document.getElementById('adminId').value.trim();
+        const target = document.getElementById('targetUserId').value.trim();
+        if (admin.startsWith('admin')) {
+            showToast(`${target} 사용자가 차단되었습니다.`, 'danger');
+        } else {
+            showToast('관리자 권한이 없어 차단할 수 없습니다.', 'warning');
+        }
+    });
+</script>
+
+</body>
+</html>

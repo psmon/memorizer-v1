@@ -608,6 +608,143 @@ public class PrdMakerController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Generate demo wireframe HTML page based on refined PRD
+    /// </summary>
+    [HttpPost("generate-wireframe")]
+    public async Task<ActionResult> GenerateWireframe([FromBody] WireframeRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.RefinedPrdResult))
+            {
+                return BadRequest(new { error = "Refined PRD result is required" });
+            }
+
+            // Generate short code for the demo page
+            var shortCode = GenerateShortCode();
+            var demoPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "demo", shortCode);
+
+            _logger.LogInformation("Generating wireframe for shortCode: {ShortCode}", shortCode);
+
+            // Create directory if it doesn't exist
+            if (!Directory.Exists(demoPath))
+            {
+                Directory.CreateDirectory(demoPath);
+                _logger.LogInformation("Created demo directory: {DemoPath}", demoPath);
+            }
+
+            // Generate wireframe using LLM-EX
+            var prompt = PrdMakerPrompts.GetWireframeGenerationPrompt(
+                request.RefinedPrdResult,
+                request.EventStormingResult,
+                request.ExampleMappingResult);
+
+            _logger.LogInformation("Calling LLM-EX for wireframe generation");
+            var wireframeContent = await _llmExService.CompleteAsync(prompt, HttpContext.RequestAborted);
+
+            if (string.IsNullOrWhiteSpace(wireframeContent))
+            {
+                _logger.LogError("LLM-EX returned empty content for wireframe");
+                return StatusCode(500, new { error = "Failed to generate wireframe content" });
+            }
+
+            // Extract HTML from the response (in case it's wrapped in code blocks)
+            var htmlContent = ExtractHtmlContent(wireframeContent);
+
+            if (string.IsNullOrWhiteSpace(htmlContent))
+            {
+                _logger.LogError("Failed to extract HTML from LLM response");
+                return StatusCode(500, new { error = "Failed to extract HTML from response" });
+            }
+
+            // Write the HTML file
+            var indexPath = Path.Combine(demoPath, "index.html");
+            await System.IO.File.WriteAllTextAsync(indexPath, htmlContent);
+            _logger.LogInformation("Created wireframe file: {IndexPath}", indexPath);
+
+            // Return the URL to the generated demo page
+            var demoUrl = $"/demo/{shortCode}/index.html";
+
+            return Ok(new
+            {
+                shortCode,
+                demoUrl,
+                message = "Wireframe generated successfully"
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Wireframe generation cancelled by client");
+            return StatusCode(499, new { error = "Request cancelled" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating wireframe");
+            return StatusCode(500, new { error = "Failed to generate wireframe" });
+        }
+    }
+
+    /// <summary>
+    /// Extract HTML content from LLM response (handles code blocks)
+    /// </summary>
+    private static string ExtractHtmlContent(string response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+            return string.Empty;
+
+        // Try to extract from ```html ... ``` code block
+        var htmlBlockMatch = System.Text.RegularExpressions.Regex.Match(
+            response,
+            @"```html\s*([\s\S]*?)\s*```",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        if (htmlBlockMatch.Success)
+        {
+            return htmlBlockMatch.Groups[1].Value.Trim();
+        }
+
+        // Try to extract from ``` ... ``` code block
+        var codeBlockMatch = System.Text.RegularExpressions.Regex.Match(
+            response,
+            @"```\s*([\s\S]*?)\s*```");
+
+        if (codeBlockMatch.Success)
+        {
+            var content = codeBlockMatch.Groups[1].Value.Trim();
+            if (content.Contains("<!DOCTYPE html>") || content.Contains("<html"))
+            {
+                return content;
+            }
+        }
+
+        // If response starts with HTML, return as is
+        var trimmedResponse = response.Trim();
+        if (trimmedResponse.StartsWith("<!DOCTYPE html>", StringComparison.OrdinalIgnoreCase) ||
+            trimmedResponse.StartsWith("<html", StringComparison.OrdinalIgnoreCase))
+        {
+            return trimmedResponse;
+        }
+
+        // Try to extract HTML part from the response
+        var htmlStartIndex = response.IndexOf("<!DOCTYPE html>", StringComparison.OrdinalIgnoreCase);
+        if (htmlStartIndex < 0)
+        {
+            htmlStartIndex = response.IndexOf("<html", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (htmlStartIndex >= 0)
+        {
+            var htmlEndIndex = response.LastIndexOf("</html>", StringComparison.OrdinalIgnoreCase);
+            if (htmlEndIndex > htmlStartIndex)
+            {
+                return response.Substring(htmlStartIndex, htmlEndIndex - htmlStartIndex + "</html>".Length);
+            }
+        }
+
+        return string.Empty;
+    }
+
     private async Task WriteSSEEvent(string eventType, object data)
     {
         var json = JsonSerializer.Serialize(data, new JsonSerializerOptions
@@ -724,4 +861,14 @@ public class SharePrdRequest
     public string? ExampleMappingResult { get; set; }
     public string? RefinedPrdResult { get; set; }
     public string? BoundedContextResult { get; set; }
+}
+
+/// <summary>
+/// Request for generating demo wireframe
+/// </summary>
+public class WireframeRequest
+{
+    public string RefinedPrdResult { get; set; } = string.Empty;
+    public string EventStormingResult { get; set; } = string.Empty;
+    public string ExampleMappingResult { get; set; } = string.Empty;
 }

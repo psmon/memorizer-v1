@@ -36,5 +36,11 @@ RUN dotnet publish "./Memorizer.csproj" -c $BUILD_CONFIGURATION -o /app/publish 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+
+# Create demo directory with write permissions for app user (for PRD wireframe generation)
+USER root
+RUN mkdir -p /app/wwwroot/demo && chown -R app:app /app/wwwroot/demo
+USER app
+
 ENTRYPOINT ["dotnet", "Memorizer.dll"]
 

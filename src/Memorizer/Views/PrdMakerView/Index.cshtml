@@ -412,6 +412,27 @@
             font-weight: 600;
         }
 
+        .btn-wireframe {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-wireframe:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(17, 153, 142, 0.4);
+            color: white;
+        }
+
+        .btn-wireframe:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
         /* Process diagram section */
         .process-diagram-section {
             background: white;
@@ -625,6 +646,9 @@
                 <button class="btn btn-next-step" id="btnStep5" onclick="startBoundedContext()">
                     <i class="fas fa-project-diagram me-1"></i> 바운디드 컨텍스트 정의
                 </button>
+                <button class="btn btn-wireframe" id="btnWireframe" onclick="generateWireframe()">
+                    <i class="fas fa-desktop me-1"></i> PRD 데모 와이어프레임 생성
+                </button>
                 <button class="btn btn-share" onclick="sharePrd()">
                     <i class="fas fa-share-alt me-1"></i> 여기까지 공유하기
                 </button>
@@ -720,6 +744,40 @@ graph LR
                 <small class="text-success d-none mt-2" id="copySuccess">
                     <i class="fas fa-check me-1"></i> 클립보드에 복사되었습니다!
                 </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Wireframe Result Modal -->
+<div class="modal fade" id="wireframeModal" tabindex="-1" aria-labelledby="wireframeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h5 class="modal-title" id="wireframeModalLabel">
+                    <i class="fas fa-desktop me-2"></i> PRD 데모 와이어프레임 생성 완료
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle me-2"></i> 와이어프레임이 성공적으로 생성되었습니다!
+                </div>
+                <p class="text-muted mb-2">아래 링크로 데모 페이지에 접근할 수 있습니다:</p>
+                <div class="input-group mb-3">
+                    <input type="text" class="form-control" id="wireframeUrlInput" readonly>
+                    <button class="btn btn-outline-primary" type="button" onclick="copyWireframeUrl()">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                </div>
+                <small class="text-success d-none mb-3" id="wireframeCopySuccess">
+                    <i class="fas fa-check me-1"></i> 클립보드에 복사되었습니다!
+                </small>
+                <div class="d-grid gap-2">
+                    <button class="btn btn-wireframe" onclick="openWireframePage()">
+                        <i class="fas fa-external-link-alt me-2"></i> 새 창에서 데모 페이지 열기
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1399,6 +1457,67 @@ graph LR
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // Store wireframe URL for modal
+        let currentWireframeUrl = '';
+
+        async function generateWireframe() {
+            if (!refinedPrdResult) {
+                alert('보완된 PRD가 생성된 후에 와이어프레임을 생성할 수 있습니다.');
+                return;
+            }
+
+            const btn = document.getElementById('btnWireframe');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> 와이어프레임 생성 중...';
+
+            try {
+                const response = await fetch('/api/prd/generate-wireframe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        refinedPrdResult,
+                        eventStormingResult,
+                        exampleMappingResult
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to generate wireframe');
+                }
+
+                const data = await response.json();
+
+                // Build full URL using current origin
+                currentWireframeUrl = `${window.location.origin}${data.demoUrl}`;
+
+                // Show modal with URL
+                document.getElementById('wireframeUrlInput').value = currentWireframeUrl;
+                new bootstrap.Modal(document.getElementById('wireframeModal')).show();
+            } catch (error) {
+                console.error('Wireframe generation error:', error);
+                alert('와이어프레임 생성에 실패했습니다. 다시 시도해주세요.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-desktop me-1"></i> PRD 데모 와이어프레임 생성';
+            }
+        }
+
+        function copyWireframeUrl() {
+            const input = document.getElementById('wireframeUrlInput');
+            navigator.clipboard.writeText(input.value).then(() => {
+                const success = document.getElementById('wireframeCopySuccess');
+                success.classList.remove('d-none');
+                setTimeout(() => success.classList.add('d-none'), 3000);
+            });
+        }
+
+        function openWireframePage() {
+            if (currentWireframeUrl) {
+                window.open(currentWireframeUrl, '_blank');
+            }
         }
     </script>
 }

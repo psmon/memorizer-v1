@@ -600,4 +600,81 @@ sequenceDiagram
 
 **중요: 반드시 한국어로 응답하세요. 실무에서 바로 활용할 수 있는 구체적인 바운디드 컨텍스트 정의를 작성해주세요.**";
     }
+
+    /// <summary>
+    /// Generate a demo wireframe HTML page based on refined PRD
+    /// </summary>
+    public static string GetWireframeGenerationPrompt(string refinedPrdResult, string eventStormingResult, string exampleMappingResult)
+    {
+        return $@"당신은 웹 UI/UX 전문가이자 프론트엔드 개발자입니다.
+보완된 PRD와 분석 결과를 바탕으로 데모용 와이어프레임 HTML 페이지를 생성해주세요.
+
+## 보완된 PRD
+{refinedPrdResult}
+
+## 이벤트 스토밍 결과
+{eventStormingResult}
+
+## 예제 맵핑 결과
+{exampleMappingResult}
+
+## 생성 규칙
+
+### 1. 페이지 구조
+- 단일 HTML 파일로 작성 (HTML, CSS, JS 포함)
+- 반응형 디자인 적용 (모바일, 태블릿, 데스크톱)
+- 모던하고 깔끔한 UI 디자인
+
+### 2. 필수 포함 요소
+- 헤더: 프로젝트명과 간단한 설명
+- 네비게이션: 주요 기능 메뉴
+- 메인 콘텐츠: PRD의 핵심 기능을 시각적으로 표현
+- 인터랙션 예시: 버튼 클릭, 폼 입력 등 기본 동작 시뮬레이션
+- 푸터: 기본 정보
+
+### 3. 기술 요구사항
+- CDN으로 Bootstrap 5 사용: https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css
+- CDN으로 Font Awesome 사용: https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+- CDN으로 Bootstrap JS 사용: https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js
+- 순수 CSS와 JavaScript만 사용 (React, Vue 등 프레임워크 사용 금지)
+- 외부 이미지는 placeholder.com 또는 picsum.photos 사용
+
+### 4. 디자인 가이드
+- 색상 테마: #667eea (Primary), #764ba2 (Secondary), #f8f9fa (Background)
+- 그라데이션 사용: linear-gradient(135deg, #667eea 0%, #764ba2 100%)
+- 부드러운 그림자: box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1)
+- 둥근 모서리: border-radius: 12px
+- 적절한 여백과 패딩
+
+### 5. 인터랙션 구현
+- 버튼 호버 효과
+- 모달/팝업 예시 (Bootstrap modal 활용)
+- 폼 유효성 검사 시뮬레이션
+- Toast 알림 예시
+- 데이터 목록 표시 예시 (하드코딩된 샘플 데이터)
+
+### 6. 출력 형식
+반드시 아래 형식으로 출력하세요. HTML 코드만 출력하고 다른 설명은 포함하지 마세요.
+
+```html
+<!DOCTYPE html>
+<html lang=""ko"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>[프로젝트명] - PRD 데모</title>
+    <!-- CDN 링크 -->
+</head>
+<body>
+    <!-- 페이지 콘텐츠 -->
+</body>
+</html>
+```
+
+## 중요 규칙
+- 반드시 완전하고 작동 가능한 HTML 파일을 생성하세요
+- 코드 블록 외에 다른 설명을 포함하지 마세요
+- PRD의 핵심 기능과 화면 구성을 최대한 반영하세요
+- 사용자가 바로 실행해볼 수 있는 데모 페이지를 만드세요";
+    }
 }

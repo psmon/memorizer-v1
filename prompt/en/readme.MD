@@ -239,6 +239,12 @@ PRD Maker feature improvements - Added 6th step Bounded Context (BC) definition 
 
 - [PRD-Maker-02](39-PRD-Maker-02.md)
 
+## Version 1.3.4
+
+PRD Demo Wireframe generation feature - LLM-EX based wireframe HTML page generation from refined PRD, static files saved in wwwroot/demo/{shortlink}/, responsive design with Bootstrap 5 CDN, modal window with full URL copy and open in new window features, also available in PRD Shares page when refined PRD exists
+
+- [PRD-Maker-03](40-PRD-Maker-03.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

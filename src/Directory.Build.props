@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.3.2</VersionPrefix>
+    <VersionPrefix>1.3.4</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [LLM-EX OpenAI support - Three provider types (Custom, Ollama, OpenAI) in LLM-EX service, environment variable-based provider selection, OAuth settings in docker-compose files, docker-compose.md configuration guide]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [PRD Demo Wireframe generation - LLM-EX based wireframe HTML page generation from refined PRD, static files in wwwroot/demo/{shortlink}/, responsive design with Bootstrap 5 CDN, modal with full URL copy and open new window, available in PRD Shares page]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Board Service - PRD 데모</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root{
+            --primary:#667eea;
+            --secondary:#764ba2;
+            --bg:#f8f9fa;
+        }
+        body{
+            background: var(--bg);
+        }
+        .gradient-header{
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color:#fff;
+        }
+        .card{
+            border-radius:12px;
+            box-shadow:0 4px 20px rgba(0,0,0,.1);
+        }
+        .btn-primary{
+            background-color:var(--primary);
+            border-color:var(--primary);
+        }
+        .btn-primary:hover{
+            background-color:#556cd6;
+            border-color:#556cd6;
+        }
+        .nav-link{
+            color:#fff;
+        }
+        .nav-link.active{
+            font-weight:bold;
+            text-decoration:underline;
+        }
+    </style>
+</head>
+<body>
+
+<header class="gradient-header py-4 mb-5">
+    <div class="container d-flex justify-content-between align-items-center">
+        <h1 class="h3 mb-0">Board Service</h1>
+        <p class="mb-0">실시간 알림·게시물·댓글 데모</p>
+    </div>
+</header>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary mb-4">
+  <div class="container">
+    <a class="navbar-brand" href="#">Board</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+            data-bs-target="#navbarsExample07" aria-controls="navbarsExample07"
+            aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navbarsExample07">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item"><a class="nav-link active" href="#">홈</a></li>
+        <li class="nav-item"><a class="nav-link" href="#" data-bs-toggle="modal"
+                                data-bs-target="#createPostModal">글쓰기</a></li>
+        <li class="nav-item"><a class="nav-link" href="#">알림 설정</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+    <!-- Post List -->
+    <section id="postList">
+        <h2 class="mb-4">게시물 목록</h2>
+
+        <div class="row row-cols-1 g-4" id="postsContainer">
+            <!-- Sample post card (hard‑coded) -->
+            <div class="col">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-0">첫 번째 게시물</h5>
+                        <small class="text-muted">작성자: Alice</small>
+                    </div>
+                    <p class="card-text mt-2">여기에 게시물 본문이 들어갑니다. 실시간 알림과 댓글 기능을 확인해보세요.</p>
+
+                    <!-- Comment list -->
+                    <ul class="list-group list-group-flush mb-3" id="commentList-1">
+                        <li class="list-group-item"><strong>Bob:</strong> 좋은 글이에요!</li>
+                        <li class="list-group-item"><strong>Alice:</strong> 감사합니다 :)</li>
+                    </ul>
+
+                    <!-- Comment form -->
+                    <form class="d-flex gap-2" onsubmit="addComment(event,1)">
+                        <input type="text" class="form-control flex-grow-1"
+                               placeholder="댓글을 입력하세요..." required minlength="1" maxlength="2000">
+                        <button class="btn btn-outline-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Additional sample post -->
+            <div class="col">
+                <div class="card p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-0">두 번째 게시물</h5>
+                        <small class="text-muted">작성자: Bob</small>
+                    </div>
+                    <p class="card-text mt-2">SSE를 이용한 실시간 푸시 예시입니다.</p>
+
+                    <ul class="list-group list-group-flush mb-3" id="commentList-2">
+                        <!-- No comments yet -->
+                    </ul>
+
+                    <form class="d-flex gap-2" onsubmit="addComment(event,2)">
+                        <input type="text" class="form-control flex-grow-1"
+                               placeholder="댓글을 입력하세요..." required minlength="1" maxlength="2000">
+                        <button class="btn btn-outline-primary"><i class="fa-solid fa-paper-plane"></i></button>
+                    </form>
+                </div>
+            </div>
+
+        </div>
+    </section>
+</main>
+
+<!-- Create Post Modal -->
+<div class="modal fade" id="createPostModal" tabindex="-1" aria-labelledby="createPostLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="postForm" onsubmit="createPost(event)">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createPostLabel"><i class="fa-solid fa-pencil"></i> 새 게시물 작성</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"
+                  aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label for="postTitle" class="form-label">제목 (≤150자)</label>
+                <input type="text" class="form-control" id="postTitle"
+                       maxlength="150" required>
+            </div>
+            <div class="mb-3">
+                <label for="postContent" class="form-label">본문 (≤2000자)</label>
+                <textarea class="form-control" id="postContent" rows="4"
+                          maxlength="2000" required></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary"
+                  data-bs-dismiss="modal">취소</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> 저장</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="position-fixed bottom-0 end-0 p-3" style="z-index: 1100;">
+  <div id="toastWrapper" class="toast-container"></div>
+</div>
+
+<footer class="bg-light text-center py-3 mt-5">
+    <small>© 2026 Board Service Demo. All rights reserved.</small>
+</footer>
+
+<!-- Bootstrap JS Bundle -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+/* Simple toast helper */
+function showToast(message, type='info'){
+    const wrapper = document.getElementById('toastWrapper');
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+    toastEl.setAttribute('role','alert');
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>`;
+    wrapper.appendChild(toastEl);
+    const toast = new bootstrap.Toast(toastEl,{delay:3000});
+    toast.show();
+}
+
+/* Simulated post creation */
+function createPost(e){
+    e.preventDefault();
+    const title=document.getElementById('postTitle').value.trim();
+    const content=document.getElementById('postContent').value.trim();
+
+    if(title.length===0||content.length===0){showToast('제목·본문을 입력해주세요.','warning');return;}
+    // Simulate validation
+    if(title.length>150||content.length>2000){
+        showToast('글자 수 제한을 초과했습니다.', 'danger');
+        return;
+    }
+    // Add new post card (client‑side only)
+    const postsContainer=document.getElementById('postsContainer');
+    const newId=Date.now(); // simple unique id
+    const card=document.createElement('div');
+    card.className='col';
+    card.innerHTML = `
+        <div class="card p-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <h5 class="card-title mb-0">${title}</h5>
+                <small class="text-muted">작성자: 현재사용자</small>
+            </div>
+            <p class="card-text mt-2">${content.replace(/\\n/g,'<br>')}</p>
+
+            <ul class="list-group list-group-flush mb-3" id="commentList-${newId}"></ul>
+
+            <form class="d-flex gap-2" onsubmit="addComment(event,${newId})">
+                <input type="text" class="form-control flex-grow-1"
+                       placeholder="댓글을 입력하세요..." required minlength="1" maxlength="2000">
+                <button class="btn btn-outline-primary"><i class="fa-solid fa-paper-plane"></i></button>
+            </form>
+        </div>`;
+    postsContainer.prepend(card);
+    // close modal & reset form
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createPostModal'));
+    modal.hide();
+    e.target.reset();
+    showToast('게시물이 생성되었습니다.','success');
+}
+
+/* Simulated comment addition */
+function addComment(e,postId){
+    e.preventDefault();
+    const input=e.target.querySelector('input');
+    const text=input.value.trim();
+    if(text.length===0){showToast('댓글을 입력해주세요.','warning');return;}
+    if(text.length>2000){showToast('댓글은 2000자 이하이어야 합니다.','danger');return;}
+
+    const list=document.getElementById(`commentList-${postId}`);
+    const li=document.createElement('li');
+    li.className='list-group-item';
+    li.innerHTML = `<strong>현재사용자:</strong> ${text}`;
+    list.appendChild(li);
+    input.value='';
+    showToast('댓글이 추가되었습니다.','success');
+
+    // Simulate real‑time notification (toast)
+    showToast(`새 댓글: "${text}"`, 'info');
+}
+</script>
+</body>
+</html>
