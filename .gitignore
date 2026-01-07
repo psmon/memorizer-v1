@@ -410,7 +410,7 @@ FodyWeavers.xsd
 .devcontainer/.persisted_credentials/
 .devcontainer/.vscode-server/
 .devcontainer/.features.temp.dockerfile
-/.claude
+# /.claude  # 스킬 커밋용으로 해제
 /.config
 cookies.txt
 src/Memorizer/packages-microsoft-prod.deb
