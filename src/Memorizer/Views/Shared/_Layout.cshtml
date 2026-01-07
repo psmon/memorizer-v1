@@ -117,6 +117,22 @@
                                 </li>
                             </ul>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(currentController == "ShapeUpView" ? "active" : "")"
+                               href="/ui/shapeup">
+                                <i class="fas fa-chalkboard me-2"></i>
+                                ShapeUP
+                            </a>
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link py-1"
+                                       href="/ui/shapeup/shares" style="font-size: 0.9rem;">
+                                        <i class="fas fa-share-alt me-2"></i>
+                                        ShapeShared
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                         @if (isAuthenticated)
                         {
                             <li class="nav-item">

@@ -1,0 +1,2136 @@
+@{
+    ViewData["Title"] = "Shape Up Whiteboard";
+    Layout = "_Layout";
+    ViewBag.Controller = "ShapeUpView";
+}
+
+@section Styles {
+    <style>
+        .shapeup-page {
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .shapeup-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .shapeup-header h1 {
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-header {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-header:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .shapeup-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Tool Panel */
+        .tool-panel {
+            width: 200px;
+            background: white;
+            border-right: 1px solid #dee2e6;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+            overflow-y: auto;
+        }
+
+        .tool-section {
+            margin-bottom: 20px;
+        }
+
+        .tool-section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tool-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid #e9ecef;
+            background: #f8f9fa;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            color: #495057;
+            transition: all 0.2s;
+            margin-bottom: 6px;
+        }
+
+        .tool-btn:hover {
+            background: #e9ecef;
+            border-color: #667eea;
+        }
+
+        .tool-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .tool-btn i {
+            width: 18px;
+            text-align: center;
+        }
+
+        .board-template-btn {
+            background: white;
+            border: 2px dashed #dee2e6;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .board-template-btn:hover {
+            border-color: #667eea;
+            border-style: solid;
+        }
+
+        .board-template-btn .template-name {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 5px;
+        }
+
+        /* Canvas Area */
+        .canvas-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #e9ecef;
+        }
+
+        #shapeup-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .canvas-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 5px;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        .canvas-control-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #495057;
+        }
+
+        .canvas-control-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .canvas-control-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .canvas-control-btn.ai-toggle {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        .canvas-control-btn.ai-toggle:hover {
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+
+        .control-divider {
+            width: 1px;
+            background: #dee2e6;
+            margin: 0 5px;
+        }
+
+        .zoom-level {
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        /* AI Prompt Panel */
+        .ai-prompt-panel {
+            position: absolute;
+            bottom: 80px;
+            left: 220px;
+            right: 20px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 15px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 200;
+        }
+
+        .ai-prompt-panel.show {
+            display: flex;
+        }
+
+        .ai-prompt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .ai-prompt-title {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 0.9rem;
+        }
+
+        .ai-prompt-close {
+            background: none;
+            border: none;
+            font-size: 1.2rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .ai-prompt-close:hover {
+            color: #333;
+        }
+
+        .ai-prompt-body {
+            display: flex;
+            gap: 10px;
+        }
+
+        .prompt-input {
+            flex: 1;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 12px 15px;
+            font-size: 0.95rem;
+            resize: none;
+        }
+
+        .prompt-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+
+        .board-type-select {
+            width: 150px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 0 12px;
+            font-size: 0.9rem;
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .btn-generate:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-generate:disabled {
+            background: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        /* Loading spinner */
+        .loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Share Modal */
+        .share-url-input {
+            background: #f8f9fa;
+        }
+
+        /* Board type colors */
+        .color-problem { color: #667eea; }
+        .color-breadboard { color: #00c6ff; }
+        .color-fatmarker { color: #11998e; }
+        .color-risk { color: #f093fb; }
+        .color-pitch { color: #ff6b6b; }
+    </style>
+}
+
+<div class="shapeup-page">
+    <!-- Header -->
+    <div class="shapeup-header">
+        <h1>
+            <i class="fas fa-chalkboard me-2"></i>
+            Shape Up Whiteboard
+        </h1>
+        <div class="header-buttons">
+            <button class="btn-header" onclick="clearCanvas()">
+                <i class="fas fa-trash-alt me-1"></i> Clear
+            </button>
+            <button class="btn-header" onclick="exportToPNG()">
+                <i class="fas fa-image me-1"></i> PNG
+            </button>
+            <button class="btn-header" onclick="exportToSVG()">
+                <i class="fas fa-file-code me-1"></i> SVG
+            </button>
+            <button class="btn-header" onclick="shareBoard()">
+                <i class="fas fa-share-alt me-1"></i> Share
+            </button>
+        </div>
+    </div>
+
+    <div class="shapeup-container">
+        <!-- Tool Panel -->
+        <div class="tool-panel">
+            <div class="tool-section">
+                <div class="tool-section-title">Drawing Tools</div>
+                <button class="tool-btn active" onclick="setTool('select')" id="tool-select">
+                    <i class="fas fa-mouse-pointer"></i> Select
+                </button>
+                <button class="tool-btn" onclick="setTool('rect')" id="tool-rect">
+                    <i class="fas fa-square"></i> Rectangle
+                </button>
+                <button class="tool-btn" onclick="setTool('circle')" id="tool-circle">
+                    <i class="fas fa-circle"></i> Circle
+                </button>
+                <button class="tool-btn" onclick="setTool('line')" id="tool-line">
+                    <i class="fas fa-minus"></i> Line
+                </button>
+                <button class="tool-btn" onclick="setTool('arrow')" id="tool-arrow">
+                    <i class="fas fa-arrow-right"></i> Arrow
+                </button>
+                <button class="tool-btn" onclick="setTool('text')" id="tool-text">
+                    <i class="fas fa-font"></i> Text
+                </button>
+                <button class="tool-btn" onclick="deleteSelected()">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </div>
+
+            <div class="tool-section">
+                <div class="tool-section-title">Board Templates</div>
+                <button class="tool-btn board-template-btn" onclick="addBoardTemplate('problem')">
+                    <i class="fas fa-exclamation-circle color-problem"></i>
+                    <span class="template-name">Problem</span>
+                </button>
+                <button class="tool-btn board-template-btn" onclick="addBoardTemplate('breadboard')">
+                    <i class="fas fa-project-diagram color-breadboard"></i>
+                    <span class="template-name">Breadboard</span>
+                </button>
+                <button class="tool-btn board-template-btn" onclick="addBoardTemplate('fat-marker')">
+                    <i class="fas fa-paint-brush color-fatmarker"></i>
+                    <span class="template-name">Fat Marker</span>
+                </button>
+                <button class="tool-btn board-template-btn" onclick="addBoardTemplate('risk')">
+                    <i class="fas fa-exclamation-triangle color-risk"></i>
+                    <span class="template-name">Risk</span>
+                </button>
+                <button class="tool-btn board-template-btn" onclick="addBoardTemplate('pitch')">
+                    <i class="fas fa-bullseye color-pitch"></i>
+                    <span class="template-name">Pitch</span>
+                </button>
+            </div>
+
+            <div class="tool-section">
+                <div class="tool-section-title">Properties</div>
+                <div class="mb-2">
+                    <label class="form-label small">Fill Color</label>
+                    <input type="color" id="fillColor" class="form-control form-control-sm" value="#ffffff" onchange="updateSelectedFill()">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Stroke Color</label>
+                    <input type="color" id="strokeColor" class="form-control form-control-sm" value="#333333" onchange="updateSelectedStroke()">
+                </div>
+                <div>
+                    <label class="form-label small">Stroke Width</label>
+                    <input type="range" id="strokeWidth" class="form-range" min="1" max="10" value="2" onchange="updateSelectedStrokeWidth()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="canvas-area" id="canvas-container">
+            <canvas id="shapeup-canvas"></canvas>
+
+            <!-- Canvas Controls -->
+            <div class="canvas-controls">
+                <button class="canvas-control-btn" onclick="setTool('pan')" id="tool-pan" title="Pan (Hand)">
+                    <i class="fas fa-hand-paper"></i>
+                </button>
+                <div class="control-divider"></div>
+                <button class="canvas-control-btn" onclick="zoomIn()" title="Zoom In">
+                    <i class="fas fa-plus"></i>
+                </button>
+                <span class="zoom-level" id="zoom-level">100%</span>
+                <button class="canvas-control-btn" onclick="zoomOut()" title="Zoom Out">
+                    <i class="fas fa-minus"></i>
+                </button>
+                <button class="canvas-control-btn" onclick="resetZoom()" title="Reset View">
+                    <i class="fas fa-compress-arrows-alt"></i>
+                </button>
+                <div class="control-divider"></div>
+                <button class="canvas-control-btn ai-toggle" onclick="toggleAIPanel()" title="AI Generate">
+                    <i class="fas fa-magic"></i>
+                </button>
+            </div>
+
+            <!-- AI Prompt Panel -->
+            <div class="ai-prompt-panel" id="ai-prompt-panel">
+                <div class="ai-prompt-header">
+                    <span class="ai-prompt-title">
+                        <i class="fas fa-magic me-1"></i> AI Board Generator
+                    </span>
+                    <button class="ai-prompt-close" onclick="closeAIPanel()" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <div class="ai-prompt-body">
+                    <textarea id="ai-prompt" class="prompt-input" rows="2"
+                        placeholder="Describe your project or feature to generate Shape Up boards..."></textarea>
+                    <select id="board-type" class="board-type-select">
+                        <option value="integrated">통합 생성</option>
+                        <option value="pitch">Pitch Board</option>
+                        <option value="problem">Problem</option>
+                        <option value="breadboard">Breadboard</option>
+                        <option value="fat-marker">Fat Marker</option>
+                        <option value="risk">Risk</option>
+                    </select>
+                    <button class="btn-generate" id="btn-generate" onclick="generateWithAI()">
+                        <i class="fas fa-magic me-1"></i> Generate
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-share-alt me-2"></i> Share Shape Up Board
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" id="share-title" placeholder="Shape Up Board">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Share URL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control share-url-input" id="share-url" readonly>
+                        <button class="btn btn-outline-primary" onclick="copyShareUrl()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="alert alert-success d-none" id="copy-success">
+                    <i class="fas fa-check me-1"></i> Copied to clipboard!
+                </div>
+                <button class="btn btn-primary w-100" onclick="openSharePage()">
+                    <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Fabric.js 5.3.1 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- FileSaver.js for download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <script>
+        // Suppress textBaseline 'alphabetical' warnings/errors (Fabric.js internal issue)
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('alphabetical')) return;
+            originalWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('alphabetical')) return;
+            originalError.apply(console, args);
+        };
+    </script>
+
+    <script>
+        // Canvas instance
+        let canvas;
+        let currentTool = 'select';
+        let isDrawing = false;
+        let startX, startY;
+        let currentShape = null;
+        let zoomLevel = 1;
+        let isPanning = false;
+        let lastPosX, lastPosY;
+        let currentShareUrl = '';
+
+        // Initialize canvas
+        document.addEventListener('DOMContentLoaded', function() {
+            initCanvas();
+        });
+
+        function initCanvas() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight - 100; // Leave space for prompt panel
+
+            canvas = new fabric.Canvas('shapeup-canvas', {
+                width: width,
+                height: height,
+                backgroundColor: '#f8f9fa',
+                selection: true
+            });
+
+            // Mouse wheel zoom
+            canvas.on('mouse:wheel', function(opt) {
+                const delta = opt.e.deltaY;
+                let zoom = canvas.getZoom();
+                zoom *= 0.999 ** delta;
+                if (zoom > 5) zoom = 5;
+                if (zoom < 0.1) zoom = 0.1;
+                canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+                zoomLevel = zoom;
+                updateZoomDisplay();
+                opt.e.preventDefault();
+                opt.e.stopPropagation();
+            });
+
+            // Pan with middle mouse, alt+drag, or pan tool
+            canvas.on('mouse:down', function(opt) {
+                if (opt.e.altKey || opt.e.button === 1 || currentTool === 'pan') {
+                    isPanning = true;
+                    canvas.selection = false;
+                    lastPosX = opt.e.clientX;
+                    lastPosY = opt.e.clientY;
+                    canvas.defaultCursor = 'grabbing';
+                } else if (currentTool !== 'select') {
+                    handleDrawStart(opt);
+                }
+            });
+
+            canvas.on('mouse:move', function(opt) {
+                if (isPanning) {
+                    const vpt = canvas.viewportTransform;
+                    vpt[4] += opt.e.clientX - lastPosX;
+                    vpt[5] += opt.e.clientY - lastPosY;
+                    canvas.requestRenderAll();
+                    lastPosX = opt.e.clientX;
+                    lastPosY = opt.e.clientY;
+                } else if (isDrawing && currentShape) {
+                    handleDrawMove(opt);
+                }
+            });
+
+            canvas.on('mouse:up', function(opt) {
+                if (isPanning) {
+                    isPanning = false;
+                    if (currentTool === 'pan') {
+                        canvas.defaultCursor = 'grab';
+                    } else {
+                        canvas.selection = true;
+                    }
+                }
+                if (isDrawing) {
+                    handleDrawEnd(opt);
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Delete' || e.key === 'Backspace') {
+                    if (!e.target.matches('input, textarea')) {
+                        deleteSelected();
+                    }
+                }
+            });
+
+            // Resize handler
+            window.addEventListener('resize', function() {
+                const container = document.getElementById('canvas-container');
+                canvas.setWidth(container.clientWidth);
+                canvas.setHeight(container.clientHeight - 100);
+                canvas.renderAll();
+            });
+        }
+
+        function setTool(tool) {
+            currentTool = tool;
+            // Update tool panel buttons
+            document.querySelectorAll('.tool-panel .tool-btn').forEach(btn => btn.classList.remove('active'));
+            const toolBtn = document.getElementById('tool-' + tool);
+            if (toolBtn) toolBtn.classList.add('active');
+
+            // Update canvas controls pan button
+            const panBtn = document.getElementById('tool-pan');
+            if (panBtn) {
+                if (tool === 'pan') {
+                    panBtn.classList.add('active');
+                } else {
+                    panBtn.classList.remove('active');
+                }
+            }
+
+            canvas.isDrawingMode = false;
+
+            // Pan tool: disable selection, enable drag panning
+            if (tool === 'pan') {
+                canvas.selection = false;
+                canvas.defaultCursor = 'grab';
+                canvas.hoverCursor = 'grab';
+            } else {
+                canvas.selection = (tool === 'select');
+                canvas.defaultCursor = 'default';
+                canvas.hoverCursor = 'move';
+            }
+        }
+
+        // AI Panel toggle functions
+        function toggleAIPanel() {
+            const panel = document.getElementById('ai-prompt-panel');
+            panel.classList.toggle('show');
+        }
+
+        function closeAIPanel() {
+            const panel = document.getElementById('ai-prompt-panel');
+            panel.classList.remove('show');
+        }
+
+        function openAIPanel() {
+            const panel = document.getElementById('ai-prompt-panel');
+            panel.classList.add('show');
+        }
+
+        function handleDrawStart(opt) {
+            if (currentTool === 'select') return;
+
+            isDrawing = true;
+            const pointer = canvas.getPointer(opt.e);
+            startX = pointer.x;
+            startY = pointer.y;
+
+            const fillColor = document.getElementById('fillColor').value;
+            const strokeColor = document.getElementById('strokeColor').value;
+            const strokeWidth = parseInt(document.getElementById('strokeWidth').value);
+
+            switch (currentTool) {
+                case 'rect':
+                    currentShape = new fabric.Rect({
+                        left: startX,
+                        top: startY,
+                        width: 0,
+                        height: 0,
+                        fill: fillColor,
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth,
+                        rx: 8,
+                        ry: 8
+                    });
+                    break;
+                case 'circle':
+                    currentShape = new fabric.Circle({
+                        left: startX,
+                        top: startY,
+                        radius: 0,
+                        fill: fillColor,
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth
+                    });
+                    break;
+                case 'line':
+                    currentShape = new fabric.Line([startX, startY, startX, startY], {
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth
+                    });
+                    break;
+                case 'arrow':
+                    // Arrow will be created on mouse up
+                    break;
+                case 'text':
+                    currentShape = new fabric.IText('Text', {
+                        left: startX,
+                        top: startY,
+                        fontSize: 16,
+                        fill: strokeColor
+                    });
+                    canvas.add(currentShape);
+                    canvas.setActiveObject(currentShape);
+                    currentShape.enterEditing();
+                    isDrawing = false;
+                    return;
+            }
+
+            if (currentShape) {
+                canvas.add(currentShape);
+            }
+        }
+
+        function handleDrawMove(opt) {
+            if (!isDrawing || !currentShape) return;
+
+            const pointer = canvas.getPointer(opt.e);
+
+            switch (currentTool) {
+                case 'rect':
+                    const width = pointer.x - startX;
+                    const height = pointer.y - startY;
+                    currentShape.set({
+                        width: Math.abs(width),
+                        height: Math.abs(height),
+                        left: width > 0 ? startX : pointer.x,
+                        top: height > 0 ? startY : pointer.y
+                    });
+                    break;
+                case 'circle':
+                    const radius = Math.sqrt(Math.pow(pointer.x - startX, 2) + Math.pow(pointer.y - startY, 2)) / 2;
+                    currentShape.set({ radius: radius });
+                    break;
+                case 'line':
+                    currentShape.set({ x2: pointer.x, y2: pointer.y });
+                    break;
+            }
+
+            canvas.renderAll();
+        }
+
+        function handleDrawEnd(opt) {
+            if (currentTool === 'arrow') {
+                const pointer = canvas.getPointer(opt.e);
+                createArrow(startX, startY, pointer.x, pointer.y);
+            }
+
+            isDrawing = false;
+            currentShape = null;
+            setTool('select');
+        }
+
+        function createArrow(x1, y1, x2, y2) {
+            const strokeColor = document.getElementById('strokeColor').value;
+            const strokeWidth = parseInt(document.getElementById('strokeWidth').value);
+
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const headLen = 15;
+
+            const line = new fabric.Line([x1, y1, x2, y2], {
+                stroke: strokeColor,
+                strokeWidth: strokeWidth
+            });
+
+            const head = new fabric.Triangle({
+                left: x2,
+                top: y2,
+                width: headLen,
+                height: headLen,
+                fill: strokeColor,
+                angle: (angle * 180 / Math.PI) + 90,
+                originX: 'center',
+                originY: 'center'
+            });
+
+            const group = new fabric.Group([line, head], {
+                selectable: true
+            });
+
+            canvas.add(group);
+        }
+
+        function deleteSelected() {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length) {
+                activeObjects.forEach(obj => canvas.remove(obj));
+                canvas.discardActiveObject();
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedFill() {
+            const color = document.getElementById('fillColor').value;
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.set('fill', color);
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedStroke() {
+            const color = document.getElementById('strokeColor').value;
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.set('stroke', color);
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedStrokeWidth() {
+            const width = parseInt(document.getElementById('strokeWidth').value);
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.set('strokeWidth', width);
+                canvas.renderAll();
+            }
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            zoomLevel = Math.min(5, zoomLevel * 1.2);
+            canvas.setZoom(zoomLevel);
+            updateZoomDisplay();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(0.1, zoomLevel / 1.2);
+            canvas.setZoom(zoomLevel);
+            updateZoomDisplay();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            canvas.setZoom(1);
+            canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+            canvas.renderAll();
+            updateZoomDisplay();
+        }
+
+        function updateZoomDisplay() {
+            document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        }
+
+        function clearCanvas() {
+            if (confirm('Are you sure you want to clear the canvas?')) {
+                canvas.clear();
+                canvas.backgroundColor = '#f8f9fa';
+                canvas.renderAll();
+            }
+        }
+
+        // Export functions
+        function exportToPNG() {
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                quality: 1.0,
+                multiplier: 2
+            });
+            const link = document.createElement('a');
+            link.download = 'shapeup-board.png';
+            link.href = dataURL;
+            link.click();
+        }
+
+        function exportToSVG() {
+            const svg = canvas.toSVG();
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            saveAs(blob, 'shapeup-board.svg');
+        }
+
+        // Board Templates
+        function addBoardTemplate(type) {
+            // Guard: ensure canvas is initialized
+            if (!canvas) {
+                console.error('Canvas not initialized');
+                return;
+            }
+
+            const colors = {
+                'problem': '#667eea',
+                'breadboard': '#00c6ff',
+                'fat-marker': '#11998e',
+                'risk': '#f093fb',
+                'pitch': '#ff6b6b'
+            };
+
+            const color = colors[type] || '#667eea';
+            const centerX = (canvas.width || 800) / 2 - 200;
+            const centerY = 100;
+
+            switch (type) {
+                case 'problem':
+                    addProblemBoard(centerX, centerY, color);
+                    break;
+                case 'breadboard':
+                    addBreadboard(centerX, centerY, color);
+                    break;
+                case 'fat-marker':
+                    addFatMarkerSketch(centerX, centerY, color);
+                    break;
+                case 'risk':
+                    addRiskBoard(centerX, centerY, color);
+                    break;
+                case 'pitch':
+                    addPitchBoard(centerX, centerY, color);
+                    break;
+            }
+        }
+
+        function addProblemBoard(x, y, color) {
+            const frame = new fabric.Rect({
+                left: x, top: y,
+                width: 500, height: 350,
+                fill: 'white',
+                stroke: color,
+                strokeWidth: 3,
+                rx: 12, ry: 12
+            });
+
+            const title = new fabric.Text('PROBLEM DEFINITION', {
+                left: x + 20, top: y + 15,
+                fontSize: 16, fontWeight: 'bold',
+                fill: color
+            });
+
+            // 4 sections
+            const sections = [
+                { x: x + 10, y: y + 50, w: 235, h: 130, label: 'Raw Idea', content: '[Original idea]' },
+                { x: x + 255, y: y + 50, w: 235, h: 130, label: 'Narrowed Problem', content: '[Specific problem]' },
+                { x: x + 10, y: y + 190, w: 235, h: 130, label: 'Baseline', content: '[Current state]' },
+                { x: x + 255, y: y + 190, w: 235, h: 130, label: 'Appetite', content: '[ ] Small (1-2w)\n[x] Big (6w)' }
+            ];
+
+            const objects = [frame, title];
+
+            sections.forEach(s => {
+                const box = new fabric.Rect({
+                    left: s.x, top: s.y,
+                    width: s.w, height: s.h,
+                    fill: '#f8f9fa',
+                    stroke: '#dee2e6',
+                    strokeWidth: 1,
+                    rx: 6, ry: 6
+                });
+                const label = new fabric.Text(s.label, {
+                    left: s.x + 10, top: s.y + 10,
+                    fontSize: 12, fontWeight: 'bold',
+                    fill: '#6c757d'
+                });
+                const content = new fabric.Text(s.content, {
+                    left: s.x + 10, top: s.y + 30,
+                    fontSize: 11,
+                    fill: '#495057'
+                });
+                objects.push(box, label, content);
+            });
+
+            const group = new fabric.Group(objects, { selectable: true });
+            canvas.add(group);
+            canvas.renderAll();
+        }
+
+        function addBreadboard(x, y, color) {
+            const frame = new fabric.Rect({
+                left: x, top: y,
+                width: 600, height: 200,
+                fill: 'white',
+                stroke: color,
+                strokeWidth: 3,
+                rx: 12, ry: 12
+            });
+
+            const title = new fabric.Text('BREADBOARD', {
+                left: x + 20, top: y + 15,
+                fontSize: 16, fontWeight: 'bold',
+                fill: color
+            });
+
+            const places = [
+                { x: x + 20, y: y + 50, name: 'Screen 1', items: ['Button', 'Field'] },
+                { x: x + 200, y: y + 50, name: 'Screen 2', items: ['Form', 'Submit'] },
+                { x: x + 380, y: y + 50, name: 'Screen 3', items: ['Result', 'Done'] }
+            ];
+
+            const objects = [frame, title];
+
+            places.forEach((p, i) => {
+                const box = new fabric.Rect({
+                    left: p.x, top: p.y,
+                    width: 150, height: 120,
+                    fill: '#f8f9fa',
+                    stroke: '#333',
+                    strokeWidth: 2,
+                    rx: 6, ry: 6
+                });
+                const name = new fabric.Text(p.name, {
+                    left: p.x + 10, top: p.y + 10,
+                    fontSize: 14, fontWeight: 'bold',
+                    fill: '#333',
+                    underline: true
+                });
+                objects.push(box, name);
+
+                p.items.forEach((item, j) => {
+                    const itemText = new fabric.Text('• ' + item, {
+                        left: p.x + 15, top: p.y + 40 + j * 20,
+                        fontSize: 12,
+                        fill: '#495057'
+                    });
+                    objects.push(itemText);
+                });
+
+                // Add arrow to next place
+                if (i < places.length - 1) {
+                    const arrow = new fabric.Line([p.x + 155, p.y + 60, p.x + 195, p.y + 60], {
+                        stroke: '#333',
+                        strokeWidth: 2
+                    });
+                    const arrowHead = new fabric.Triangle({
+                        left: p.x + 195, top: p.y + 60,
+                        width: 10, height: 10,
+                        fill: '#333',
+                        angle: 90,
+                        originX: 'center', originY: 'center'
+                    });
+                    objects.push(arrow, arrowHead);
+                }
+            });
+
+            const group = new fabric.Group(objects, { selectable: true });
+            canvas.add(group);
+            canvas.renderAll();
+        }
+
+        function addFatMarkerSketch(x, y, color) {
+            const frame = new fabric.Rect({
+                left: x, top: y,
+                width: 350, height: 400,
+                fill: 'white',
+                stroke: color,
+                strokeWidth: 3,
+                rx: 12, ry: 12
+            });
+
+            const title = new fabric.Text('FAT MARKER SKETCH', {
+                left: x + 20, top: y + 15,
+                fontSize: 16, fontWeight: 'bold',
+                fill: color
+            });
+
+            const boxes = [
+                { x: x + 20, y: y + 50, w: 310, h: 40, label: 'Header' },
+                { x: x + 20, y: y + 110, w: 145, h: 120, label: 'Main' },
+                { x: x + 185, y: y + 110, w: 145, h: 120, label: 'Side' },
+                { x: x + 20, y: y + 250, w: 310, h: 60, label: 'Actions' },
+                { x: x + 20, y: y + 330, w: 310, h: 40, label: 'Footer' }
+            ];
+
+            const objects = [frame, title];
+
+            boxes.forEach(b => {
+                const box = new fabric.Rect({
+                    left: b.x, top: b.y,
+                    width: b.w, height: b.h,
+                    fill: 'transparent',
+                    stroke: '#333',
+                    strokeWidth: 4,
+                    rx: 4, ry: 4
+                });
+                const label = new fabric.Text(b.label, {
+                    left: b.x + 10, top: b.y + 10,
+                    fontSize: 12, fontWeight: 'bold',
+                    fill: '#6c757d'
+                });
+                objects.push(box, label);
+            });
+
+            const group = new fabric.Group(objects, { selectable: true });
+            canvas.add(group);
+            canvas.renderAll();
+        }
+
+        function addRiskBoard(x, y, color) {
+            const frame = new fabric.Rect({
+                left: x, top: y,
+                width: 500, height: 350,
+                fill: 'white',
+                stroke: color,
+                strokeWidth: 3,
+                rx: 12, ry: 12
+            });
+
+            const title = new fabric.Text('RISK & RABBIT HOLES', {
+                left: x + 20, top: y + 15,
+                fontSize: 16, fontWeight: 'bold',
+                fill: color
+            });
+
+            const rabbitTitle = new fabric.Text('Rabbit Holes:', {
+                left: x + 20, top: y + 50,
+                fontSize: 14, fontWeight: 'bold',
+                fill: '#333'
+            });
+
+            const rabbitHoles = [
+                '[Risk 1] - patched: [solution]',
+                '[Risk 2] - out-of-bounds',
+                '[Risk 3] - cut-back'
+            ];
+
+            const noGoTitle = new fabric.Text('No-Gos:', {
+                left: x + 20, top: y + 180,
+                fontSize: 14, fontWeight: 'bold',
+                fill: '#333'
+            });
+
+            const noGos = [
+                'Feature A',
+                'Feature B',
+                'Feature C'
+            ];
+
+            const objects = [frame, title, rabbitTitle, noGoTitle];
+
+            rabbitHoles.forEach((rh, i) => {
+                const text = new fabric.Text('• ' + rh, {
+                    left: x + 30, top: y + 80 + i * 25,
+                    fontSize: 12,
+                    fill: '#495057'
+                });
+                objects.push(text);
+            });
+
+            noGos.forEach((ng, i) => {
+                const text = new fabric.Text('✗ ' + ng, {
+                    left: x + 30, top: y + 210 + i * 25,
+                    fontSize: 12,
+                    fill: '#dc3545'
+                });
+                objects.push(text);
+            });
+
+            const group = new fabric.Group(objects, { selectable: true });
+            canvas.add(group);
+            canvas.renderAll();
+        }
+
+        function addPitchBoard(x, y, color) {
+            const frame = new fabric.Rect({
+                left: x, top: y,
+                width: 700, height: 500,
+                fill: 'white',
+                stroke: color,
+                strokeWidth: 3,
+                rx: 12, ry: 12
+            });
+
+            const header = new fabric.Text('PITCH: [Project Name]  |  Appetite: 6 weeks', {
+                left: x + 20, top: y + 15,
+                fontSize: 18, fontWeight: 'bold',
+                fill: color
+            });
+
+            const sections = [
+                { x: x + 10, y: y + 55, w: 335, h: 150, title: '1. PROBLEM', content: '[Problem description]' },
+                { x: x + 355, y: y + 55, w: 335, h: 150, title: '2. SOLUTION', content: '[Solution overview]' },
+                { x: x + 10, y: y + 215, w: 335, h: 120, title: '3. RABBIT HOLES', content: '• [Risk 1]\n• [Risk 2]' },
+                { x: x + 355, y: y + 215, w: 335, h: 120, title: '4. NO-GOS', content: '✗ [Excluded 1]\n✗ [Excluded 2]' },
+                { x: x + 10, y: y + 345, w: 680, h: 130, title: '5. FLOW', content: '[Start] → [Middle] → [End]' }
+            ];
+
+            const objects = [frame, header];
+
+            sections.forEach(s => {
+                const box = new fabric.Rect({
+                    left: s.x, top: s.y,
+                    width: s.w, height: s.h,
+                    fill: '#f8f9fa',
+                    stroke: '#dee2e6',
+                    strokeWidth: 1,
+                    rx: 6, ry: 6
+                });
+                const titleText = new fabric.Text(s.title, {
+                    left: s.x + 10, top: s.y + 10,
+                    fontSize: 13, fontWeight: 'bold',
+                    fill: color
+                });
+                const content = new fabric.Text(s.content, {
+                    left: s.x + 10, top: s.y + 35,
+                    fontSize: 11,
+                    fill: '#495057'
+                });
+                objects.push(box, titleText, content);
+            });
+
+            const group = new fabric.Group(objects, { selectable: true });
+            canvas.add(group);
+            canvas.renderAll();
+        }
+
+        // AI Generation
+        async function generateWithAI() {
+            const prompt = document.getElementById('ai-prompt').value.trim();
+            if (!prompt) {
+                alert('Please enter a prompt to generate a board.');
+                return;
+            }
+
+            const boardType = document.getElementById('board-type').value;
+            const btn = document.getElementById('btn-generate');
+
+            if (boardType === 'integrated') {
+                await generateIntegratedBoards(prompt, btn);
+            } else {
+                await generateSingleBoard(prompt, boardType, btn);
+            }
+        }
+
+        // Single board generation
+        async function generateSingleBoard(prompt, boardType, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+
+            try {
+                const response = await fetch('/api/shapeup/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ prompt, boardType })
+                });
+
+                if (!response.ok) throw new Error('Generation failed');
+
+                let fullContent = '';
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) {
+                            try {
+                                const data = JSON.parse(line.substring(5).trim());
+                                if (data.content) {
+                                    fullContent += data.content;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                // Try to parse and render the generated board
+                renderGeneratedBoard(fullContent, boardType);
+
+            } catch (error) {
+                console.error('Generation error:', error);
+                alert('Failed to generate board. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magic me-1"></i> Generate';
+            }
+        }
+
+        // Integrated board generation (5 boards step by step)
+        async function generateIntegratedBoards(prompt, btn) {
+            const steps = [
+                { type: 'problem', label: 'Problem', offset: { x: 50, y: 50 } },
+                { type: 'breadboard', label: 'Breadboard', offset: { x: 700, y: 50 } },
+                { type: 'fat-marker', label: 'Fat Marker', offset: { x: 50, y: 480 } },
+                { type: 'risk', label: 'Risk', offset: { x: 500, y: 480 } },
+                { type: 'pitch', label: 'Pitch', offset: { x: 1250, y: 50 } }
+            ];
+
+            const stepResults = {};
+            btn.disabled = true;
+
+            // Clear canvas for integrated view
+            canvas.clear();
+            canvas.backgroundColor = '#f8f9fa';
+            canvas.renderAll();
+
+            for (let i = 0; i < steps.length; i++) {
+                const step = steps[i];
+                const progress = `${i + 1}/${steps.length}`;
+                btn.innerHTML = `<span class="loading-spinner"></span> ${step.label} (${progress})`;
+
+                try {
+                    // Build context from previous steps
+                    let contextPrompt = prompt;
+                    if (i > 0) {
+                        contextPrompt = buildIntegratedPrompt(prompt, step.type, stepResults);
+                    }
+
+                    const response = await fetch('/api/shapeup/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            prompt: contextPrompt,
+                            boardType: step.type,
+                            isIntegrated: true,
+                            previousResults: i > 0 ? stepResults : null
+                        })
+                    });
+
+                    if (!response.ok) throw new Error(`${step.label} generation failed`);
+
+                    let fullContent = '';
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data:')) {
+                                try {
+                                    const data = JSON.parse(line.substring(5).trim());
+                                    if (data.content) {
+                                        fullContent += data.content;
+                                    }
+                                } catch (e) {}
+                            }
+                        }
+                    }
+
+                    // Store result for next step
+                    stepResults[step.type] = fullContent;
+
+                    // Render board at specific offset
+                    renderIntegratedBoard(fullContent, step.type, step.offset);
+
+                } catch (error) {
+                    console.error(`${step.label} generation error:`, error);
+                    // Continue with next step even if one fails
+                }
+            }
+
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-magic me-1"></i> Generate';
+
+            // Fit all boards in view
+            fitAllBoardsInView();
+        }
+
+        // Build context prompt with previous step results
+        function buildIntegratedPrompt(originalPrompt, currentType, previousResults) {
+            let context = `## 원래 요구사항\n${originalPrompt}\n\n`;
+
+            if (previousResults.problem) {
+                context += `## 이전 단계: Problem Definition 결과\n`;
+                context += extractSummaryFromResult(previousResults.problem, 'problem') + '\n\n';
+            }
+
+            if (previousResults.breadboard && (currentType === 'fat-marker' || currentType === 'risk' || currentType === 'pitch')) {
+                context += `## 이전 단계: Breadboard 결과\n`;
+                context += extractSummaryFromResult(previousResults.breadboard, 'breadboard') + '\n\n';
+            }
+
+            if (previousResults['fat-marker'] && (currentType === 'risk' || currentType === 'pitch')) {
+                context += `## 이전 단계: Fat Marker Sketch 결과\n`;
+                context += extractSummaryFromResult(previousResults['fat-marker'], 'fat-marker') + '\n\n';
+            }
+
+            if (previousResults.risk && currentType === 'pitch') {
+                context += `## 이전 단계: Risk Assessment 결과\n`;
+                context += extractSummaryFromResult(previousResults.risk, 'risk') + '\n\n';
+            }
+
+            context += `\n위의 이전 단계 결과들을 참고하여 일관성 있게 ${currentType} 보드를 생성해주세요.`;
+            return context;
+        }
+
+        // Extract summary from JSON result
+        function extractSummaryFromResult(content, type) {
+            try {
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) return content.substring(0, 500);
+
+                const data = JSON.parse(jsonMatch[0]);
+                const elements = data.elements || [];
+
+                let summary = '';
+                elements.forEach(el => {
+                    if (el.title) summary += `- ${el.title}: `;
+                    if (el.content) summary += el.content + '\n';
+                    if (el.name) summary += el.name + '\n';
+                    if (el.items && Array.isArray(el.items)) {
+                        el.items.forEach(item => {
+                            if (typeof item === 'string') summary += `  • ${item}\n`;
+                            else if (item.description) summary += `  • ${item.description}\n`;
+                            else if (item.text) summary += `  • ${item.text}\n`;
+                        });
+                    }
+                });
+
+                return summary || content.substring(0, 500);
+            } catch (e) {
+                return content.substring(0, 500);
+            }
+        }
+
+        // Render board at specific offset for integrated view
+        function renderIntegratedBoard(content, boardType, offset) {
+            if (!canvas) return;
+
+            try {
+                let jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    addBoardTemplateAtOffset(boardType, offset);
+                    return;
+                }
+
+                const boardData = JSON.parse(jsonMatch[0]);
+
+                if (boardData.elements && Array.isArray(boardData.elements)) {
+                    // Adjust element positions with offset
+                    const adjustedElements = boardData.elements.map(el => ({
+                        ...el,
+                        x: (el.x || 0) + offset.x,
+                        y: (el.y || 0) + offset.y
+                    }));
+                    renderBoardElements(adjustedElements, boardData.title || boardType);
+                } else {
+                    addBoardTemplateAtOffset(boardType, offset);
+                }
+            } catch (e) {
+                console.error('Parse error for', boardType, e);
+                addBoardTemplateAtOffset(boardType, offset);
+            }
+        }
+
+        // Add template at specific offset
+        function addBoardTemplateAtOffset(type, offset) {
+            const colors = {
+                'problem': '#667eea',
+                'breadboard': '#00c6ff',
+                'fat-marker': '#11998e',
+                'risk': '#f093fb',
+                'pitch': '#ff6b6b'
+            };
+
+            const color = colors[type] || '#667eea';
+
+            switch (type) {
+                case 'problem':
+                    addProblemBoard(offset.x, offset.y, color);
+                    break;
+                case 'breadboard':
+                    addBreadboard(offset.x, offset.y, color);
+                    break;
+                case 'fat-marker':
+                    addFatMarkerSketch(offset.x, offset.y, color);
+                    break;
+                case 'risk':
+                    addRiskBoard(offset.x, offset.y, color);
+                    break;
+                case 'pitch':
+                    addPitchBoard(offset.x, offset.y, color);
+                    break;
+            }
+        }
+
+        // Fit all boards in view after integrated generation
+        function fitAllBoardsInView() {
+            if (!canvas) return;
+
+            // Get bounding box of all objects
+            const objects = canvas.getObjects();
+            if (objects.length === 0) return;
+
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+            objects.forEach(obj => {
+                const bound = obj.getBoundingRect();
+                minX = Math.min(minX, bound.left);
+                minY = Math.min(minY, bound.top);
+                maxX = Math.max(maxX, bound.left + bound.width);
+                maxY = Math.max(maxY, bound.top + bound.height);
+            });
+
+            const contentWidth = maxX - minX;
+            const contentHeight = maxY - minY;
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+
+            // Calculate zoom to fit
+            const scaleX = (canvasWidth - 100) / contentWidth;
+            const scaleY = (canvasHeight - 100) / contentHeight;
+            const scale = Math.min(scaleX, scaleY, 1); // Don't zoom in beyond 100%
+
+            // Set zoom and center
+            zoomLevel = scale;
+            canvas.setZoom(scale);
+
+            // Center the content
+            const centerX = minX + contentWidth / 2;
+            const centerY = minY + contentHeight / 2;
+            const vpCenterX = canvasWidth / 2 / scale;
+            const vpCenterY = canvasHeight / 2 / scale;
+
+            canvas.viewportTransform[4] = (vpCenterX - centerX) * scale;
+            canvas.viewportTransform[5] = (vpCenterY - centerY) * scale;
+
+            canvas.renderAll();
+            updateZoomDisplay();
+        }
+
+        function renderGeneratedBoard(content, boardType) {
+            // Ensure canvas is initialized
+            if (!canvas) {
+                console.error('Canvas not initialized');
+                alert('Canvas not ready. Please refresh and try again.');
+                return;
+            }
+
+            try {
+                // Try to extract JSON from the content
+                let jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (!jsonMatch) {
+                    console.error('No JSON found in response');
+                    addBoardTemplate(boardType);
+                    alert('Template added. AI response could not be parsed.');
+                    return;
+                }
+
+                const boardData = JSON.parse(jsonMatch[0]);
+                console.log('Parsed board data:', boardData);
+
+                if (boardData.elements && Array.isArray(boardData.elements)) {
+                    renderBoardElements(boardData.elements, boardData.title || 'Shape Up Board');
+                } else {
+                    addBoardTemplate(boardType);
+                    alert('Template added. AI response format not recognized.');
+                }
+            } catch (e) {
+                console.error('Parse error:', e);
+                addBoardTemplate(boardType);
+                alert('Template added. Edit it to match your requirements.');
+            }
+        }
+
+        // Render AI-generated board elements
+        function renderBoardElements(elements, title) {
+            const objects = [];
+            const placeMap = {}; // For breadboard connections
+
+            elements.forEach(el => {
+                switch (el.type) {
+                    case 'frame':
+                        objects.push(createFrame(el));
+                        break;
+                    case 'section':
+                    case 'pitchSection':
+                        objects.push(...createSection(el));
+                        break;
+                    case 'place':
+                        const placeObjs = createPlace(el);
+                        objects.push(...placeObjs);
+                        if (el.id) placeMap[el.id] = el;
+                        break;
+                    case 'box':
+                        objects.push(...createBox(el));
+                        break;
+                    case 'squiggle':
+                        objects.push(createSquiggle(el));
+                        break;
+                    case 'annotation':
+                        objects.push(createAnnotation(el));
+                        break;
+                    case 'appetite':
+                        objects.push(...createAppetite(el));
+                        break;
+                    case 'rabbitHoleList':
+                        objects.push(...createRabbitHoleList(el));
+                        break;
+                    case 'noGoList':
+                        objects.push(...createNoGoList(el));
+                        break;
+                    case 'pitchHeader':
+                        objects.push(...createPitchHeader(el));
+                        break;
+                    case 'breadboardMini':
+                        objects.push(...createBreadboardMini(el));
+                        break;
+                    case 'riskCurve':
+                        objects.push(...createRiskCurve(el));
+                        break;
+                }
+            });
+
+            // Add connection lines for breadboard
+            elements.filter(el => el.type === 'connection').forEach(conn => {
+                const fromPlace = placeMap[conn.from];
+                const toPlace = placeMap[conn.to];
+                if (fromPlace && toPlace) {
+                    objects.push(...createConnection(fromPlace, toPlace, conn.label));
+                }
+            });
+
+            // Add all objects to canvas
+            objects.forEach(obj => canvas.add(obj));
+            canvas.renderAll();
+        }
+
+        // Helper: Create frame
+        function createFrame(el) {
+            return new fabric.Rect({
+                left: el.x || 50,
+                top: el.y || 50,
+                width: el.width || 600,
+                height: el.height || 400,
+                fill: 'white',
+                stroke: el.color || '#667eea',
+                strokeWidth: 3,
+                rx: 12,
+                ry: 12,
+                selectable: true
+            });
+        }
+
+        // Helper: Create section with title and content (auto-wrap)
+        function createSection(el) {
+            const objs = [];
+            const boxWidth = el.width || 200;
+            const boxHeight = el.height || 100;
+            const box = new fabric.Rect({
+                left: el.x || 0,
+                top: el.y || 0,
+                width: boxWidth,
+                height: boxHeight,
+                fill: '#f8f9fa',
+                stroke: '#dee2e6',
+                strokeWidth: 1,
+                rx: 6,
+                ry: 6
+            });
+            objs.push(box);
+
+            if (el.title) {
+                objs.push(new fabric.Text(el.title, {
+                    left: (el.x || 0) + 10,
+                    top: (el.y || 0) + 10,
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    fill: el.color || '#667eea'
+                }));
+            }
+
+            if (el.content) {
+                // Use Textbox for auto-wrapping
+                objs.push(new fabric.Textbox(el.content, {
+                    left: (el.x || 0) + 10,
+                    top: (el.y || 0) + 35,
+                    fontSize: 11,
+                    fill: '#495057',
+                    width: boxWidth - 20,
+                    splitByGrapheme: true
+                }));
+            }
+
+            // Handle items array (for rabbit holes, no-gos)
+            if (el.items && Array.isArray(el.items)) {
+                let yOffset = 35;
+                el.items.forEach((item, i) => {
+                    const itemText = typeof item === 'string' ? item :
+                        (item.text || item.description || JSON.stringify(item));
+                    const textbox = new fabric.Textbox('• ' + itemText, {
+                        left: (el.x || 0) + 10,
+                        top: (el.y || 0) + yOffset,
+                        fontSize: 11,
+                        fill: '#495057',
+                        width: boxWidth - 20,
+                        splitByGrapheme: true
+                    });
+                    objs.push(textbox);
+                    yOffset += Math.max(20, textbox.height + 5);
+                });
+            }
+
+            return objs;
+        }
+
+        // Helper: Create place (breadboard) with auto-wrap
+        function createPlace(el) {
+            const objs = [];
+            const boxWidth = el.width || 150;
+            objs.push(new fabric.Rect({
+                left: el.x || 0,
+                top: el.y || 0,
+                width: boxWidth,
+                height: el.height || 120,
+                fill: '#f8f9fa',
+                stroke: '#333',
+                strokeWidth: 2,
+                rx: 6,
+                ry: 6
+            }));
+
+            objs.push(new fabric.Textbox(el.name || 'Place', {
+                left: (el.x || 0) + 10,
+                top: (el.y || 0) + 10,
+                fontSize: 14,
+                fontWeight: 'bold',
+                fill: '#333',
+                underline: true,
+                width: boxWidth - 20,
+                splitByGrapheme: true
+            }));
+
+            if (el.affordances && Array.isArray(el.affordances)) {
+                let yOffset = 40;
+                el.affordances.forEach((aff, i) => {
+                    const textbox = new fabric.Textbox('• ' + aff, {
+                        left: (el.x || 0) + 15,
+                        top: (el.y || 0) + yOffset,
+                        fontSize: 12,
+                        fill: '#495057',
+                        width: boxWidth - 25,
+                        splitByGrapheme: true
+                    });
+                    objs.push(textbox);
+                    yOffset += Math.max(18, textbox.height + 3);
+                });
+            }
+
+            return objs;
+        }
+
+        // Helper: Create box (fat marker)
+        function createBox(el) {
+            const objs = [];
+            objs.push(new fabric.Rect({
+                left: el.x || 0,
+                top: el.y || 0,
+                width: el.width || 100,
+                height: el.height || 50,
+                fill: 'transparent',
+                stroke: '#333',
+                strokeWidth: 4,
+                rx: 4,
+                ry: 4
+            }));
+
+            if (el.label) {
+                objs.push(new fabric.Text(el.label, {
+                    left: (el.x || 0) + 10,
+                    top: (el.y || 0) + 10,
+                    fontSize: 12,
+                    fontWeight: 'bold',
+                    fill: '#6c757d'
+                }));
+            }
+
+            return objs;
+        }
+
+        // Helper: Create squiggle line
+        function createSquiggle(el) {
+            const y = el.y || 0;
+            const width = el.width || 100;
+            let path = `M ${el.x || 0} ${y}`;
+            for (let i = 0; i < width; i += 10) {
+                path += ` Q ${(el.x || 0) + i + 5} ${y + (i % 20 === 0 ? -5 : 5)}, ${(el.x || 0) + i + 10} ${y}`;
+            }
+            return new fabric.Path(path, {
+                stroke: '#333',
+                strokeWidth: 3,
+                fill: ''
+            });
+        }
+
+        // Helper: Create annotation
+        function createAnnotation(el) {
+            return new fabric.Text(el.text || '', {
+                left: el.x || 0,
+                top: el.y || 0,
+                fontSize: 12,
+                fill: el.color || '#764ba2',
+                fontStyle: 'italic'
+            });
+        }
+
+        // Helper: Create appetite selector
+        function createAppetite(el) {
+            const objs = [];
+            objs.push(new fabric.Rect({
+                left: el.x || 0,
+                top: el.y || 0,
+                width: el.width || 200,
+                height: el.height || 100,
+                fill: '#f8f9fa',
+                stroke: '#dee2e6',
+                strokeWidth: 1,
+                rx: 6,
+                ry: 6
+            }));
+
+            objs.push(new fabric.Text(el.title || 'Appetite', {
+                left: (el.x || 0) + 10,
+                top: (el.y || 0) + 10,
+                fontSize: 12,
+                fontWeight: 'bold',
+                fill: '#6c757d'
+            }));
+
+            const options = el.options || ['Small Batch (1-2주)', 'Big Batch (6주)'];
+            options.forEach((opt, i) => {
+                const isSelected = el.selected === (i === 0 ? 'small' : 'big');
+                objs.push(new fabric.Text((isSelected ? '● ' : '○ ') + opt, {
+                    left: (el.x || 0) + 15,
+                    top: (el.y || 0) + 40 + i * 25,
+                    fontSize: 11,
+                    fill: isSelected ? '#667eea' : '#495057'
+                }));
+            });
+
+            return objs;
+        }
+
+        // Helper: Create rabbit hole list with auto-wrap
+        function createRabbitHoleList(el) {
+            const objs = [];
+            const boxWidth = el.width || 300;
+            objs.push(new fabric.Text(el.title || 'Rabbit Holes', {
+                left: el.x || 0,
+                top: el.y || 0,
+                fontSize: 14,
+                fontWeight: 'bold',
+                fill: '#333'
+            }));
+
+            if (el.items && Array.isArray(el.items)) {
+                let yOffset = 30;
+                el.items.forEach((item, i) => {
+                    const status = item.status || 'unknown';
+                    const statusIcon = status === 'patched' ? '✓' : status === 'out-of-bounds' ? '⊘' : '↓';
+                    const text = `${statusIcon} ${item.description || ''}${item.solution ? ' → ' + item.solution : ''}`;
+                    const textbox = new fabric.Textbox(text, {
+                        left: (el.x || 0) + 10,
+                        top: (el.y || 0) + yOffset,
+                        fontSize: 11,
+                        fill: status === 'patched' ? '#28a745' : '#dc3545',
+                        width: boxWidth - 20,
+                        splitByGrapheme: true
+                    });
+                    objs.push(textbox);
+                    yOffset += Math.max(22, textbox.height + 5);
+                });
+            }
+
+            return objs;
+        }
+
+        // Helper: Create no-go list with auto-wrap
+        function createNoGoList(el) {
+            const objs = [];
+            const boxWidth = el.width || 300;
+            objs.push(new fabric.Text(el.title || 'No-Gos', {
+                left: el.x || 0,
+                top: el.y || 0,
+                fontSize: 14,
+                fontWeight: 'bold',
+                fill: '#333'
+            }));
+
+            if (el.items && Array.isArray(el.items)) {
+                let yOffset = 30;
+                el.items.forEach((item, i) => {
+                    const textbox = new fabric.Textbox('✗ ' + item, {
+                        left: (el.x || 0) + 10,
+                        top: (el.y || 0) + yOffset,
+                        fontSize: 11,
+                        fill: '#dc3545',
+                        width: boxWidth - 20,
+                        splitByGrapheme: true
+                    });
+                    objs.push(textbox);
+                    yOffset += Math.max(22, textbox.height + 5);
+                });
+            }
+
+            return objs;
+        }
+
+        // Helper: Create pitch header with auto-wrap
+        function createPitchHeader(el) {
+            const headerWidth = el.width || 800;
+            return [new fabric.Textbox(`PITCH: ${el.projectName || 'Project'}  |  Appetite: ${el.appetite || '6주'}`, {
+                left: el.x || 50,
+                top: el.y || 50,
+                fontSize: 18,
+                fontWeight: 'bold',
+                fill: '#ff6b6b',
+                width: headerWidth,
+                splitByGrapheme: true
+            })];
+        }
+
+        // Helper: Create breadboard mini (for pitch flow) with auto-wrap
+        function createBreadboardMini(el) {
+            const objs = [];
+            const boxWidth = el.width || 600;
+            objs.push(new fabric.Rect({
+                left: el.x || 0,
+                top: el.y || 0,
+                width: boxWidth,
+                height: el.height || 100,
+                fill: '#f8f9fa',
+                stroke: '#dee2e6',
+                strokeWidth: 1,
+                rx: 6,
+                ry: 6
+            }));
+
+            objs.push(new fabric.Text(el.title || 'FLOW', {
+                left: (el.x || 0) + 10,
+                top: (el.y || 0) + 10,
+                fontSize: 12,
+                fontWeight: 'bold',
+                fill: '#667eea'
+            }));
+
+            if (el.places && Array.isArray(el.places)) {
+                const placeWidth = 100;
+                const spacing = (boxWidth - 40) / el.places.length;
+                el.places.forEach((place, i) => {
+                    const px = (el.x || 0) + 20 + spacing * i;
+                    const py = (el.y || 0) + 35;
+
+                    objs.push(new fabric.Rect({
+                        left: px,
+                        top: py,
+                        width: placeWidth,
+                        height: 55,
+                        fill: 'white',
+                        stroke: '#333',
+                        strokeWidth: 1,
+                        rx: 4,
+                        ry: 4
+                    }));
+
+                    objs.push(new fabric.Textbox(place.name || `Step ${i + 1}`, {
+                        left: px + 5,
+                        top: py + 5,
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                        fill: '#333',
+                        width: placeWidth - 10,
+                        splitByGrapheme: true
+                    }));
+
+                    // Arrow to next
+                    if (i < el.places.length - 1) {
+                        objs.push(new fabric.Text('→', {
+                            left: px + placeWidth + 5,
+                            top: py + 18,
+                            fontSize: 16,
+                            fill: '#333'
+                        }));
+                    }
+                });
+            }
+
+            return objs;
+        }
+
+        // Helper: Create risk curve
+        function createRiskCurve(el) {
+            const objs = [];
+            objs.push(new fabric.Text(el.label || 'Risk Distribution', {
+                left: el.x || 0,
+                top: el.y || 0,
+                fontSize: 12,
+                fill: '#6c757d'
+            }));
+
+            // Simple curve visualization
+            const curveType = el.curveType || 'thin-tail';
+            const curveText = curveType === 'thin-tail' ? '📊 Thin-tailed (Predictable)' : '📊 Fat-tailed (Uncertain)';
+            objs.push(new fabric.Text(curveText, {
+                left: (el.x || 0) + 10,
+                top: (el.y || 0) + 25,
+                fontSize: 11,
+                fill: curveType === 'thin-tail' ? '#28a745' : '#dc3545'
+            }));
+
+            return objs;
+        }
+
+        // Helper: Create connection line
+        function createConnection(from, to, label) {
+            const objs = [];
+            const fromX = (from.x || 0) + (from.width || 150);
+            const fromY = (from.y || 0) + (from.height || 120) / 2;
+            const toX = to.x || 0;
+            const toY = (to.y || 0) + (to.height || 120) / 2;
+
+            objs.push(new fabric.Line([fromX, fromY, toX, toY], {
+                stroke: '#333',
+                strokeWidth: 2
+            }));
+
+            // Arrow head
+            objs.push(new fabric.Triangle({
+                left: toX,
+                top: toY,
+                width: 10,
+                height: 10,
+                fill: '#333',
+                angle: 90,
+                originX: 'center',
+                originY: 'center'
+            }));
+
+            if (label) {
+                objs.push(new fabric.Text(label, {
+                    left: (fromX + toX) / 2,
+                    top: (fromY + toY) / 2 - 15,
+                    fontSize: 10,
+                    fill: '#6c757d'
+                }));
+            }
+
+            return objs;
+        }
+
+        // Share functionality
+        async function shareBoard() {
+            const boardData = JSON.stringify(canvas.toJSON());
+            const prompt = document.getElementById('ai-prompt').value.trim();
+
+            try {
+                // Generate title
+                let title = 'Shape Up Board';
+                if (prompt) {
+                    try {
+                        const titleResponse = await fetch('/api/shapeup/generate-title', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt })
+                        });
+                        if (titleResponse.ok) {
+                            const titleData = await titleResponse.json();
+                            title = titleData.title || 'Shape Up Board';
+                        }
+                    } catch (e) {}
+                }
+
+                document.getElementById('share-title').value = title;
+
+                // Create share link
+                const response = await fetch('/api/shapeup/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title,
+                        boardData,
+                        boardType: document.getElementById('board-type').value,
+                        originalPrompt: prompt
+                    })
+                });
+
+                if (!response.ok) throw new Error('Share failed');
+
+                const data = await response.json();
+                currentShareUrl = `${window.location.origin}/ui/shapeup/share/${data.shortCode}`;
+                document.getElementById('share-url').value = currentShareUrl;
+
+                new bootstrap.Modal(document.getElementById('shareModal')).show();
+            } catch (error) {
+                console.error('Share error:', error);
+                alert('Failed to create share link.');
+            }
+        }
+
+        function copyShareUrl() {
+            const input = document.getElementById('share-url');
+            navigator.clipboard.writeText(input.value).then(() => {
+                document.getElementById('copy-success').classList.remove('d-none');
+                setTimeout(() => {
+                    document.getElementById('copy-success').classList.add('d-none');
+                }, 3000);
+            });
+        }
+
+        function openSharePage() {
+            if (currentShareUrl) {
+                window.open(currentShareUrl, '_blank');
+            }
+        }
+    </script>
+}

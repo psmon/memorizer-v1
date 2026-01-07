@@ -1,0 +1,375 @@
+@{
+    ViewData["Title"] = "ShapeShared - Shared Shape Up Boards";
+    Layout = "_Layout";
+    ViewBag.Controller = "ShapeUpView";
+}
+
+@section Styles {
+    <style>
+        .sharelist-page {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            min-height: 100vh;
+            padding: 30px 0;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-header h1 {
+            color: #212529;
+            font-size: 2rem;
+        }
+
+        .page-header p {
+            color: #6c757d;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .board-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 25px;
+            padding: 0 20px;
+        }
+
+        .board-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            border: 1px solid #e9ecef;
+            transition: all 0.3s ease;
+        }
+
+        .board-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: white;
+        }
+
+        .card-header h5 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .board-type-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            margin-top: 10px;
+        }
+
+        .card-body {
+            padding: 20px;
+        }
+
+        .card-summary {
+            color: #6c757d;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            margin-bottom: 15px;
+            min-height: 60px;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 15px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .card-date {
+            color: #adb5bd;
+            font-size: 0.8rem;
+        }
+
+        .btn-view {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-view:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .loading-container {
+            text-align: center;
+            padding: 60px;
+        }
+
+        .loading-spinner-large {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 80px 20px;
+        }
+
+        .empty-state i {
+            font-size: 5rem;
+            color: #dee2e6;
+            margin-bottom: 25px;
+        }
+
+        .empty-state h3 {
+            color: #6c757d;
+            margin-bottom: 15px;
+        }
+
+        .btn-create {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 15px;
+        }
+
+        .btn-create:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            color: white;
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 40px;
+            gap: 10px;
+        }
+
+        .pagination-btn {
+            background: white;
+            border: 1px solid #dee2e6;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .pagination-btn:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .page-info {
+            display: flex;
+            align-items: center;
+            padding: 0 15px;
+            color: #6c757d;
+        }
+
+        /* Board type colors */
+        .type-problem { background: rgba(102, 126, 234, 0.3) !important; }
+        .type-breadboard { background: rgba(0, 198, 255, 0.3) !important; }
+        .type-fat-marker { background: rgba(17, 153, 142, 0.3) !important; }
+        .type-risk { background: rgba(240, 147, 251, 0.3) !important; }
+        .type-pitch { background: rgba(255, 107, 107, 0.3) !important; }
+    </style>
+}
+
+<div class="sharelist-page">
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1>
+                <i class="fas fa-share-alt me-2" style="color: #667eea;"></i>
+                ShapeShared
+            </h1>
+            <p>Browse and explore shared Shape Up boards created by the community</p>
+            <a href="/ui/shapeup" class="btn-create mt-3">
+                <i class="fas fa-plus me-1"></i> Create New Board
+            </a>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading-container" id="loading">
+            <div class="loading-spinner-large"></div>
+            <p>Loading shared boards...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-state" id="empty-state" style="display: none;">
+            <i class="fas fa-chalkboard"></i>
+            <h3>No Shared Boards Yet</h3>
+            <p class="text-muted">Be the first to share a Shape Up board!</p>
+            <a href="/ui/shapeup" class="btn-create">
+                <i class="fas fa-plus me-1"></i> Create Your First Board
+            </a>
+        </div>
+
+        <!-- Board Grid -->
+        <div class="board-grid" id="board-grid" style="display: none;"></div>
+
+        <!-- Pagination -->
+        <div class="pagination-container" id="pagination" style="display: none;">
+            <button class="pagination-btn" id="prev-btn" onclick="loadPage(currentPage - 1)">
+                <i class="fas fa-chevron-left me-1"></i> Previous
+            </button>
+            <span class="page-info" id="page-info"></span>
+            <button class="pagination-btn" id="next-btn" onclick="loadPage(currentPage + 1)">
+                Next <i class="fas fa-chevron-right ms-1"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentPage = 1;
+        const pageSize = 12;
+        let totalPages = 1;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadPage(1);
+        });
+
+        async function loadPage(page) {
+            if (page < 1 || page > totalPages && totalPages > 0) return;
+
+            currentPage = page;
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('board-grid').style.display = 'none';
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('pagination').style.display = 'none';
+
+            try {
+                const response = await fetch(`/api/shapeup/shares?page=${page}&pageSize=${pageSize}`);
+
+                if (!response.ok) throw new Error('Failed to load boards');
+
+                const data = await response.json();
+                totalPages = data.totalPages;
+
+                if (data.items.length === 0) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('empty-state').style.display = 'block';
+                    return;
+                }
+
+                renderBoards(data.items);
+                updatePagination(data);
+
+            } catch (error) {
+                console.error('Error loading boards:', error);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('empty-state').style.display = 'block';
+            }
+        }
+
+        function renderBoards(boards) {
+            const grid = document.getElementById('board-grid');
+            grid.innerHTML = '';
+
+            boards.forEach(board => {
+                const card = document.createElement('div');
+                card.className = 'board-card';
+
+                const typeClass = board.boardType ? `type-${board.boardType}` : '';
+                const typeName = getTypeName(board.boardType);
+                const date = new Date(board.createdAt);
+                const dateStr = date.toLocaleDateString('ko-KR', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+
+                card.innerHTML = `
+                    <div class="card-header">
+                        <h5>${escapeHtml(board.title)}</h5>
+                        <span class="board-type-badge ${typeClass}">
+                            <i class="fas fa-layer-group me-1"></i>${typeName}
+                        </span>
+                    </div>
+                    <div class="card-body">
+                        <div class="card-summary">${escapeHtml(board.summary) || 'No description available'}</div>
+                        <div class="card-footer">
+                            <span class="card-date">
+                                <i class="far fa-calendar-alt me-1"></i>${dateStr}
+                            </span>
+                            <a href="/ui/shapeup/share/${board.shortCode}" class="btn-view">
+                                <i class="fas fa-eye me-1"></i> View
+                            </a>
+                        </div>
+                    </div>
+                `;
+
+                grid.appendChild(card);
+            });
+
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('board-grid').style.display = 'grid';
+        }
+
+        function updatePagination(data) {
+            if (data.totalPages <= 1) {
+                document.getElementById('pagination').style.display = 'none';
+                return;
+            }
+
+            document.getElementById('pagination').style.display = 'flex';
+            document.getElementById('page-info').textContent = `Page ${data.page} of ${data.totalPages}`;
+            document.getElementById('prev-btn').disabled = data.page <= 1;
+            document.getElementById('next-btn').disabled = !data.hasMore;
+        }
+
+        function getTypeName(type) {
+            const types = {
+                'problem': 'Problem',
+                'breadboard': 'Breadboard',
+                'fat-marker': 'Fat Marker',
+                'risk': 'Risk',
+                'pitch': 'Pitch',
+                'mixed': 'Mixed'
+            };
+            return types[type] || 'Board';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+}

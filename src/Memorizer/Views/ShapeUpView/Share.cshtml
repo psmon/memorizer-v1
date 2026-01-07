@@ -1,0 +1,441 @@
+@{
+    ViewData["Title"] = "Shared Shape Up Board";
+    Layout = "_Layout";
+    ViewBag.Controller = "ShapeUpView";
+    var shortCode = ViewBag.ShortCode as string ?? "";
+}
+
+@section Styles {
+    <style>
+        .share-page {
+            background: #f0f2f5;
+            min-height: 100vh;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .share-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .share-header h1 {
+            font-size: 1.3rem;
+            margin: 0;
+        }
+
+        .share-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .share-date {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-header {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+
+        .btn-header:hover {
+            background: rgba(255,255,255,0.3);
+            color: white;
+        }
+
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #e9ecef;
+        }
+
+        #shapeup-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+
+        .canvas-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 5px;
+            background: white;
+            padding: 8px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .canvas-control-btn {
+            width: 36px;
+            height: 36px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            color: #495057;
+        }
+
+        .canvas-control-btn:hover {
+            background: #f8f9fa;
+        }
+
+        .zoom-level {
+            padding: 0 10px;
+            display: flex;
+            align-items: center;
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .loading-spinner-large {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(102, 126, 234, 0.2);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .not-found {
+            text-align: center;
+            padding: 60px 20px;
+        }
+
+        .not-found i {
+            font-size: 4rem;
+            color: #adb5bd;
+            margin-bottom: 20px;
+        }
+
+        .original-prompt {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            max-width: 400px;
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 0.9rem;
+        }
+
+        .original-prompt-title {
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+    </style>
+}
+
+<div class="share-page">
+    <!-- Header -->
+    <div class="share-header">
+        <div class="share-info">
+            <h1 id="board-title">
+                <i class="fas fa-chalkboard me-2"></i>
+                Loading...
+            </h1>
+            <span class="share-date" id="board-date"></span>
+        </div>
+        <div class="header-buttons">
+            <a href="/ui/shapeup" class="btn-header">
+                <i class="fas fa-plus me-1"></i> Create New
+            </a>
+            <button class="btn-header" onclick="exportToPNG()">
+                <i class="fas fa-image me-1"></i> PNG
+            </button>
+            <button class="btn-header" onclick="exportToSVG()">
+                <i class="fas fa-file-code me-1"></i> SVG
+            </button>
+        </div>
+    </div>
+
+    <!-- Canvas Container -->
+    <div class="canvas-container" id="canvas-container">
+        <div class="loading-container" id="loading">
+            <div class="loading-spinner-large"></div>
+            <p>Loading board...</p>
+        </div>
+        <canvas id="shapeup-canvas" style="display: none;"></canvas>
+
+        <!-- Canvas Controls -->
+        <div class="canvas-controls" style="display: none;" id="canvas-controls">
+            <button class="canvas-control-btn" onclick="zoomIn()" title="Zoom In">
+                <i class="fas fa-plus"></i>
+            </button>
+            <span class="zoom-level" id="zoom-level">100%</span>
+            <button class="canvas-control-btn" onclick="zoomOut()" title="Zoom Out">
+                <i class="fas fa-minus"></i>
+            </button>
+            <button class="canvas-control-btn" onclick="resetZoom()" title="Reset">
+                <i class="fas fa-compress-arrows-alt"></i>
+            </button>
+        </div>
+
+        <!-- Original Prompt -->
+        <div class="original-prompt" id="original-prompt" style="display: none;">
+            <div class="original-prompt-title">
+                <i class="fas fa-lightbulb me-1"></i> Original Prompt
+            </div>
+            <div id="prompt-content"></div>
+        </div>
+
+        <!-- Not Found -->
+        <div class="not-found" id="not-found" style="display: none;">
+            <i class="fas fa-exclamation-circle"></i>
+            <h3>Board Not Found</h3>
+            <p class="text-muted">The shared board you're looking for doesn't exist or has been removed.</p>
+            <a href="/ui/shapeup" class="btn btn-primary mt-3">
+                <i class="fas fa-plus me-1"></i> Create New Board
+            </a>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Fabric.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <!-- FileSaver.js for download -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
+    <script>
+        // Suppress textBaseline 'alphabetical' warnings/errors (Fabric.js internal issue)
+        const originalWarn = console.warn;
+        const originalError = console.error;
+        console.warn = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('alphabetical')) return;
+            originalWarn.apply(console, args);
+        };
+        console.error = function(...args) {
+            if (args[0] && typeof args[0] === 'string' && args[0].includes('alphabetical')) return;
+            originalError.apply(console, args);
+        };
+    </script>
+
+    <script>
+        let canvas;
+        let zoomLevel = 1;
+        const shortCode = '@shortCode';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSharedBoard();
+        });
+
+        async function loadSharedBoard() {
+            try {
+                const response = await fetch(`/api/shapeup/share/${shortCode}`);
+
+                if (!response.ok) {
+                    showNotFound();
+                    return;
+                }
+
+                const data = await response.json();
+
+                // Update header
+                document.getElementById('board-title').innerHTML =
+                    `<i class="fas fa-chalkboard me-2"></i>${escapeHtml(data.title)}`;
+
+                if (data.createdAt) {
+                    const date = new Date(data.createdAt);
+                    document.getElementById('board-date').textContent =
+                        date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+                }
+
+                // Show original prompt if available
+                if (data.originalPrompt) {
+                    document.getElementById('prompt-content').textContent = data.originalPrompt;
+                    document.getElementById('original-prompt').style.display = 'block';
+                }
+
+                // Initialize and load canvas
+                initCanvas();
+                loadCanvasData(data.boardData);
+
+            } catch (error) {
+                console.error('Error loading board:', error);
+                showNotFound();
+            }
+        }
+
+        function showNotFound() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('not-found').style.display = 'block';
+        }
+
+        function initCanvas() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            canvas = new fabric.Canvas('shapeup-canvas', {
+                width: width,
+                height: height,
+                backgroundColor: '#f8f9fa',
+                selection: false
+            });
+
+            // Mouse wheel zoom
+            canvas.on('mouse:wheel', function(opt) {
+                const delta = opt.e.deltaY;
+                let zoom = canvas.getZoom();
+                zoom *= 0.999 ** delta;
+                if (zoom > 5) zoom = 5;
+                if (zoom < 0.1) zoom = 0.1;
+                canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+                zoomLevel = zoom;
+                updateZoomDisplay();
+                opt.e.preventDefault();
+                opt.e.stopPropagation();
+            });
+
+            // Pan with middle mouse or alt+drag
+            let isPanning = false;
+            let lastPosX, lastPosY;
+
+            canvas.on('mouse:down', function(opt) {
+                if (opt.e.altKey || opt.e.button === 1) {
+                    isPanning = true;
+                    lastPosX = opt.e.clientX;
+                    lastPosY = opt.e.clientY;
+                }
+            });
+
+            canvas.on('mouse:move', function(opt) {
+                if (isPanning) {
+                    const vpt = canvas.viewportTransform;
+                    vpt[4] += opt.e.clientX - lastPosX;
+                    vpt[5] += opt.e.clientY - lastPosY;
+                    canvas.requestRenderAll();
+                    lastPosX = opt.e.clientX;
+                    lastPosY = opt.e.clientY;
+                }
+            });
+
+            canvas.on('mouse:up', function() {
+                isPanning = false;
+            });
+
+            // Resize handler
+            window.addEventListener('resize', function() {
+                canvas.setWidth(container.clientWidth);
+                canvas.setHeight(container.clientHeight);
+                canvas.renderAll();
+            });
+        }
+
+        function loadCanvasData(boardDataStr) {
+            try {
+                const boardData = JSON.parse(boardDataStr);
+
+                canvas.loadFromJSON(boardData, function() {
+                    // Make all objects non-selectable (read-only mode)
+                    canvas.forEachObject(function(obj) {
+                        obj.selectable = false;
+                        obj.evented = false;
+                    });
+
+                    canvas.renderAll();
+
+                    // Show canvas and controls
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('shapeup-canvas').style.display = 'block';
+                    document.getElementById('canvas-controls').style.display = 'flex';
+                });
+            } catch (e) {
+                console.error('Error parsing board data:', e);
+                showNotFound();
+            }
+        }
+
+        // Zoom functions
+        function zoomIn() {
+            zoomLevel = Math.min(5, zoomLevel * 1.2);
+            canvas.setZoom(zoomLevel);
+            updateZoomDisplay();
+        }
+
+        function zoomOut() {
+            zoomLevel = Math.max(0.1, zoomLevel / 1.2);
+            canvas.setZoom(zoomLevel);
+            updateZoomDisplay();
+        }
+
+        function resetZoom() {
+            zoomLevel = 1;
+            canvas.setZoom(1);
+            canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+            canvas.renderAll();
+            updateZoomDisplay();
+        }
+
+        function updateZoomDisplay() {
+            document.getElementById('zoom-level').textContent = Math.round(zoomLevel * 100) + '%';
+        }
+
+        // Export functions
+        function exportToPNG() {
+            const dataURL = canvas.toDataURL({
+                format: 'png',
+                quality: 1.0,
+                multiplier: 2
+            });
+            const link = document.createElement('a');
+            link.download = 'shapeup-board.png';
+            link.href = dataURL;
+            link.click();
+        }
+
+        function exportToSVG() {
+            const svg = canvas.toSVG();
+            const blob = new Blob([svg], { type: 'image/svg+xml' });
+            saveAs(blob, 'shapeup-board.svg');
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+}
