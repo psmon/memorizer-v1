@@ -27,6 +27,7 @@ public static class ShapeUpPrompts
 
         return boardType.ToLower() switch
         {
+            "freeboard" => GetFreeBoardPrompt(prompt),
             "problem" => GetProblemDefinitionPrompt(prompt),
             "breadboard" => GetBreadboardPrompt(prompt),
             "fat-marker" => GetFatMarkerSketchPrompt(prompt),
@@ -721,5 +722,209 @@ annotations으로 중요한 부분에 설명을 추가하세요.";
 
 요구사항을 분석하여 완전한 Pitch Board를 생성하세요.
 Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 실질적인 항목을 포함하세요.";
+    }
+
+    /// <summary>
+    /// Generate Free Board (custom visualization based on user prompt)
+    /// </summary>
+    public static string GetFreeBoardPrompt(string prompt)
+    {
+        return $@"당신은 시각화 전문가입니다.
+다음 요청을 분석하여 화이트보드에 표시할 수 있는 다이어그램/보드를 Fabric.js 호환 JSON 형식으로 생성해주세요.
+
+## 사용자 요청
+{prompt}
+
+## 지원하는 요소 타입
+
+### 기본 도형 (반드시 고유한 id 부여)
+- **rect**: 사각형 (id, x, y, width, height, fill, stroke, label)
+- **circle**: 원 (id, x, y, radius, fill, stroke, label)
+- **text**: 텍스트 (id, x, y, text, fontSize, fill)
+
+### 연결 요소 (현재 비활성화 - 사용하지 마세요)
+<!-- 추후 지원 예정: arrow, connector -->
+
+### 구조화된 요소 (반드시 고유한 id 부여)
+- **entity**: 엔티티 박스 - ERD용 (id, x, y, width, name, fields: [string])
+- **note**: 메모/포스트잇 (id, x, y, width, height, text, color)
+- **label**: 라벨 텍스트 (id, x, y, text, fontSize, color)
+- **group**: 요소 그룹화 (id, x, y, width, height, title, color, children: [elements])
+
+### 레이아웃 요소 (반드시 고유한 id 부여)
+- **frame**: 프레임 박스 (id, x, y, width, height, title, color)
+- **section**: 섹션 박스 (id, x, y, width, height, title, content)
+
+## 출력 형식 (Fabric.js JSON)
+다음 JSON 구조로 정확히 출력하세요. 코드 블록 없이 순수 JSON만 출력합니다.
+
+{{
+  ""boardType"": ""freeboard"",
+  ""title"": ""[보드 제목]"",
+  ""elements"": [
+    // 요소들을 여기에 배치
+  ]
+}}
+
+## 예시 1: 프로젝트 계획 보드
+{{
+  ""boardType"": ""freeboard"",
+  ""title"": ""프로젝트 계획"",
+  ""elements"": [
+    {{
+      ""type"": ""frame"",
+      ""id"": ""frame1"",
+      ""x"": 50,
+      ""y"": 50,
+      ""width"": 800,
+      ""height"": 300,
+      ""title"": ""프로젝트 개요"",
+      ""color"": ""#4A90D9""
+    }},
+    {{
+      ""type"": ""section"",
+      ""id"": ""phase1"",
+      ""x"": 70,
+      ""y"": 100,
+      ""width"": 230,
+      ""height"": 150,
+      ""title"": ""Phase 1"",
+      ""content"": ""요구사항 분석\n설계 문서 작성""
+    }},
+    {{
+      ""type"": ""section"",
+      ""id"": ""phase2"",
+      ""x"": 320,
+      ""y"": 100,
+      ""width"": 230,
+      ""height"": 150,
+      ""title"": ""Phase 2"",
+      ""content"": ""개발\n테스트""
+    }},
+    {{
+      ""type"": ""section"",
+      ""id"": ""phase3"",
+      ""x"": 570,
+      ""y"": 100,
+      ""width"": 230,
+      ""height"": 150,
+      ""title"": ""Phase 3"",
+      ""content"": ""배포\n운영""
+    }},
+    {{
+      ""type"": ""text"",
+      ""id"": ""flow"",
+      ""x"": 70,
+      ""y"": 270,
+      ""text"": ""[진행 흐름] Phase 1 → Phase 2 → Phase 3"",
+      ""fontSize"": 14,
+      ""fill"": ""#4A90D9""
+    }}
+  ]
+}}
+
+## 예시 2: ERD 다이어그램
+{{
+  ""boardType"": ""freeboard"",
+  ""title"": ""ERD 다이어그램"",
+  ""elements"": [
+    {{
+      ""type"": ""entity"",
+      ""id"": ""user"",
+      ""x"": 100,
+      ""y"": 100,
+      ""width"": 180,
+      ""name"": ""User"",
+      ""fields"": [""id: int PK"", ""name: varchar"", ""email: varchar""]
+    }},
+    {{
+      ""type"": ""entity"",
+      ""id"": ""order"",
+      ""x"": 350,
+      ""y"": 100,
+      ""width"": 180,
+      ""name"": ""Order"",
+      ""fields"": [""id: int PK"", ""user_id: int FK"", ""total: decimal""]
+    }},
+    {{
+      ""type"": ""entity"",
+      ""id"": ""product"",
+      ""x"": 600,
+      ""y"": 100,
+      ""width"": 180,
+      ""name"": ""Product"",
+      ""fields"": [""id: int PK"", ""name: varchar"", ""price: decimal""]
+    }},
+    {{
+      ""type"": ""text"",
+      ""id"": ""relations"",
+      ""x"": 100,
+      ""y"": 220,
+      ""text"": ""[관계] User → Order (1:N) | Order ↔ Product (N:M)"",
+      ""fontSize"": 14,
+      ""fill"": ""#666""
+    }}
+  ]
+}}
+
+## 예시 3: 팀 회의 보드
+{{
+  ""boardType"": ""freeboard"",
+  ""title"": ""팀 회의"",
+  ""elements"": [
+    {{
+      ""type"": ""text"",
+      ""id"": ""title"",
+      ""x"": 50,
+      ""y"": 20,
+      ""text"": ""2024년 1분기 계획 회의"",
+      ""fontSize"": 24,
+      ""fill"": ""#333""
+    }},
+    {{
+      ""type"": ""note"",
+      ""id"": ""topic1"",
+      ""x"": 50,
+      ""y"": 60,
+      ""width"": 200,
+      ""height"": 150,
+      ""text"": ""논의 주제 1\n- 세부사항 A\n- 세부사항 B"",
+      ""color"": ""#ffeb3b""
+    }},
+    {{
+      ""type"": ""note"",
+      ""id"": ""action1"",
+      ""x"": 280,
+      ""y"": 60,
+      ""width"": 200,
+      ""height"": 150,
+      ""text"": ""Action Items\n- 담당자: 김철수\n- 마감: 금요일"",
+      ""color"": ""#4caf50""
+    }},
+    {{
+      ""type"": ""note"",
+      ""id"": ""topic2"",
+      ""x"": 510,
+      ""y"": 60,
+      ""width"": 200,
+      ""height"": 150,
+      ""text"": ""결정 사항\n- 일정 확정\n- 역할 분담"",
+      ""color"": ""#e1bee7""
+    }}
+  ]
+}}
+
+## 생성 규칙
+1. 모든 요소에 고유한 id를 부여하세요 (예: ""user"", ""order"", ""phase1"")
+2. 요소들이 겹치지 않도록 충분한 간격을 두세요 (최소 20px)
+3. 그룹화가 필요한 경우 frame이나 group을 사용하세요
+4. 가독성을 위해 적절한 색상을 사용하세요
+5. 캔버스 크기 (1200x800)를 고려하여 배치하세요
+6. **중요: 화살표(arrow, connector)는 사용하지 마세요** - 연결선은 사용자가 직접 그립니다
+7. **연결 관계가 필요한 경우**: 별도의 text 요소를 사용하여 관계를 글로 설명하세요
+   - 예: ""User → Order (1:N)"", ""Phase1 → Phase2 → Phase3""
+   - 보드 하단이나 적절한 위치에 ""관계 설명"" 텍스트 블록을 배치
+
+사용자의 요청에 맞는 시각화 보드를 생성하세요.";
     }
 }

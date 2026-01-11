@@ -70,6 +70,10 @@
             margin-bottom: 20px;
         }
 
+        #text-properties {
+            display: none;
+        }
+
         .tool-section-title {
             font-size: 0.8rem;
             font-weight: 600;
@@ -384,6 +388,104 @@
             background: #e9ecef;
             margin: 6px 0;
         }
+
+        /* Property Popup */
+        .property-popup {
+            position: fixed;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            padding: 16px;
+            min-width: 480px;
+            max-width: 520px;
+            z-index: 2001;
+            display: none;
+        }
+
+        .property-popup.show {
+            display: block;
+        }
+
+        .property-popup-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .property-popup-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .property-popup-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #6c757d;
+            padding: 4px;
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .property-popup-close:hover {
+            color: #333;
+        }
+
+        .property-popup-body {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .property-popup .prop-section {
+            margin-bottom: 0;
+        }
+
+        .property-popup .prop-section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #6c757d;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .property-popup .prop-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .property-popup .prop-row.single {
+            grid-template-columns: 1fr;
+        }
+
+        .property-popup .prop-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .property-popup .prop-item label {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin: 0;
+        }
+
+        .property-popup .btn-group {
+            display: flex;
+        }
+
+        .property-popup .btn-group .btn {
+            flex: 1;
+            padding: 4px 8px;
+        }
     </style>
 }
 
@@ -477,6 +579,62 @@
                     <input type="range" id="strokeWidth" class="form-range" min="1" max="10" value="2" onchange="updateSelectedStrokeWidth()">
                 </div>
             </div>
+
+            <div class="tool-section" id="text-properties">
+                <div class="tool-section-title">Text Properties</div>
+                <div class="mb-2">
+                    <label class="form-label small">Text Color</label>
+                    <input type="color" id="textColor" class="form-control form-control-sm" value="#333333" onchange="updateSelectedTextColor()">
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Text Size</label>
+                    <select id="textSize" class="form-select form-select-sm" onchange="updateSelectedTextSize()">
+                        <option value="32">H1</option>
+                        <option value="24">H2</option>
+                        <option value="18">H3</option>
+                        <option value="14" selected>Normal</option>
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Alignment</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-align-btn" onclick="updateTextAlign('left')" title="Left">
+                            <i class="fas fa-align-left"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-align-btn active" onclick="updateTextAlign('center')" title="Center">
+                            <i class="fas fa-align-center"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-align-btn" onclick="updateTextAlign('right')" title="Right">
+                            <i class="fas fa-align-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">Style</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-style-btn" id="btn-bold" onclick="toggleTextStyle('bold')" title="Bold">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-style-btn" id="btn-italic" onclick="toggleTextStyle('italic')" title="Italic">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm text-style-btn" id="btn-underline" onclick="toggleTextStyle('underline')" title="Underline">
+                            <i class="fas fa-underline"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small">List</label>
+                    <div class="btn-group w-100" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm list-btn" id="btn-list-ol" onclick="insertList('ordered')" title="Numbered List">
+                            <i class="fas fa-list-ol"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm list-btn" id="btn-list-ul" onclick="insertList('unordered')" title="Bullet List">
+                            <i class="fas fa-list-ul"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Canvas Area -->
@@ -519,12 +677,12 @@
                     <textarea id="ai-prompt" class="prompt-input" rows="4"
                         placeholder="Describe your project or feature to generate Shape Up boards..."></textarea>
                     <select id="board-type" class="board-type-select">
-                        <option value="integrated">통합 생성</option>
-                        <option value="pitch">Pitch Board</option>
-                        <option value="problem">Problem</option>
-                        <option value="breadboard">Breadboard</option>
-                        <option value="fat-marker">Fat Marker</option>
-                        <option value="risk">Risk</option>
+                        <option value="freeboard">Free Board</option>
+                        <option value="problem">1. Problem</option>
+                        <option value="breadboard">2. Breadboard</option>
+                        <option value="fat-marker">3. Fat Marker</option>
+                        <option value="risk">4. Risk</option>
+                        <option value="pitch">5. Pitch</option>
                     </select>
                     <button class="btn-generate" id="btn-generate" onclick="generateWithAI()">
                         <i class="fas fa-magic me-1"></i> Generate
@@ -572,6 +730,10 @@
 
 <!-- Context Menu -->
 <div class="context-menu" id="context-menu">
+    <div class="context-menu-item" id="ctx-properties" onclick="showPropertyPopup(event);">
+        <i class="fas fa-sliders-h"></i> Properties
+    </div>
+    <div class="context-menu-divider"></div>
     <div class="context-menu-item" id="ctx-group" onclick="groupSelected()">
         <i class="fas fa-object-group"></i> Group
     </div>
@@ -588,6 +750,102 @@
     <div class="context-menu-divider"></div>
     <div class="context-menu-item" id="ctx-delete" onclick="deleteSelected()">
         <i class="fas fa-trash"></i> Delete
+    </div>
+</div>
+
+<!-- Property Popup -->
+<div class="property-popup" id="property-popup">
+    <div class="property-popup-header">
+        <span class="property-popup-title">Properties</span>
+        <button class="property-popup-close" onclick="hidePropertyPopup()">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="property-popup-body">
+        <!-- Shape Properties (Left Column) -->
+        <div class="prop-section" id="popup-shape-props">
+            <div class="prop-section-title">Shape</div>
+            <div class="prop-row">
+                <div class="prop-item">
+                    <label>Fill Color</label>
+                    <input type="color" id="popup-fillColor" class="form-control form-control-sm" value="#ffffff" onchange="updateSelectedFillFromPopup()">
+                </div>
+                <div class="prop-item">
+                    <label>Stroke Color</label>
+                    <input type="color" id="popup-strokeColor" class="form-control form-control-sm" value="#333333" onchange="updateSelectedStrokeFromPopup()">
+                </div>
+            </div>
+            <div class="prop-row single">
+                <div class="prop-item">
+                    <label>Stroke Width</label>
+                    <input type="range" id="popup-strokeWidth" class="form-range" min="1" max="10" value="2" onchange="updateSelectedStrokeWidthFromPopup()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Text Properties (Right Column) -->
+        <div class="prop-section" id="popup-text-props">
+            <div class="prop-section-title">Text</div>
+            <div class="prop-row">
+                <div class="prop-item">
+                    <label>Color</label>
+                    <input type="color" id="popup-textColor" class="form-control form-control-sm" value="#333333" onchange="updateSelectedTextColorFromPopup()">
+                </div>
+                <div class="prop-item">
+                    <label>Size</label>
+                    <select id="popup-textSize" class="form-select form-select-sm" onchange="updateSelectedTextSizeFromPopup()">
+                        <option value="32">H1</option>
+                        <option value="24">H2</option>
+                        <option value="18">H3</option>
+                        <option value="14" selected>Normal</option>
+                    </select>
+                </div>
+            </div>
+            <div class="prop-row">
+                <div class="prop-item">
+                    <label>Align</label>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-text-align-btn" onclick="updateTextAlignFromPopup('left')" title="Left">
+                            <i class="fas fa-align-left"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-text-align-btn active" onclick="updateTextAlignFromPopup('center')" title="Center">
+                            <i class="fas fa-align-center"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-text-align-btn" onclick="updateTextAlignFromPopup('right')" title="Right">
+                            <i class="fas fa-align-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="prop-item">
+                    <label>Style</label>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-text-style-btn" id="popup-btn-bold" onclick="toggleTextStyleFromPopup('bold')" title="Bold">
+                            <i class="fas fa-bold"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-text-style-btn" id="popup-btn-italic" onclick="toggleTextStyleFromPopup('italic')" title="Italic">
+                            <i class="fas fa-italic"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-text-style-btn" id="popup-btn-underline" onclick="toggleTextStyleFromPopup('underline')" title="Underline">
+                            <i class="fas fa-underline"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="prop-row single">
+                <div class="prop-item">
+                    <label>List</label>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-list-btn" id="popup-btn-list-ol" onclick="insertListFromPopup('ordered')" title="Numbered List">
+                            <i class="fas fa-list-ol"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm popup-list-btn" id="popup-btn-list-ul" onclick="insertListFromPopup('unordered')" title="Bullet List">
+                            <i class="fas fa-list-ul"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -749,10 +1007,16 @@
                 showContextMenu(e.clientX, e.clientY);
             });
 
-            // Hide context menu on click elsewhere
+            // Hide context menu and property popup on click elsewhere
             document.addEventListener('click', function(e) {
-                if (!e.target.closest('.context-menu')) {
+                // Don't close property popup when clicking context menu items
+                const isContextMenuClick = e.target.closest('.context-menu');
+
+                if (!isContextMenuClick) {
                     hideContextMenu();
+                }
+                if (!e.target.closest('.property-popup') && !isContextMenuClick) {
+                    hidePropertyPopup();
                 }
             });
 
@@ -769,6 +1033,33 @@
                         editTextInGroup(target, textObj);
                     }
                 }
+            });
+
+            // Update text properties panel on selection
+            canvas.on('selection:created', function(opt) {
+                const activeObj = opt.selected ? opt.selected[0] : canvas.getActiveObject();
+                const textObj = getTextObjectFromSelection(activeObj);
+                if (textObj) {
+                    updateTextPropertiesPanel(textObj);
+                    document.getElementById('text-properties').style.display = 'block';
+                } else {
+                    document.getElementById('text-properties').style.display = 'none';
+                }
+            });
+
+            canvas.on('selection:updated', function(opt) {
+                const activeObj = opt.selected ? opt.selected[0] : canvas.getActiveObject();
+                const textObj = getTextObjectFromSelection(activeObj);
+                if (textObj) {
+                    updateTextPropertiesPanel(textObj);
+                    document.getElementById('text-properties').style.display = 'block';
+                } else {
+                    document.getElementById('text-properties').style.display = 'none';
+                }
+            });
+
+            canvas.on('selection:cleared', function() {
+                document.getElementById('text-properties').style.display = 'none';
             });
 
         }
@@ -929,6 +1220,9 @@
                     canvas.add(currentShape);
                     canvas.setActiveObject(currentShape);
                     currentShape.enterEditing();
+
+                    // Add list continuation handler
+                    addListKeyHandler(currentShape);
 
                     // Remove text object if empty when editing ends
                     currentShape.on('editing:exited', function() {
@@ -1305,17 +1599,31 @@
         }
 
         // Context Menu Functions
+        let lastContextMenuX = 0;
+        let lastContextMenuY = 0;
+
         function showContextMenu(x, y) {
+            lastContextMenuX = x;
+            lastContextMenuY = y;
+
             const menu = document.getElementById('context-menu');
             const activeObjects = canvas.getActiveObjects();
             const activeObject = canvas.getActiveObject();
 
             // Update menu items based on selection
+            const propertiesItem = document.getElementById('ctx-properties');
             const groupItem = document.getElementById('ctx-group');
             const ungroupItem = document.getElementById('ctx-ungroup');
             const deleteItem = document.getElementById('ctx-delete');
             const bringFrontItem = document.getElementById('ctx-bring-front');
             const sendBackItem = document.getElementById('ctx-send-back');
+
+            // Properties: enabled when any object selected
+            if (activeObjects.length > 0) {
+                propertiesItem.classList.remove('disabled');
+            } else {
+                propertiesItem.classList.add('disabled');
+            }
 
             // Group: enabled when 2+ objects selected
             if (activeObjects.length >= 2) {
@@ -1351,6 +1659,249 @@
         function hideContextMenu() {
             const menu = document.getElementById('context-menu');
             menu.classList.remove('show');
+        }
+
+        // Property Popup Functions
+        function showPropertyPopup(e) {
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+
+            const propsItem = document.getElementById('ctx-properties');
+            if (propsItem && propsItem.classList.contains('disabled')) {
+                hideContextMenu();
+                return;
+            }
+
+            const popup = document.getElementById('property-popup');
+            if (!popup) {
+                console.error('Property popup element not found');
+                return;
+            }
+
+            const activeObj = canvas.getActiveObject();
+            if (!activeObj) {
+                hideContextMenu();
+                return;
+            }
+
+            const textObj = getTextObjectFromSelection(activeObj);
+
+            // Show/hide sections based on selection type
+            const shapeProps = document.getElementById('popup-shape-props');
+            const textProps = document.getElementById('popup-text-props');
+
+            // Always show shape properties if object is selected
+            if (shapeProps) shapeProps.style.display = 'block';
+
+            // Show text properties only if text object is selected or inside group
+            if (textProps) {
+                if (textObj) {
+                    textProps.style.display = 'block';
+                    updatePopupTextProperties(textObj);
+                } else {
+                    textProps.style.display = 'none';
+                }
+            }
+
+            // Update shape properties from selected object
+            updatePopupShapeProperties(activeObj);
+
+            // Position popup at context menu location
+            let popupX = lastContextMenuX;
+            let popupY = lastContextMenuY;
+
+            // Ensure minimum position
+            popupX = Math.max(10, popupX);
+            popupY = Math.max(10, popupY);
+
+            // Adjust position if popup would go off screen
+            const popupWidth = 500;
+            const popupHeight = textObj ? 220 : 140;
+            if (popupX + popupWidth > window.innerWidth) {
+                popupX = window.innerWidth - popupWidth - 20;
+            }
+            if (popupY + popupHeight > window.innerHeight) {
+                popupY = window.innerHeight - popupHeight - 20;
+            }
+
+            popup.style.left = popupX + 'px';
+            popup.style.top = popupY + 'px';
+            popup.style.display = 'block'; // Explicitly set display
+            popup.classList.add('show');
+
+            // Hide context menu after showing popup
+            hideContextMenu();
+        }
+
+        function hidePropertyPopup() {
+            const popup = document.getElementById('property-popup');
+            if (popup) {
+                popup.classList.remove('show');
+                popup.style.display = 'none';
+            }
+        }
+
+        function updatePopupShapeProperties(obj) {
+            // Fill color
+            const fillColor = document.getElementById('popup-fillColor');
+            if (obj.fill && typeof obj.fill === 'string' && obj.fill.startsWith('#')) {
+                fillColor.value = obj.fill;
+            }
+
+            // Stroke color
+            const strokeColor = document.getElementById('popup-strokeColor');
+            if (obj.stroke && typeof obj.stroke === 'string' && obj.stroke.startsWith('#')) {
+                strokeColor.value = obj.stroke;
+            }
+
+            // Stroke width
+            const strokeWidth = document.getElementById('popup-strokeWidth');
+            if (obj.strokeWidth) {
+                strokeWidth.value = obj.strokeWidth;
+            }
+        }
+
+        function updatePopupTextProperties(textObj) {
+            // Text color
+            const textColorInput = document.getElementById('popup-textColor');
+            if (textObj.fill && typeof textObj.fill === 'string') {
+                textColorInput.value = textObj.fill.startsWith('#') ? textObj.fill : '#333333';
+            }
+
+            // Text size
+            const textSizeSelect = document.getElementById('popup-textSize');
+            if (textObj.fontSize) {
+                const size = textObj.fontSize;
+                if (size >= 32) textSizeSelect.value = '32';
+                else if (size >= 24) textSizeSelect.value = '24';
+                else if (size >= 18) textSizeSelect.value = '18';
+                else textSizeSelect.value = '14';
+            }
+
+            // Alignment buttons
+            document.querySelectorAll('.popup-text-align-btn').forEach(btn => btn.classList.remove('active'));
+            const align = textObj.textAlign || 'center';
+            document.querySelectorAll('.popup-text-align-btn').forEach(btn => {
+                if (btn.getAttribute('onclick').includes(`'${align}'`)) {
+                    btn.classList.add('active');
+                }
+            });
+
+            // Style buttons
+            document.getElementById('popup-btn-bold').classList.toggle('active', textObj.fontWeight === 'bold');
+            document.getElementById('popup-btn-italic').classList.toggle('active', textObj.fontStyle === 'italic');
+            document.getElementById('popup-btn-underline').classList.toggle('active', textObj.underline === true);
+        }
+
+        // Popup-specific update functions
+        function updateSelectedFillFromPopup() {
+            const color = document.getElementById('popup-fillColor').value;
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.set('fill', color);
+                // Also update main panel
+                document.getElementById('fillColor').value = color;
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedStrokeFromPopup() {
+            const color = document.getElementById('popup-strokeColor').value;
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.set('stroke', color);
+                // Also update main panel
+                document.getElementById('strokeColor').value = color;
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedStrokeWidthFromPopup() {
+            const width = parseInt(document.getElementById('popup-strokeWidth').value);
+            const activeObj = canvas.getActiveObject();
+            if (activeObj) {
+                activeObj.set('strokeWidth', width);
+                // Also update main panel
+                document.getElementById('strokeWidth').value = width;
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedTextColorFromPopup() {
+            const color = document.getElementById('popup-textColor').value;
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+            if (textObj) {
+                textObj.set('fill', color);
+                // Also update main panel
+                document.getElementById('textColor').value = color;
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedTextSizeFromPopup() {
+            const size = parseInt(document.getElementById('popup-textSize').value);
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+            if (textObj) {
+                textObj.set('fontSize', size);
+                // Also update main panel
+                document.getElementById('textSize').value = size;
+                canvas.renderAll();
+            }
+        }
+
+        function updateTextAlignFromPopup(align) {
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+            if (textObj) {
+                textObj.set('textAlign', align);
+                canvas.renderAll();
+            }
+            // Update popup button state
+            document.querySelectorAll('.popup-text-align-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            // Update main panel button state
+            document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.text-align-btn').forEach(btn => {
+                if (btn.getAttribute('onclick').includes(`'${align}'`)) {
+                    btn.classList.add('active');
+                }
+            });
+        }
+
+        function toggleTextStyleFromPopup(style) {
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+            if (textObj) {
+                switch (style) {
+                    case 'bold':
+                        const currentWeight = textObj.get('fontWeight');
+                        textObj.set('fontWeight', currentWeight === 'bold' ? 'normal' : 'bold');
+                        document.getElementById('popup-btn-bold').classList.toggle('active', textObj.get('fontWeight') === 'bold');
+                        document.getElementById('btn-bold').classList.toggle('active', textObj.get('fontWeight') === 'bold');
+                        break;
+                    case 'italic':
+                        const currentStyle = textObj.get('fontStyle');
+                        textObj.set('fontStyle', currentStyle === 'italic' ? 'normal' : 'italic');
+                        document.getElementById('popup-btn-italic').classList.toggle('active', textObj.get('fontStyle') === 'italic');
+                        document.getElementById('btn-italic').classList.toggle('active', textObj.get('fontStyle') === 'italic');
+                        break;
+                    case 'underline':
+                        const currentUnderline = textObj.get('underline');
+                        textObj.set('underline', !currentUnderline);
+                        document.getElementById('popup-btn-underline').classList.toggle('active', textObj.get('underline'));
+                        document.getElementById('btn-underline').classList.toggle('active', textObj.get('underline'));
+                        break;
+                }
+                canvas.renderAll();
+            }
+        }
+
+        function insertListFromPopup(type) {
+            insertList(type);
         }
 
         // Group selected objects
@@ -1447,18 +1998,49 @@
             const localX = (dx * cos - dy * sin) / groupScaleX;
             const localY = (dx * sin + dy * cos) / groupScaleY;
 
-            // Find text object that contains the point
-            for (const obj of group._objects) {
-                if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
-                    const objBound = obj.getBoundingRect(false, true);
-                    const objLeft = obj.left - objBound.width / 2;
-                    const objTop = obj.top - objBound.height / 2;
-                    const objRight = objLeft + objBound.width;
-                    const objBottom = objTop + objBound.height;
-
-                    if (localX >= objLeft && localX <= objRight && localY >= objTop && localY <= objBottom) {
-                        return obj;
+            // Collect all text objects in the group (including nested groups)
+            const textObjects = [];
+            function collectTextObjects(objects) {
+                for (const obj of objects) {
+                    if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+                        textObjects.push(obj);
+                    } else if (obj.type === 'group' && obj._objects) {
+                        collectTextObjects(obj._objects);
                     }
+                }
+            }
+            collectTextObjects(group._objects);
+
+            // Find text object that contains the point (with expanded hit area)
+            const hitMargin = 10; // Extra margin for easier selection
+            for (const obj of textObjects) {
+                const objBound = obj.getBoundingRect(false, true);
+                const objLeft = obj.left - objBound.width / 2 - hitMargin;
+                const objTop = obj.top - objBound.height / 2 - hitMargin;
+                const objRight = obj.left + objBound.width / 2 + hitMargin;
+                const objBottom = obj.top + objBound.height / 2 + hitMargin;
+
+                if (localX >= objLeft && localX <= objRight && localY >= objTop && localY <= objBottom) {
+                    return obj;
+                }
+            }
+
+            // Fallback: if no text found at pointer, return closest text object
+            if (textObjects.length > 0) {
+                let closestText = null;
+                let minDistance = Infinity;
+
+                for (const obj of textObjects) {
+                    const dist = Math.sqrt(Math.pow(localX - obj.left, 2) + Math.pow(localY - obj.top, 2));
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        closestText = obj;
+                    }
+                }
+
+                // Only return if within reasonable distance (150px)
+                if (minDistance < 150) {
+                    return closestText;
                 }
             }
 
@@ -1492,6 +2074,8 @@
             // Select and edit the text
             canvas.setActiveObject(textObj);
             if (textObj.type === 'i-text' || textObj.type === 'textbox') {
+                // Add list continuation handler
+                addListKeyHandler(textObj);
                 textObj.enterEditing();
                 textObj.selectAll();
             }
@@ -1549,6 +2133,231 @@
                 activeObj.set('strokeWidth', width);
                 canvas.renderAll();
             }
+        }
+
+        // Text Property functions
+        function getTextObjectFromSelection(activeObj) {
+            if (!activeObj) return null;
+
+            // Direct text object
+            if (activeObj.type === 'i-text' || activeObj.type === 'text' || activeObj.type === 'textbox') {
+                return activeObj;
+            }
+
+            // Text inside group (recursively search nested groups)
+            if (activeObj.type === 'group') {
+                function findTextRecursive(objects) {
+                    for (const obj of objects) {
+                        if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+                            return obj;
+                        }
+                        if (obj.type === 'group' && obj._objects) {
+                            const nested = findTextRecursive(obj._objects);
+                            if (nested) return nested;
+                        }
+                    }
+                    return null;
+                }
+                return findTextRecursive(activeObj.getObjects());
+            }
+
+            return null;
+        }
+
+        function updateSelectedTextColor() {
+            const color = document.getElementById('textColor').value;
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+
+            if (textObj) {
+                textObj.set('fill', color);
+                canvas.renderAll();
+            }
+        }
+
+        function updateSelectedTextSize() {
+            const size = parseInt(document.getElementById('textSize').value);
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+
+            if (textObj) {
+                textObj.set('fontSize', size);
+                canvas.renderAll();
+            }
+        }
+
+        function updateTextAlign(align) {
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+
+            if (textObj) {
+                textObj.set('textAlign', align);
+                canvas.renderAll();
+            }
+
+            // Update button active state
+            document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+        }
+
+        function toggleTextStyle(style) {
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+
+            if (textObj) {
+                switch (style) {
+                    case 'bold':
+                        const currentWeight = textObj.get('fontWeight');
+                        textObj.set('fontWeight', currentWeight === 'bold' ? 'normal' : 'bold');
+                        document.getElementById('btn-bold').classList.toggle('active', textObj.get('fontWeight') === 'bold');
+                        break;
+                    case 'italic':
+                        const currentStyle = textObj.get('fontStyle');
+                        textObj.set('fontStyle', currentStyle === 'italic' ? 'normal' : 'italic');
+                        document.getElementById('btn-italic').classList.toggle('active', textObj.get('fontStyle') === 'italic');
+                        break;
+                    case 'underline':
+                        const currentUnderline = textObj.get('underline');
+                        textObj.set('underline', !currentUnderline);
+                        document.getElementById('btn-underline').classList.toggle('active', textObj.get('underline'));
+                        break;
+                }
+                canvas.renderAll();
+            }
+        }
+
+        function insertList(type) {
+            const activeObj = canvas.getActiveObject();
+            const textObj = getTextObjectFromSelection(activeObj);
+
+            if (textObj) {
+                const currentText = textObj.get('text') || '';
+                const lines = currentText.split('\n');
+                let newLines;
+
+                if (type === 'ordered') {
+                    // Check if already numbered list
+                    const isNumbered = lines.every((line, i) => line.startsWith(`${i + 1}. `) || line.trim() === '');
+                    if (isNumbered) {
+                        // Remove numbering
+                        newLines = lines.map(line => line.replace(/^\d+\.\s*/, ''));
+                    } else {
+                        // Add numbering
+                        let num = 1;
+                        newLines = lines.map(line => {
+                            if (line.trim() === '') return line;
+                            // Remove bullet if exists
+                            line = line.replace(/^[•\-]\s*/, '');
+                            return `${num++}. ${line}`;
+                        });
+                    }
+                } else {
+                    // Unordered (bullet) list
+                    const isBulleted = lines.every(line => line.startsWith('• ') || line.startsWith('- ') || line.trim() === '');
+                    if (isBulleted) {
+                        // Remove bullets
+                        newLines = lines.map(line => line.replace(/^[•\-]\s*/, ''));
+                    } else {
+                        // Add bullets
+                        newLines = lines.map(line => {
+                            if (line.trim() === '') return line;
+                            // Remove numbering if exists
+                            line = line.replace(/^\d+\.\s*/, '');
+                            return `• ${line}`;
+                        });
+                    }
+                }
+
+                textObj.set('text', newLines.join('\n'));
+                canvas.renderAll();
+            }
+        }
+
+        // Add keyboard handler for list continuation
+        function addListKeyHandler(textObj) {
+            if (!textObj || textObj._listKeyHandlerAdded) return;
+            textObj._listKeyHandlerAdded = true;
+
+            textObj.on('changed', function() {
+                const text = this.text || '';
+                const lines = text.split('\n');
+                const cursorPos = this.selectionStart;
+
+                // Find current line index
+                let charCount = 0;
+                let currentLineIndex = 0;
+                for (let i = 0; i < lines.length; i++) {
+                    charCount += lines[i].length + 1; // +1 for newline
+                    if (charCount > cursorPos) {
+                        currentLineIndex = i;
+                        break;
+                    }
+                }
+
+                // Check if just pressed Enter (cursor at start of new line after list item)
+                if (currentLineIndex > 0 && lines[currentLineIndex] === '') {
+                    const prevLine = lines[currentLineIndex - 1];
+
+                    // Check for bullet list
+                    if (prevLine.match(/^[•\-]\s*.+$/)) {
+                        // Previous line has bullet with content, add bullet to new line
+                        lines[currentLineIndex] = '• ';
+                        this.text = lines.join('\n');
+                        this.selectionStart = this.selectionEnd = cursorPos + 2;
+                        canvas.renderAll();
+                    }
+                    // Check for numbered list
+                    else if (prevLine.match(/^\d+\.\s*.+$/)) {
+                        // Previous line has number with content, add next number
+                        const prevNum = parseInt(prevLine.match(/^(\d+)\./)[1]);
+                        lines[currentLineIndex] = `${prevNum + 1}. `;
+                        this.text = lines.join('\n');
+                        this.selectionStart = this.selectionEnd = cursorPos + `${prevNum + 1}. `.length;
+                        canvas.renderAll();
+                    }
+                    // Check for empty bullet/number (consecutive empty lines = release list)
+                    else if (prevLine.match(/^[•\-]\s*$/) || prevLine.match(/^\d+\.\s*$/)) {
+                        // Previous line is empty bullet/number, remove it (release list)
+                        lines[currentLineIndex - 1] = '';
+                        this.text = lines.join('\n');
+                        // Adjust cursor position
+                        const removedChars = prevLine.length;
+                        this.selectionStart = this.selectionEnd = cursorPos - removedChars;
+                        canvas.renderAll();
+                    }
+                }
+            });
+        }
+
+        function updateTextPropertiesPanel(textObj) {
+            if (!textObj) return;
+
+            // Update text color
+            const textColorInput = document.getElementById('textColor');
+            if (textColorInput && textObj.fill) {
+                textColorInput.value = textObj.fill;
+            }
+
+            // Update text size
+            const textSizeSelect = document.getElementById('textSize');
+            if (textSizeSelect && textObj.fontSize) {
+                const size = textObj.fontSize;
+                if (size >= 32) textSizeSelect.value = '32';
+                else if (size >= 24) textSizeSelect.value = '24';
+                else if (size >= 18) textSizeSelect.value = '18';
+                else textSizeSelect.value = '14';
+            }
+
+            // Update alignment buttons
+            document.querySelectorAll('.text-align-btn').forEach(btn => btn.classList.remove('active'));
+            const align = textObj.textAlign || 'center';
+            const alignBtn = document.querySelector(`.text-align-btn[onclick="updateTextAlign('${align}')"]`);
+            if (alignBtn) alignBtn.classList.add('active');
+
+            // Update style buttons
+            document.getElementById('btn-bold').classList.toggle('active', textObj.fontWeight === 'bold');
+            document.getElementById('btn-italic').classList.toggle('active', textObj.fontStyle === 'italic');
+            document.getElementById('btn-underline').classList.toggle('active', textObj.underline === true);
         }
 
         // Zoom functions
@@ -1652,7 +2461,7 @@
                 rx: 12, ry: 12
             });
 
-            const title = new fabric.Text('PROBLEM DEFINITION', {
+            const title = new fabric.IText('PROBLEM DEFINITION', {
                 left: x + 20, top: y + 15,
                 fontSize: 16, fontWeight: 'bold',
                 fill: color
@@ -1677,12 +2486,12 @@
                     strokeWidth: 1,
                     rx: 6, ry: 6
                 });
-                const label = new fabric.Text(s.label, {
+                const label = new fabric.IText(s.label, {
                     left: s.x + 10, top: s.y + 10,
                     fontSize: 12, fontWeight: 'bold',
                     fill: '#6c757d'
                 });
-                const content = new fabric.Text(s.content, {
+                const content = new fabric.IText(s.content, {
                     left: s.x + 10, top: s.y + 30,
                     fontSize: 11,
                     fill: '#495057'
@@ -1705,7 +2514,7 @@
                 rx: 12, ry: 12
             });
 
-            const title = new fabric.Text('BREADBOARD', {
+            const title = new fabric.IText('BREADBOARD', {
                 left: x + 20, top: y + 15,
                 fontSize: 16, fontWeight: 'bold',
                 fill: color
@@ -1728,7 +2537,7 @@
                     strokeWidth: 2,
                     rx: 6, ry: 6
                 });
-                const name = new fabric.Text(p.name, {
+                const name = new fabric.IText(p.name, {
                     left: p.x + 10, top: p.y + 10,
                     fontSize: 14, fontWeight: 'bold',
                     fill: '#333',
@@ -1737,7 +2546,7 @@
                 objects.push(box, name);
 
                 p.items.forEach((item, j) => {
-                    const itemText = new fabric.Text('• ' + item, {
+                    const itemText = new fabric.IText('• ' + item, {
                         left: p.x + 15, top: p.y + 40 + j * 20,
                         fontSize: 12,
                         fill: '#495057'
@@ -1777,7 +2586,7 @@
                 rx: 12, ry: 12
             });
 
-            const title = new fabric.Text('FAT MARKER SKETCH', {
+            const title = new fabric.IText('FAT MARKER SKETCH', {
                 left: x + 20, top: y + 15,
                 fontSize: 16, fontWeight: 'bold',
                 fill: color
@@ -1802,7 +2611,7 @@
                     strokeWidth: 4,
                     rx: 4, ry: 4
                 });
-                const label = new fabric.Text(b.label, {
+                const label = new fabric.IText(b.label, {
                     left: b.x + 10, top: b.y + 10,
                     fontSize: 12, fontWeight: 'bold',
                     fill: '#6c757d'
@@ -1825,13 +2634,13 @@
                 rx: 12, ry: 12
             });
 
-            const title = new fabric.Text('RISK & RABBIT HOLES', {
+            const title = new fabric.IText('RISK & RABBIT HOLES', {
                 left: x + 20, top: y + 15,
                 fontSize: 16, fontWeight: 'bold',
                 fill: color
             });
 
-            const rabbitTitle = new fabric.Text('Rabbit Holes:', {
+            const rabbitTitle = new fabric.IText('Rabbit Holes:', {
                 left: x + 20, top: y + 50,
                 fontSize: 14, fontWeight: 'bold',
                 fill: '#333'
@@ -1843,7 +2652,7 @@
                 '[Risk 3] - cut-back'
             ];
 
-            const noGoTitle = new fabric.Text('No-Gos:', {
+            const noGoTitle = new fabric.IText('No-Gos:', {
                 left: x + 20, top: y + 180,
                 fontSize: 14, fontWeight: 'bold',
                 fill: '#333'
@@ -1858,7 +2667,7 @@
             const objects = [frame, title, rabbitTitle, noGoTitle];
 
             rabbitHoles.forEach((rh, i) => {
-                const text = new fabric.Text('• ' + rh, {
+                const text = new fabric.IText('• ' + rh, {
                     left: x + 30, top: y + 80 + i * 25,
                     fontSize: 12,
                     fill: '#495057'
@@ -1867,7 +2676,7 @@
             });
 
             noGos.forEach((ng, i) => {
-                const text = new fabric.Text('✗ ' + ng, {
+                const text = new fabric.IText('✗ ' + ng, {
                     left: x + 30, top: y + 210 + i * 25,
                     fontSize: 12,
                     fill: '#dc3545'
@@ -1890,7 +2699,7 @@
                 rx: 12, ry: 12
             });
 
-            const header = new fabric.Text('PITCH: [Project Name]  |  Appetite: 6 weeks', {
+            const header = new fabric.IText('PITCH: [Project Name]  |  Appetite: 6 weeks', {
                 left: x + 20, top: y + 15,
                 fontSize: 18, fontWeight: 'bold',
                 fill: color
@@ -1915,12 +2724,12 @@
                     strokeWidth: 1,
                     rx: 6, ry: 6
                 });
-                const titleText = new fabric.Text(s.title, {
+                const titleText = new fabric.IText(s.title, {
                     left: s.x + 10, top: s.y + 10,
                     fontSize: 13, fontWeight: 'bold',
                     fill: color
                 });
-                const content = new fabric.Text(s.content, {
+                const content = new fabric.IText(s.content, {
                     left: s.x + 10, top: s.y + 35,
                     fontSize: 11,
                     fill: '#495057'
@@ -1944,10 +2753,467 @@
             const boardType = document.getElementById('board-type').value;
             const btn = document.getElementById('btn-generate');
 
-            if (boardType === 'integrated') {
-                await generateIntegratedBoards(prompt, btn);
+            if (boardType === 'freeboard') {
+                await generateFreeBoard(prompt, btn);
             } else {
                 await generateSingleBoard(prompt, boardType, btn);
+            }
+        }
+
+        // Free Board generation - creates custom visualization boards
+        async function generateFreeBoard(prompt, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+
+            try {
+                const response = await fetch('/api/shapeup/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ prompt, boardType: 'freeboard' })
+                });
+
+                if (!response.ok) throw new Error('Generation failed');
+
+                let fullContent = '';
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+
+                    for (const line of lines) {
+                        if (line.startsWith('data:')) {
+                            try {
+                                const data = JSON.parse(line.substring(5).trim());
+                                if (data.content) {
+                                    fullContent += data.content;
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+
+                // Clear canvas and render the free board
+                canvas.clear();
+                canvas.backgroundColor = '#f8f9fa';
+                renderFreeBoard(fullContent);
+
+            } catch (error) {
+                console.error('Generation error:', error);
+                alert('Failed to generate board. Please try again.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-magic me-1"></i> Generate';
+            }
+        }
+
+        // Render Free Board elements from JSON
+        function renderFreeBoard(content) {
+            try {
+                // Try to extract JSON from the content
+                let jsonStr = content;
+                const jsonMatch = content.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    jsonStr = jsonMatch[0];
+                }
+
+                const boardData = JSON.parse(jsonStr);
+                const elements = boardData.elements || [];
+
+                // Element map for ID-based arrow connections
+                const elementMap = {};
+                const deferredArrows = [];
+
+                // Helper function to calculate anchor point
+                function getAnchorPoint(elementInfo, anchor) {
+                    const { x, y, width, height, type, radius } = elementInfo;
+
+                    // For circles
+                    if (type === 'circle') {
+                        const r = radius || 30;
+                        const cx = x + r;
+                        const cy = y + r;
+                        switch (anchor) {
+                            case 'left': return { x: x, y: cy };
+                            case 'right': return { x: x + r * 2, y: cy };
+                            case 'top': return { x: cx, y: y };
+                            case 'bottom': return { x: cx, y: y + r * 2 };
+                            default: return { x: cx, y: cy };
+                        }
+                    }
+
+                    // For rectangles and other elements
+                    const w = width || 100;
+                    const h = height || 60;
+                    switch (anchor) {
+                        case 'left': return { x: x, y: y + h / 2 };
+                        case 'right': return { x: x + w, y: y + h / 2 };
+                        case 'top': return { x: x + w / 2, y: y };
+                        case 'bottom': return { x: x + w / 2, y: y + h };
+                        case 'center': return { x: x + w / 2, y: y + h / 2 };
+                        default: return { x: x + w, y: y + h / 2 }; // default to right
+                    }
+                }
+
+                // Helper function to render arrow
+                function renderArrow(el, fromX, fromY, toX, toY) {
+                    const line = new fabric.Line([fromX, fromY, toX, toY], {
+                        stroke: el.color || el.stroke || '#333333',
+                        strokeWidth: el.strokeWidth || 2
+                    });
+                    canvas.add(line);
+
+                    // Add arrowhead
+                    if (el.type === 'arrow' || el.type === 'connection') {
+                        const angle = Math.atan2(toY - fromY, toX - fromX) * 180 / Math.PI;
+                        const arrowHead = new fabric.Triangle({
+                            left: toX,
+                            top: toY,
+                            width: 12,
+                            height: 12,
+                            fill: el.color || el.stroke || '#333333',
+                            angle: angle + 90,
+                            originX: 'center',
+                            originY: 'center'
+                        });
+                        canvas.add(arrowHead);
+                    }
+
+                    if (el.label) {
+                        const midX = (fromX + toX) / 2;
+                        const midY = (fromY + toY) / 2;
+                        const lineLabel = new fabric.IText(el.label, {
+                            left: midX,
+                            top: midY - 15,
+                            fontSize: 11,
+                            fill: '#666666',
+                            backgroundColor: 'rgba(255,255,255,0.8)'
+                        });
+                        canvas.add(lineLabel);
+                    }
+                }
+
+                // Helper function to register element in map
+                function registerElement(el, extraHeight) {
+                    if (el.id) {
+                        elementMap[el.id] = {
+                            x: el.x || 0,
+                            y: el.y || 0,
+                            width: el.width || 100,
+                            height: extraHeight || el.height || 60,
+                            type: el.type,
+                            radius: el.radius
+                        };
+                    }
+                }
+
+                elements.forEach(el => {
+                    switch (el.type) {
+                        case 'rect':
+                        case 'box':
+                            registerElement(el);
+                            const rect = new fabric.Rect({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                width: el.width || 100,
+                                height: el.height || 60,
+                                fill: el.fill || '#ffffff',
+                                stroke: el.stroke || '#333333',
+                                strokeWidth: el.strokeWidth || 2,
+                                rx: el.rx || 8,
+                                ry: el.ry || 8
+                            });
+                            canvas.add(rect);
+
+                            if (el.label || el.text) {
+                                const label = new fabric.IText(el.label || el.text, {
+                                    left: (el.x || 0) + 10,
+                                    top: (el.y || 0) + 10,
+                                    fontSize: el.fontSize || 14,
+                                    fill: el.textColor || '#333333'
+                                });
+                                canvas.add(label);
+                            }
+                            break;
+
+                        case 'text':
+                        case 'title':
+                        case 'label':
+                            registerElement(el, 30);
+                            const text = new fabric.IText(el.text || el.content || '', {
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                fontSize: el.fontSize || (el.type === 'title' ? 24 : 14),
+                                fontWeight: el.fontWeight || (el.type === 'title' ? 'bold' : 'normal'),
+                                fill: el.color || el.fill || '#333333'
+                            });
+                            canvas.add(text);
+                            break;
+
+                        case 'circle':
+                            registerElement(el);
+                            const circle = new fabric.Circle({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                radius: el.radius || 30,
+                                fill: el.fill || '#ffffff',
+                                stroke: el.stroke || '#333333',
+                                strokeWidth: el.strokeWidth || 2
+                            });
+                            canvas.add(circle);
+
+                            if (el.label || el.text) {
+                                const circleLabel = new fabric.IText(el.label || el.text, {
+                                    left: (el.x || 0) + (el.radius || 30) - 20,
+                                    top: (el.y || 0) + (el.radius || 30) - 8,
+                                    fontSize: 12,
+                                    fill: '#333333'
+                                });
+                                canvas.add(circleLabel);
+                            }
+                            break;
+
+                        case 'arrow':
+                        case 'connection':
+                        case 'connector':
+                        case 'line':
+                            // Check if ID-based connection
+                            if (el.fromId && el.toId) {
+                                deferredArrows.push(el);
+                            } else {
+                                // Fallback to coordinate-based
+                                const fromX = el.fromX || el.x1 || 0;
+                                const fromY = el.fromY || el.y1 || 0;
+                                const toX = el.toX || el.x2 || 100;
+                                const toY = el.toY || el.y2 || 0;
+                                renderArrow(el, fromX, fromY, toX, toY);
+                            }
+                            break;
+
+                        case 'group':
+                        case 'frame':
+                            registerElement(el);
+                            const frameRect = new fabric.Rect({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                width: el.width || 300,
+                                height: el.height || 200,
+                                fill: el.fill || '#ffffff',
+                                stroke: el.color || el.stroke || '#667eea',
+                                strokeWidth: 3,
+                                rx: 12,
+                                ry: 12
+                            });
+                            canvas.add(frameRect);
+
+                            if (el.title) {
+                                const frameTitle = new fabric.IText(el.title, {
+                                    left: (el.x || 0) + 15,
+                                    top: (el.y || 0) + 12,
+                                    fontSize: 16,
+                                    fontWeight: 'bold',
+                                    fill: el.color || '#667eea'
+                                });
+                                canvas.add(frameTitle);
+                            }
+                            break;
+
+                        case 'section':
+                            registerElement(el);
+                            const sectionRect = new fabric.Rect({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                width: el.width || 200,
+                                height: el.height || 150,
+                                fill: el.fill || '#f8f9fa',
+                                stroke: el.stroke || '#dee2e6',
+                                strokeWidth: 2,
+                                rx: 8,
+                                ry: 8
+                            });
+                            canvas.add(sectionRect);
+
+                            if (el.title) {
+                                const sectionTitle = new fabric.IText(el.title, {
+                                    left: (el.x || 0) + 10,
+                                    top: (el.y || 0) + 8,
+                                    fontSize: 14,
+                                    fontWeight: 'bold',
+                                    fill: '#495057'
+                                });
+                                canvas.add(sectionTitle);
+                            }
+
+                            if (el.content) {
+                                const sectionContent = new fabric.IText(el.content, {
+                                    left: (el.x || 0) + 10,
+                                    top: (el.y || 0) + 30,
+                                    fontSize: 12,
+                                    fill: '#6c757d',
+                                    width: (el.width || 200) - 20
+                                });
+                                canvas.add(sectionContent);
+                            }
+                            break;
+
+                        case 'note':
+                        case 'sticky':
+                            registerElement(el);
+                            const noteColor = el.color || el.fill || '#fff9c4';
+                            const noteRect = new fabric.Rect({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                width: el.width || 150,
+                                height: el.height || 100,
+                                fill: noteColor,
+                                stroke: noteColor === '#fff9c4' ? '#fbc02d' : noteColor,
+                                strokeWidth: 1,
+                                rx: 4,
+                                ry: 4
+                            });
+                            canvas.add(noteRect);
+
+                            if (el.text || el.content) {
+                                const noteText = new fabric.IText(el.text || el.content, {
+                                    left: (el.x || 0) + 10,
+                                    top: (el.y || 0) + 10,
+                                    fontSize: 12,
+                                    fill: '#333333',
+                                    width: (el.width || 150) - 20
+                                });
+                                canvas.add(noteText);
+                            }
+                            break;
+
+                        case 'entity':
+                        case 'table':
+                            // Calculate height based on fields
+                            const entityHeight = el.height || (30 + (el.fields ? el.fields.length * 18 + 10 : 60));
+                            registerElement(el, entityHeight);
+
+                            // For ERD-like diagrams
+                            const entityRect = new fabric.Rect({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                width: el.width || 180,
+                                height: entityHeight,
+                                fill: '#ffffff',
+                                stroke: el.stroke || '#2196f3',
+                                strokeWidth: 2,
+                                rx: 4,
+                                ry: 4
+                            });
+                            canvas.add(entityRect);
+
+                            // Entity title bar
+                            const titleBar = new fabric.Rect({
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                width: el.width || 180,
+                                height: 30,
+                                fill: el.stroke || '#2196f3',
+                                rx: 4,
+                                ry: 4
+                            });
+                            canvas.add(titleBar);
+
+                            const entityTitle = new fabric.IText(el.name || el.title || 'Entity', {
+                                left: (el.x || 0) + 10,
+                                top: (el.y || 0) + 7,
+                                fontSize: 14,
+                                fontWeight: 'bold',
+                                fill: '#ffffff'
+                            });
+                            canvas.add(entityTitle);
+
+                            // Entity fields
+                            if (el.fields && Array.isArray(el.fields)) {
+                                el.fields.forEach((field, idx) => {
+                                    const fieldText = new fabric.IText(field, {
+                                        left: (el.x || 0) + 10,
+                                        top: (el.y || 0) + 35 + (idx * 18),
+                                        fontSize: 12,
+                                        fill: '#333333'
+                                    });
+                                    canvas.add(fieldText);
+                                });
+                            }
+                            break;
+
+                        case 'icon':
+                            const iconText = new fabric.IText(el.icon || '📌', {
+                                left: el.x || 0,
+                                top: el.y || 0,
+                                fontSize: el.size || 24
+                            });
+                            canvas.add(iconText);
+                            break;
+
+                        default:
+                            // Default: render as a simple box with text
+                            if (el.x !== undefined && el.y !== undefined) {
+                                registerElement(el);
+                                const defaultRect = new fabric.Rect({
+                                    left: el.x,
+                                    top: el.y,
+                                    width: el.width || 100,
+                                    height: el.height || 50,
+                                    fill: el.fill || '#f0f0f0',
+                                    stroke: el.stroke || '#999999',
+                                    strokeWidth: 1,
+                                    rx: 4,
+                                    ry: 4
+                                });
+                                canvas.add(defaultRect);
+
+                                if (el.text || el.label || el.content) {
+                                    const defaultText = new fabric.IText(el.text || el.label || el.content, {
+                                        left: el.x + 5,
+                                        top: el.y + 5,
+                                        fontSize: 12,
+                                        fill: '#333333'
+                                    });
+                                    canvas.add(defaultText);
+                                }
+                            }
+                    }
+                });
+
+                // Process deferred arrows with ID-based connections
+                deferredArrows.forEach(el => {
+                    const fromElement = elementMap[el.fromId];
+                    const toElement = elementMap[el.toId];
+
+                    if (fromElement && toElement) {
+                        const fromPoint = getAnchorPoint(fromElement, el.fromAnchor || 'right');
+                        const toPoint = getAnchorPoint(toElement, el.toAnchor || 'left');
+                        renderArrow(el, fromPoint.x, fromPoint.y, toPoint.x, toPoint.y);
+                    } else {
+                        console.warn(`Arrow connection failed: fromId="${el.fromId}" (${fromElement ? 'found' : 'not found'}), toId="${el.toId}" (${toElement ? 'found' : 'not found'})`);
+                        // Fallback to coordinate-based if available
+                        if (el.fromX !== undefined && el.toX !== undefined) {
+                            renderArrow(el, el.fromX, el.fromY, el.toX, el.toY);
+                        }
+                    }
+                });
+
+                canvas.renderAll();
+            } catch (error) {
+                console.error('Failed to parse Free Board JSON:', error);
+                // Fallback: display the raw content as text
+                const fallbackText = new fabric.IText('Generated content:\n\n' + content.substring(0, 500), {
+                    left: 50,
+                    top: 50,
+                    fontSize: 14,
+                    fill: '#333333'
+                });
+                canvas.add(fallbackText);
+                canvas.renderAll();
             }
         }
 
