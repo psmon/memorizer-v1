@@ -81,7 +81,7 @@ PostgreSQL를 이용한 검색및 벡터검색이 가능하고 Neo4j를 활용 �
 ## 메뉴명변경
 다음 메뉴명변경 endpoint및 기능은 변경하지 않습니다.
 PRD Maker -> DDD Practice
-  PRD Shares -> DDD Shares
+PRD Shares -> DDD Shares
 /ui/prd 페이지 소개문구 변경
 - PRD Maker 소개문구 : 다음항목만 변경할것
   - "PRD Maker" -> "DDD Practice"

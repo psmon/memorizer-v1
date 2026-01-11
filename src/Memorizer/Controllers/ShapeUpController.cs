@@ -55,17 +55,20 @@ public class ShapeUpController : ControllerBase
 {
     private readonly ILlmExService _llmExService;
     private readonly ILlmService _llmService;
+    private readonly IStorage _storage;
     private readonly ILogger<ShapeUpController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
 
     public ShapeUpController(
         ILlmExService llmExService,
         ILlmService llmService,
+        IStorage storage,
         ILogger<ShapeUpController> logger,
         Npgsql.NpgsqlDataSource dataSource)
     {
         _llmExService = llmExService;
         _llmService = llmService;
+        _storage = storage;
         _logger = logger;
         _dataSource = dataSource;
     }
@@ -89,7 +92,17 @@ public class ShapeUpController : ControllerBase
                 return;
             }
 
-            var prompt = ShapeUpPrompts.GetBoardGenerationPrompt(request.Prompt, request.BoardType, request.IsIntegrated);
+            string prompt;
+
+            // For Free Board, perform memory search first
+            if (request.BoardType.ToLower() == "freeboard" && !request.IsIntegrated)
+            {
+                prompt = await GenerateFreeBoardWithMemorySearch(request.Prompt);
+            }
+            else
+            {
+                prompt = ShapeUpPrompts.GetBoardGenerationPrompt(request.Prompt, request.BoardType, request.IsIntegrated);
+            }
 
             _logger.LogInformation("Generating Shape Up board of type {BoardType}, integrated: {IsIntegrated}",
                 request.BoardType, request.IsIntegrated);
@@ -109,6 +122,151 @@ public class ShapeUpController : ControllerBase
         {
             _logger.LogError(ex, "Error generating Shape Up board");
             await WriteSSEEvent("error", new { message = "Failed to generate Shape Up board" });
+        }
+    }
+
+    /// <summary>
+    /// Generate Free Board prompt with memory search
+    /// </summary>
+    private async Task<string> GenerateFreeBoardWithMemorySearch(string userPrompt)
+    {
+        var usefulMemories = new List<(string Title, string Content, string Keyword, double Similarity)>();
+
+        try
+        {
+            // Phase 1: Extract 3 keywords from user prompt
+            await WriteSSEEvent("phase", new { phase = "extracting", message = "키워드 추출 중..." });
+            _logger.LogInformation("Extracting search keywords for Free Board");
+
+            var keywordPrompt = ShapeUpPrompts.GetSearchKeywordsExtractionPrompt(userPrompt);
+            var keywordsResult = await _llmExService.CompleteAsync(keywordPrompt, HttpContext.RequestAborted);
+
+            // Parse comma-separated keywords
+            var keywords = keywordsResult?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(k => k.Trim().Replace("\"", "").Replace("'", ""))
+                .Where(k => !string.IsNullOrWhiteSpace(k) && k.Length <= 30)
+                .Take(3)
+                .ToList() ?? new List<string>();
+
+            if (keywords.Count > 0)
+            {
+                _logger.LogInformation("Extracted {Count} keywords: {Keywords}", keywords.Count, string.Join(", ", keywords));
+                await WriteSSEEvent("phase", new { phase = "searching", message = $"메모리 검색 중... (키워드: {string.Join(", ", keywords)})" });
+
+                // Phase 2: Search memories for each keyword (0.3 similarity threshold, top 1 per keyword)
+                var foundMemoryIds = new HashSet<Guid>();
+                int totalSearched = 0;
+
+                foreach (var keyword in keywords)
+                {
+                    var memories = await _storage.Search(
+                        keyword,
+                        limit: 1,
+                        minSimilarity: 0.3,
+                        cancellationToken: HttpContext.RequestAborted
+                    );
+
+                    if (memories.Count > 0)
+                    {
+                        totalSearched++;
+                        var memory = memories[0];
+
+                        // Skip if already found with another keyword
+                        if (foundMemoryIds.Contains(memory.Id))
+                        {
+                            _logger.LogInformation("Memory '{Title}' already found, skipping", memory.Title);
+                            continue;
+                        }
+
+                        foundMemoryIds.Add(memory.Id);
+                        var similarity = memory.Similarity.HasValue ? 1 - memory.Similarity.Value : 0;
+
+                        _logger.LogInformation("Found memory for keyword '{Keyword}': {Title} (similarity: {Similarity:F2})",
+                            keyword, memory.Title, similarity);
+
+                        // Phase 3: Evaluate usefulness
+                        await WriteSSEEvent("phase", new { phase = "evaluating", message = $"'{memory.Title}' 적합성 판단 중..." });
+
+                        var usefulnessPrompt = ShapeUpPrompts.GetMemoryUsefulnessPrompt(
+                            userPrompt,
+                            memory.Title ?? "제목 없음",
+                            memory.Text ?? ""
+                        );
+
+                        var usefulnessResult = await _llmExService.CompleteAsync(usefulnessPrompt, HttpContext.RequestAborted);
+
+                        if (usefulnessResult?.Contains("유용함") == true)
+                        {
+                            usefulMemories.Add((memory.Title ?? "제목 없음", memory.Text ?? "", keyword, similarity));
+                            _logger.LogInformation("Memory '{Title}' evaluated as useful for keyword '{Keyword}'", memory.Title, keyword);
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Memory '{Title}' evaluated as not useful for keyword '{Keyword}'", memory.Title, keyword);
+                        }
+                    }
+                }
+
+                // Notify about memory search results
+                if (usefulMemories.Count > 0)
+                {
+                    await WriteSSEEvent("memory_found", new {
+                        searchedCount = totalSearched,
+                        adoptedCount = usefulMemories.Count,
+                        memories = usefulMemories.Select(m => new {
+                            title = m.Title,
+                            keyword = m.Keyword,
+                            similarity = m.Similarity
+                        }).ToArray(),
+                        message = $"메모리 조각 {totalSearched}개를 검색했습니다. 그 중 {usefulMemories.Count}개가 적합하다고 판단되어 참고했습니다."
+                    });
+                }
+                else
+                {
+                    await WriteSSEEvent("memory_found", new {
+                        searchedCount = totalSearched,
+                        adoptedCount = 0,
+                        message = "유용한 참고자료를 찾지 못했습니다."
+                    });
+                }
+            }
+            else
+            {
+                _logger.LogInformation("No valid keywords extracted");
+                await WriteSSEEvent("memory_found", new { searchedCount = 0, adoptedCount = 0, message = "키워드 추출에 실패했습니다." });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Memory search failed for Free Board, proceeding without references");
+            await WriteSSEEvent("memory_found", new { searchedCount = 0, adoptedCount = 0, message = "메모리 검색 중 오류 발생" });
+        }
+
+        // Phase 4: Generate board with or without memory references
+        await WriteSSEEvent("phase", new { phase = "generating", message = "보드 생성 중..." });
+
+        if (usefulMemories.Count > 0)
+        {
+            // Build memory references string
+            var sb = new StringBuilder();
+            for (int i = 0; i < usefulMemories.Count; i++)
+            {
+                sb.AppendLine($"### 참고자료 {i + 1}: {usefulMemories[i].Title}");
+                sb.AppendLine($"**검색 키워드**: {usefulMemories[i].Keyword} (연관성: {usefulMemories[i].Similarity:P0})");
+                sb.AppendLine();
+                sb.AppendLine(usefulMemories[i].Content.Length > 1000
+                    ? usefulMemories[i].Content.Substring(0, 1000) + "..."
+                    : usefulMemories[i].Content);
+                sb.AppendLine();
+            }
+
+            _logger.LogInformation("Generating Free Board with {Count} memory references", usefulMemories.Count);
+            return ShapeUpPrompts.GetFreeBoardWithMemoryPrompt(userPrompt, sb.ToString());
+        }
+        else
+        {
+            _logger.LogInformation("Generating Free Board without memory references");
+            return ShapeUpPrompts.GetFreeBoardPrompt(userPrompt);
         }
     }
 

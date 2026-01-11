@@ -252,6 +252,12 @@ Shape Up Whiteboard feature implementation - Shape Up methodology-based integrat
 - [ShapeUp-Pitch](41-shapeup-pitch.md)
 - [ShapeUp-Pitch-Improve](42-shapeup-pitch-improve.md)
 
+## Version 1.3.6
+
+Memory fragment reference feature improvements - Memory search by 3 keywords (0.3+ similarity) in PRD Maker Example Mapping discussion with LLM usefulness evaluation for up to 3 memories (Memory1, Memory2, Memory3) participating in discussion, Memory search integration for ShapeUp Free Board generation, Progress status display (phase SSE events), Toast notifications for memory adoption results
+
+- [Memory-PRD-ShapeUp](43-memory-prd-shapeup.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

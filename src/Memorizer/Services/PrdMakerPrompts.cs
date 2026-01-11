@@ -7,7 +7,30 @@ namespace Memorizer.Services;
 public static class PrdMakerPrompts
 {
     /// <summary>
-    /// Extract a search keyword from Event Storming result for memory search
+    /// Extract 3 search keywords from Event Storming result for memory search
+    /// </summary>
+    public static string GetSearchKeywordsExtractionPrompt(string eventStormingResult)
+    {
+        return $@"당신은 키워드 추출 전문가입니다.
+아래 이벤트 스토밍 결과를 분석하여 관련 기술이나 도메인 지식을 검색하기 위한 핵심 키워드 3개를 추출해주세요.
+
+## 이벤트 스토밍 결과
+{eventStormingResult}
+
+## 규칙
+- 반드시 3개의 핵심 검색어를 추출 (각각 20자 이내)
+- 각 키워드는 서로 다른 관점에서 추출:
+  1. 기술 패턴/아키텍처 관련 키워드
+  2. 도메인/비즈니스 개념 관련 키워드
+  3. 구현 기술/도구 관련 키워드
+- 한국어 또는 영어 모두 가능
+- 쉼표로 구분하여 키워드만 출력 (설명, 따옴표, 번호 없이)
+
+키워드:";
+    }
+
+    /// <summary>
+    /// Extract a search keyword from Event Storming result for memory search (legacy - single keyword)
     /// </summary>
     public static string GetSearchKeywordExtractionPrompt(string eventStormingResult)
     {
@@ -53,13 +76,27 @@ public static class PrdMakerPrompts
     }
 
     /// <summary>
-    /// Generate virtual collaborator discussion for Example Mapping with memory reference
+    /// Generate virtual collaborator discussion for Example Mapping with memory references (supports multiple memories)
     /// </summary>
-    public static string GetExampleMappingDiscussionWithMemoryPrompt(string prdContent, string eventStormingResult, string memoryReferences)
+    public static string GetExampleMappingDiscussionWithMemoryPrompt(string prdContent, string eventStormingResult, string memoryReferences, int memoryCount = 1)
     {
+        // Build memory participant list based on count
+        var memoryParticipants = new System.Text.StringBuilder();
+        for (int i = 1; i <= memoryCount; i++)
+        {
+            memoryParticipants.AppendLine($"- **메모리{i}**: 참고자료 {i}의 기술 문서, 도메인 지식을 바탕으로 인사이트 제공");
+        }
+
+        var memoryDiscussion = new System.Text.StringBuilder();
+        for (int i = 1; i <= memoryCount; i++)
+        {
+            memoryDiscussion.AppendLine($"**메모리{i}**: [참고자료 {i}을 바탕으로 한 기술적 인사이트, 유사 사례, 주의사항 등. 반드시 제공된 참고 자료의 내용을 활용하여 구체적인 조언 제공]");
+            if (i < memoryCount) memoryDiscussion.AppendLine();
+        }
+
         return $@"당신은 소프트웨어 개발팀의 가상 협업 시뮬레이터입니다.
 이벤트 스토밍 결과를 바탕으로 예제 맵핑을 위한 팀 토론을 시뮬레이션해주세요.
-이번 토론에는 메모리즈(Memoriz)라는 AI 참고자료 제공자가 참여합니다.
+이번 토론에는 {memoryCount}개의 메모리 참고자료 제공자가 참여합니다.
 
 ## 원본 PRD
 {prdContent}
@@ -67,7 +104,7 @@ public static class PrdMakerPrompts
 ## 이벤트 스토밍 결과
 {eventStormingResult}
 
-## 참고 자료 (메모리즈 제공)
+## 참고 자료 (메모리 제공)
 {memoryReferences}
 
 ## 가상 협업자 역할
@@ -76,7 +113,7 @@ public static class PrdMakerPrompts
 - **Dev (개발자)**: 기술적 실현 가능성과 구현 관점
 - **QA (품질 담당자)**: 테스트 시나리오와 엣지 케이스 발견
 - **UX (UX 디자이너)**: 사용자 경험과 인터랙션 관점
-- **메모리즈 (Memoriz)**: 관련 기술 문서, 도메인 지식, 사례를 참고하여 인사이트 제공
+{memoryParticipants}
 
 ## 토론 형식 (Markdown)
 
@@ -98,7 +135,7 @@ public static class PrdMakerPrompts
 
 **UX**: [사용자 경험 관점에서의 의견]
 
-**메모리즈**: [참고 자료를 바탕으로 한 기술적 인사이트, 유사 사례, 주의사항 등. 반드시 제공된 참고 자료의 내용을 활용하여 구체적인 조언 제공]
+{memoryDiscussion}
 
 **📝 도출된 예제**
 1. [구체적인 사용 예제 시나리오]
@@ -121,9 +158,10 @@ public static class PrdMakerPrompts
 토론을 통해 도출된 핵심 인사이트와 다음 단계에서 고려해야 할 사항들.
 
 ### 📚 참고 자료 활용 요약
-메모리즈가 제공한 참고 자료가 어떻게 토론에 기여했는지 간략히 정리.
+각 메모리가 제공한 참고 자료가 어떻게 토론에 기여했는지 간략히 정리:
+{string.Join("\n", Enumerable.Range(1, memoryCount).Select(i => $"- **메모리{i}**: [참고자료 {i}의 기여 내용]"))}
 
-**중요: 반드시 한국어로 응답하세요. 자연스러운 대화체로 토론을 표현해주세요. 메모리즈는 반드시 제공된 참고 자료 내용을 구체적으로 언급해야 합니다.**";
+**중요: 반드시 한국어로 응답하세요. 자연스러운 대화체로 토론을 표현해주세요. 각 메모리는 반드시 해당 참고 자료 내용을 구체적으로 언급해야 합니다.**";
     }
 
     /// <summary>

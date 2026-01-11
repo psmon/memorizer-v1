@@ -250,6 +250,12 @@ Shape Up 화이트보드 기능 구현 - Shape Up 방법론 기반 통합 피치
 - [ShapeUp-Pitch](41-shapeup-pitch.md)
 - [ShapeUp-Pitch-Improve](42-shapeup-pitch-improve.md)
 
+## Version 1.3.6
+
+메모리 조각 참조 기능 개선 - PRD Maker 예제 맵핑 토론에서 3개 키워드별 메모리 검색(0.3 이상 유사도) 및 LLM 유용성 판단으로 최대 3개 메모리(메모리1, 메모리2, 메모리3) 토론 참여, ShapeUp Free Board 생성시 메모리 검색 통합, 진행상태 표시(phase SSE 이벤트), 토스트 알림으로 메모리 채택 결과 표시
+
+- [Memory-PRD-ShapeUp](43-memory-prd-shapeup.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

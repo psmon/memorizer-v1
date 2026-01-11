@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.3.5</VersionPrefix>
+    <VersionPrefix>1.3.6</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [Shape Up Whiteboard - Shape Up methodology-based integrated pitch board (Breadboard, Fat Marker, Problem, Risk, Pitch Summary), AI auto-generation with individual/integrated options, draw.io-like drawing tools, magnetic arrow connections, grouping feature, context menu, PNG/SVG export, short link sharing]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [Memory Fragment Reference - PRD Maker Example Mapping 3-keyword memory search with LLM usefulness evaluation for up to 3 memories (Memory1, Memory2, Memory3) discussion participation, ShapeUp Free Board memory search integration, phase SSE progress display, toast notifications for memory adoption results]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

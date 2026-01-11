@@ -321,6 +321,106 @@
             to { transform: rotate(360deg); }
         }
 
+        /* Toast Notification Styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .toast-notification {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            border-left: 4px solid #667eea;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .toast-notification.success { border-left-color: #28a745; }
+        .toast-notification.info { border-left-color: #667eea; }
+        .toast-notification.warning { border-left-color: #ffc107; }
+
+        .toast-notification .toast-icon { font-size: 1.2rem; flex-shrink: 0; }
+        .toast-notification.success .toast-icon { color: #28a745; }
+        .toast-notification.info .toast-icon { color: #667eea; }
+        .toast-notification.warning .toast-icon { color: #ffc107; }
+
+        .toast-notification .toast-content { flex: 1; }
+        .toast-notification .toast-title { font-weight: 600; margin-bottom: 4px; font-size: 0.95rem; }
+        .toast-notification .toast-message { font-size: 0.85rem; color: #6c757d; line-height: 1.4; }
+
+        .toast-notification .toast-details {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .toast-notification .toast-details .memory-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .toast-notification .toast-details .memory-item:last-child { border-bottom: none; }
+
+        .toast-notification .toast-close {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        @@keyframes slideIn {
+            from { opacity: 0; transform: translateX(100px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        @@keyframes slideOut {
+            from { opacity: 1; transform: translateX(0); }
+            to { opacity: 0; transform: translateX(100px); }
+        }
+
+        /* Progress indicator for Free Board */
+        .progress-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+            z-index: 9998;
+            text-align: center;
+            min-width: 250px;
+        }
+
+        .progress-indicator .progress-icon {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .progress-indicator .progress-text {
+            font-size: 0.95rem;
+            color: #495057;
+        }
+
         /* Share Modal */
         .share-url-input {
             background: #f8f9fa;
@@ -490,6 +590,17 @@
 }
 
 <div class="shapeup-page">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- Progress Indicator (for Free Board generation) -->
+    <div id="progressIndicator" class="progress-indicator" style="display: none;">
+        <div class="progress-icon">
+            <i class="fas fa-circle-notch fa-spin"></i>
+        </div>
+        <div class="progress-text" id="progressText">처리 중...</div>
+    </div>
+
     <!-- Header -->
     <div class="shapeup-header">
         <h1>
@@ -880,6 +991,73 @@
         let isPanning = false;
         let lastPosX, lastPosY;
         let currentShareUrl = '';
+
+        // Toast notification functions
+        function showToast(type, title, message, details = null, duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+
+            const icons = {
+                success: 'fas fa-check-circle',
+                info: 'fas fa-brain',
+                warning: 'fas fa-exclamation-triangle'
+            };
+
+            let detailsHtml = '';
+            if (details && details.length > 0) {
+                detailsHtml = `
+                    <div class="toast-details">
+                        ${details.map(d => `
+                            <div class="memory-item">
+                                <span>${d.title}</span>
+                                <span style="color: #667eea;">${Math.round(d.similarity * 100)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            toast.innerHTML = `
+                <i class="toast-icon ${icons[type]}"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                    ${detailsHtml}
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function showMemoryToast(data) {
+            if (data.adoptedCount > 0) {
+                showToast('success', '메모리 참고자료 채택', data.message, data.memories, 7000);
+            } else if (data.searchedCount > 0) {
+                showToast('warning', '메모리 검색 완료', data.message, null, 4000);
+            } else {
+                showToast('info', '메모리 검색', data.message || '관련 메모리를 찾지 못했습니다.', null, 3000);
+            }
+        }
+
+        function showProgress(message) {
+            const indicator = document.getElementById('progressIndicator');
+            const text = document.getElementById('progressText');
+            text.textContent = message;
+            indicator.style.display = 'block';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressIndicator').style.display = 'none';
+        }
 
         // Arrow connection management
         let connections = []; // { arrow: fabricObject, fromShape: fabricObject, toShape: fabricObject, fromAnchor: string, toAnchor: string }
@@ -2760,10 +2938,11 @@
             }
         }
 
-        // Free Board generation - creates custom visualization boards
+        // Free Board generation - creates custom visualization boards with memory search
         async function generateFreeBoard(prompt, btn) {
             btn.disabled = true;
             btn.innerHTML = '<span class="loading-spinner"></span> Generating...';
+            showProgress('메모리 검색 준비 중...');
 
             try {
                 const response = await fetch('/api/shapeup/generate', {
@@ -2778,25 +2957,39 @@
                 let fullContent = '';
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
+                let buffer = '';
 
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    const chunk = decoder.decode(value, { stream: true });
-                    const lines = chunk.split('\n');
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
 
                     for (const line of lines) {
                         if (line.startsWith('data:')) {
                             try {
                                 const data = JSON.parse(line.substring(5).trim());
-                                if (data.content) {
+
+                                // Handle phase events (for memory search progress)
+                                if (data.phase) {
+                                    showProgress(data.message || '처리 중...');
+                                }
+                                // Handle memory found notification
+                                else if (data.searchedCount !== undefined || data.adoptedCount !== undefined) {
+                                    showMemoryToast(data);
+                                }
+                                // Handle content chunks
+                                else if (data.content) {
                                     fullContent += data.content;
                                 }
                             } catch (e) {}
                         }
                     }
                 }
+
+                hideProgress();
 
                 // Clear canvas and render the free board
                 canvas.clear();
@@ -2805,6 +2998,7 @@
 
             } catch (error) {
                 console.error('Generation error:', error);
+                hideProgress();
                 alert('Failed to generate board. Please try again.');
             } finally {
                 btn.disabled = false;

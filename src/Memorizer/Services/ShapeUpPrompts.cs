@@ -927,4 +927,145 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
 
 사용자의 요청에 맞는 시각화 보드를 생성하세요.";
     }
+
+    #region Memory Search Support for Free Board
+
+    /// <summary>
+    /// Extract 3 search keywords from Free Board prompt for memory search
+    /// </summary>
+    public static string GetSearchKeywordsExtractionPrompt(string prompt)
+    {
+        return $@"당신은 키워드 추출 전문가입니다.
+아래 보드 생성 요청을 분석하여 관련 기술이나 도메인 지식을 검색하기 위한 핵심 키워드 3개를 추출해주세요.
+
+## 보드 생성 요청
+{prompt}
+
+## 규칙
+- 반드시 3개의 핵심 검색어를 추출 (각각 20자 이내)
+- 각 키워드는 서로 다른 관점에서 추출:
+  1. 주제/도메인 관련 키워드
+  2. 구조/패턴 관련 키워드
+  3. 기술/도구 관련 키워드
+- 한국어 또는 영어 모두 가능
+- 쉼표로 구분하여 키워드만 출력 (설명, 따옴표, 번호 없이)
+
+키워드:";
+    }
+
+    /// <summary>
+    /// Evaluate if memory is useful for Free Board creation
+    /// </summary>
+    public static string GetMemoryUsefulnessPrompt(string boardPrompt, string memoryTitle, string memoryContent)
+    {
+        return $@"당신은 참고자료 평가 전문가입니다.
+아래 보드 생성 요청에 대해 참고 자료가 유용한지 판단해주세요.
+
+## 보드 생성 요청 (요약)
+{boardPrompt.Substring(0, Math.Min(boardPrompt.Length, 500))}
+
+## 검색된 메모리
+제목: {memoryTitle}
+내용: {memoryContent.Substring(0, Math.Min(memoryContent.Length, 500))}
+
+## 판단 기준
+- 보드 생성 요청의 주제/도메인과 관련이 있는가?
+- 보드 구성에 참고할 만한 구조적 정보가 있는가?
+- 시각화에 도움이 될 수 있는 예시나 패턴이 있는가?
+
+## 응답 형식
+유용함 또는 유용하지않음 중 하나만 출력하세요.
+
+판단:";
+    }
+
+    /// <summary>
+    /// Generate Free Board with memory references
+    /// </summary>
+    public static string GetFreeBoardWithMemoryPrompt(string prompt, string memoryReferences)
+    {
+        return $@"당신은 시각화 전문가입니다.
+다음 요청을 분석하여 화이트보드에 표시할 수 있는 다이어그램/보드를 Fabric.js 호환 JSON 형식으로 생성해주세요.
+참고 자료를 활용하여 더 풍부하고 정확한 보드를 생성하세요.
+
+## 사용자 요청
+{prompt}
+
+## 참고 자료 (메모리에서 검색됨)
+{memoryReferences}
+
+## 지원하는 요소 타입
+
+### 기본 도형 (반드시 고유한 id 부여)
+- **rect**: 사각형 (id, x, y, width, height, fill, stroke, label)
+- **circle**: 원 (id, x, y, radius, fill, stroke, label)
+- **text**: 텍스트 (id, x, y, text, fontSize, fill)
+
+### 구조화된 요소 (반드시 고유한 id 부여)
+- **entity**: 엔티티 박스 - ERD용 (id, x, y, width, name, fields: [string])
+- **note**: 메모/포스트잇 (id, x, y, width, height, text, color)
+- **label**: 라벨 텍스트 (id, x, y, text, fontSize, color)
+- **group**: 요소 그룹화 (id, x, y, width, height, title, color, children: [elements])
+
+### 레이아웃 요소 (반드시 고유한 id 부여)
+- **frame**: 프레임 박스 (id, x, y, width, height, title, color)
+- **section**: 섹션 박스 (id, x, y, width, height, title, content)
+
+### 메모리 참조 표시 요소 (참고자료 활용 시 필수)
+- **memoryRef**: 참고 메모리 정보 표시 (id, x, y, width, title, similarity, keyword)
+
+## 출력 형식 (Fabric.js JSON)
+다음 JSON 구조로 정확히 출력하세요. 코드 블록 없이 순수 JSON만 출력합니다.
+
+{{
+  ""boardType"": ""freeboard"",
+  ""title"": ""[보드 제목]"",
+  ""memoryReferences"": [
+    {{
+      ""title"": ""[참고한 메모리 제목]"",
+      ""keyword"": ""[검색 키워드]"",
+      ""similarity"": 0.85
+    }}
+  ],
+  ""elements"": [
+    // 요소들을 여기에 배치
+    // 마지막에 참고 메모리 정보 표시 영역 추가
+  ]
+}}
+
+## 참고 메모리 표시 규칙
+보드 하단에 참고한 메모리 정보를 표시하세요:
+{{
+  ""type"": ""frame"",
+  ""id"": ""memory-refs"",
+  ""x"": 50,
+  ""y"": 600,
+  ""width"": 400,
+  ""height"": 100,
+  ""title"": ""참고 메모리"",
+  ""color"": ""#e8f4fd""
+}},
+{{
+  ""type"": ""text"",
+  ""id"": ""memory-ref-1"",
+  ""x"": 60,
+  ""y"": 640,
+  ""text"": ""[메모리 제목] (연관성: 85%)"",
+  ""fontSize"": 12,
+  ""fill"": ""#666""
+}}
+
+## 생성 규칙
+1. 모든 요소에 고유한 id를 부여하세요
+2. 요소들이 겹치지 않도록 충분한 간격을 두세요 (최소 20px)
+3. 가독성을 위해 적절한 색상을 사용하세요
+4. 캔버스 크기 (1200x800)를 고려하여 배치하세요
+5. **중요: 화살표(arrow, connector)는 사용하지 마세요**
+6. **참고 자료의 정보를 보드 구성에 적극 활용하세요**
+7. **보드 하단에 참고한 메모리 정보를 표시하세요**
+
+사용자의 요청과 참고 자료를 활용하여 풍부한 시각화 보드를 생성하세요.";
+    }
+
+    #endregion
 }

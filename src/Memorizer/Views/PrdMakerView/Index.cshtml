@@ -184,6 +184,140 @@
             color: #764ba2;
         }
 
+        /* Toast Notification Styles */
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-width: 400px;
+        }
+
+        .toast-notification {
+            background: white;
+            border-radius: 12px;
+            padding: 15px 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            border-left: 4px solid #667eea;
+            animation: slideIn 0.3s ease-out;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .toast-notification.success {
+            border-left-color: #28a745;
+        }
+
+        .toast-notification.info {
+            border-left-color: #667eea;
+        }
+
+        .toast-notification.warning {
+            border-left-color: #ffc107;
+        }
+
+        .toast-notification .toast-icon {
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .toast-notification.success .toast-icon { color: #28a745; }
+        .toast-notification.info .toast-icon { color: #667eea; }
+        .toast-notification.warning .toast-icon { color: #ffc107; }
+
+        .toast-notification .toast-content {
+            flex: 1;
+        }
+
+        .toast-notification .toast-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+            font-size: 0.95rem;
+        }
+
+        .toast-notification .toast-message {
+            font-size: 0.85rem;
+            color: #6c757d;
+            line-height: 1.4;
+        }
+
+        .toast-notification .toast-details {
+            margin-top: 8px;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.8rem;
+        }
+
+        .toast-notification .toast-details .memory-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .toast-notification .toast-details .memory-item:last-child {
+            border-bottom: none;
+        }
+
+        .toast-notification .toast-close {
+            background: none;
+            border: none;
+            font-size: 1rem;
+            color: #6c757d;
+            cursor: pointer;
+            padding: 0;
+            flex-shrink: 0;
+        }
+
+        @@keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @@keyframes slideOut {
+            from {
+                opacity: 1;
+                transform: translateX(0);
+            }
+            to {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+        }
+
+        /* Progress Step Indicator */
+        .progress-step-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+            color: #667eea;
+            padding: 8px 15px;
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .progress-step-indicator .step-spinner {
+            animation: spin 1s linear infinite;
+        }
+
+        @@keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
         .result-content {
             background: #f8f9fa;
             border-radius: 12px;
@@ -452,6 +586,9 @@
 }
 
 <div class="prd-page">
+    <!-- Toast Container -->
+    <div id="toastContainer" class="toast-container"></div>
+
     <div class="container-fluid py-4">
         <!-- Header -->
         <div class="page-header">
@@ -796,6 +933,81 @@ graph LR
         let exampleMappingResult = '';
         let refinedPrdResult = '';
         let boundedContextResult = '';
+
+        // Toast notification functions
+        function showToast(type, title, message, details = null, duration = 5000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast-notification ${type}`;
+
+            const icons = {
+                success: 'fas fa-check-circle',
+                info: 'fas fa-brain',
+                warning: 'fas fa-exclamation-triangle'
+            };
+
+            let detailsHtml = '';
+            if (details && details.length > 0) {
+                detailsHtml = `
+                    <div class="toast-details">
+                        ${details.map(d => `
+                            <div class="memory-item">
+                                <span>${d.title}</span>
+                                <span style="color: #667eea;">${Math.round(d.similarity * 100)}%</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            toast.innerHTML = `
+                <i class="toast-icon ${icons[type]}"></i>
+                <div class="toast-content">
+                    <div class="toast-title">${title}</div>
+                    <div class="toast-message">${message}</div>
+                    ${detailsHtml}
+                </div>
+                <button class="toast-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+
+            container.appendChild(toast);
+
+            // Auto remove after duration
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease-in forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, duration);
+        }
+
+        function showMemoryToast(data) {
+            if (data.adoptedCount > 0) {
+                showToast(
+                    'success',
+                    '메모리 참고자료 채택',
+                    data.message,
+                    data.memories,
+                    7000
+                );
+            } else if (data.searchedCount > 0) {
+                showToast(
+                    'warning',
+                    '메모리 검색 완료',
+                    data.message,
+                    null,
+                    4000
+                );
+            } else {
+                showToast(
+                    'info',
+                    '메모리 검색',
+                    data.message || '관련 메모리를 찾지 못했습니다.',
+                    null,
+                    3000
+                );
+            }
+        }
         let currentStep = 1;
         let abortControllers = {
             eventStorming: null,
@@ -1004,6 +1216,7 @@ graph LR
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let buffer = '';
+            let memoryInfoAdded = false;
 
             while (true) {
                 const { done, value } = await reader.read();
@@ -1025,23 +1238,46 @@ graph LR
                         try {
                             const parsed = JSON.parse(data);
 
-                            // Handle phase changes
+                            // Handle phase changes with step indicator
                             if (parsed.phase) {
-                                if (parsed.phase === 'searching') {
-                                    updateStatus('discussion', 'searching');
-                                    markdownElement.innerHTML = '<div class="memory-search-status"><i class="fas fa-search fa-spin me-2"></i>관련 지식 검색 중...</div>';
+                                updateStatus('discussion', parsed.phase);
+                                if (parsed.phase === 'searching' || parsed.phase === 'evaluating') {
+                                    markdownElement.innerHTML = `
+                                        <div class="progress-step-indicator">
+                                            <i class="fas fa-circle-notch step-spinner"></i>
+                                            <span>${parsed.message || '처리 중...'}</span>
+                                        </div>
+                                    `;
                                 } else if (parsed.phase === 'generating') {
-                                    updateStatus('discussion', 'generating');
                                     markdownElement.innerHTML = '';
                                 }
                             }
-                            // Handle memory found notification
-                            else if (parsed.count !== undefined && parsed.titles) {
-                                if (parsed.count > 0) {
+                            // Handle memory found notification (new format with searchedCount, adoptedCount, memories)
+                            else if (parsed.searchedCount !== undefined || parsed.adoptedCount !== undefined) {
+                                // Show toast notification
+                                showMemoryToast(parsed);
+
+                                // Add memory info to markdown if memories were adopted
+                                if (parsed.adoptedCount > 0 && parsed.memories && !memoryInfoAdded) {
                                     const memoryInfo = document.createElement('div');
                                     memoryInfo.className = 'memory-found-info';
-                                    memoryInfo.innerHTML = `<i class="fas fa-brain me-2"></i>메모리즈 참여: ${parsed.titles.join(', ')}`;
+                                    const memoryNames = parsed.memories.map(m =>
+                                        `<strong>메모리${parsed.memories.indexOf(m) + 1}</strong>: ${m.title} (${Math.round(m.similarity * 100)}%)`
+                                    ).join(', ');
+                                    memoryInfo.innerHTML = `<i class="fas fa-brain me-2"></i>참여 메모리: ${memoryNames}`;
+                                    markdownElement.innerHTML = '';
+                                    markdownElement.appendChild(memoryInfo);
+                                    memoryInfoAdded = true;
+                                }
+                            }
+                            // Handle legacy memory found format (count, titles)
+                            else if (parsed.count !== undefined && parsed.titles) {
+                                if (parsed.count > 0 && !memoryInfoAdded) {
+                                    const memoryInfo = document.createElement('div');
+                                    memoryInfo.className = 'memory-found-info';
+                                    memoryInfo.innerHTML = `<i class="fas fa-brain me-2"></i>메모리 참여: ${parsed.titles.join(', ')}`;
                                     markdownElement.prepend(memoryInfo);
+                                    memoryInfoAdded = true;
                                 }
                             }
                             // Handle content chunks
