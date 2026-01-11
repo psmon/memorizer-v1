@@ -237,6 +237,19 @@ PRD Maker 기능 개선 - 6단계 바운디드 컨텍스트(BC) 정의 기능 �
 
 - [PRD-Maker-02](39-PRD-Maker-02.md)
 
+## Version 1.3.4
+
+PRD 데모 와이어프레임 생성 기능 - 정제된 PRD 기반 LLM-EX 와이어프레임 HTML 페이지 생성, wwwroot/demo/{shortlink}/ 정적 파일 저장, Bootstrap 5 CDN 반응형 디자인, 전체 URL 복사 및 새창 열기 기능 모달, PRD Shares 페이지에서 정제된 PRD 존재 시 사용 가능
+
+- [PRD-Maker-03](40-PRD-Maker-03.md)
+
+## Version 1.3.5
+
+Shape Up 화이트보드 기능 구현 - Shape Up 방법론 기반 통합 피치 보드(Breadboard, Fat Marker, Problem, Risk, Pitch Summary), AI 자동 생성(개별/통합 옵션), draw.io 유사 드로잉 도구, 자석 화살표 연결, 그룹핑 기능, 컨텍스트 메뉴, PNG/SVG 내보내기, 숏링크 공유
+
+- [ShapeUp-Pitch](41-shapeup-pitch.md)
+- [ShapeUp-Pitch-Improve](42-shapeup-pitch-improve.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

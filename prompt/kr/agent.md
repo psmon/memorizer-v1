@@ -32,9 +32,15 @@
 - src/Memorizer/Services/OpenAILlmExService.cs - LLM-EX OpenAI 구현체
 - src/Memorizer/Settings/LlmExSettings.cs - LLM-EX 설정 (Type으로 Custom/Ollama/OpenAI 선택)
 - src/Memorizer/Services/PrdMakerPrompts.cs - PRD Maker 프롬프트 (이벤트스토밍, 예제맵핑)
+- src/Memorizer/Views/ShapeUpView/ - Shape Up 화이트보드 뷰 (Fabric.js 기반 드로잉)
+- src/Memorizer/Controllers/ShapeUpController.cs - Shape Up 보드 컨트롤러 (공유, 저장, AI 생성)
 - docker-compose.md - 환경별 docker-compose 설정 가이드
 - src/Memorizer.IntegrationTests/Actors : 기존 유닛테스트가 있습니다. 유닛테스트 방법을 참고
+- PageUrl (추가):
+    - ui/shapeup - Shape Up 화이트보드 페이지
+    - ui/shapeup/share/{숏링크} - 공유된 Shape Up 보드 보기 페이지
+    - ui/shapeup/shares - 공유된 Shape Up 보드 목록 페이지
 
 
-마지막 자동수정일시분 : 2026-01-06 00:00:00
-마지막 버전 반영 : 40
+마지막 자동수정일시분 : 2026-01-11 00:00:00
+마지막 버전 반영 : 42

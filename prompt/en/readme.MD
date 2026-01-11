@@ -245,6 +245,13 @@ PRD Demo Wireframe generation feature - LLM-EX based wireframe HTML page generat
 
 - [PRD-Maker-03](40-PRD-Maker-03.md)
 
+## Version 1.3.5
+
+Shape Up Whiteboard feature implementation - Shape Up methodology-based integrated pitch board (Breadboard, Fat Marker, Problem, Risk, Pitch Summary), AI auto-generation (individual/integrated options), draw.io-like drawing tools, magnetic arrow connections, grouping feature, context menu, PNG/SVG export, short link sharing
+
+- [ShapeUp-Pitch](41-shapeup-pitch.md)
+- [ShapeUp-Pitch-Improve](42-shapeup-pitch-improve.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

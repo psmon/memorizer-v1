@@ -145,7 +145,7 @@
         }
 
         .canvas-controls {
-            position: absolute;
+            position: fixed;
             bottom: 20px;
             right: 20px;
             display: flex;
@@ -154,7 +154,7 @@
             padding: 8px;
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            z-index: 100;
+            z-index: 1000;
         }
 
         .canvas-control-btn {
@@ -207,10 +207,10 @@
 
         /* AI Prompt Panel */
         .ai-prompt-panel {
-            position: absolute;
+            position: fixed;
             bottom: 80px;
-            left: 220px;
             right: 20px;
+            width: 800px;
             background: white;
             border-radius: 12px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.15);
@@ -218,7 +218,7 @@
             display: none;
             flex-direction: column;
             gap: 10px;
-            z-index: 200;
+            z-index: 1001;
         }
 
         .ai-prompt-panel.show {
@@ -264,6 +264,7 @@
             padding: 12px 15px;
             font-size: 0.95rem;
             resize: none;
+            min-height: 80px;
         }
 
         .prompt-input:focus {
@@ -327,6 +328,62 @@
         .color-fatmarker { color: #11998e; }
         .color-risk { color: #f093fb; }
         .color-pitch { color: #ff6b6b; }
+
+        /* Context Menu */
+        .context-menu {
+            position: fixed;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+            padding: 8px 0;
+            min-width: 160px;
+            z-index: 2000;
+            display: none;
+        }
+
+        .context-menu.show {
+            display: block;
+        }
+
+        .context-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: #333;
+            transition: background 0.15s;
+        }
+
+        .context-menu-item:hover {
+            background: #f0f2f5;
+        }
+
+        .context-menu-item.disabled {
+            color: #adb5bd;
+            cursor: not-allowed;
+        }
+
+        .context-menu-item.disabled:hover {
+            background: transparent;
+        }
+
+        .context-menu-item i {
+            width: 16px;
+            text-align: center;
+            color: #667eea;
+        }
+
+        .context-menu-item.disabled i {
+            color: #adb5bd;
+        }
+
+        .context-menu-divider {
+            height: 1px;
+            background: #e9ecef;
+            margin: 6px 0;
+        }
     </style>
 }
 
@@ -459,7 +516,7 @@
                     </button>
                 </div>
                 <div class="ai-prompt-body">
-                    <textarea id="ai-prompt" class="prompt-input" rows="2"
+                    <textarea id="ai-prompt" class="prompt-input" rows="4"
                         placeholder="Describe your project or feature to generate Shape Up boards..."></textarea>
                     <select id="board-type" class="board-type-select">
                         <option value="integrated">통합 생성</option>
@@ -513,6 +570,27 @@
     </div>
 </div>
 
+<!-- Context Menu -->
+<div class="context-menu" id="context-menu">
+    <div class="context-menu-item" id="ctx-group" onclick="groupSelected()">
+        <i class="fas fa-object-group"></i> Group
+    </div>
+    <div class="context-menu-item" id="ctx-ungroup" onclick="ungroupSelected()">
+        <i class="fas fa-object-ungroup"></i> Ungroup
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" id="ctx-bring-front" onclick="bringToFront()">
+        <i class="fas fa-layer-group"></i> Bring to Front
+    </div>
+    <div class="context-menu-item" id="ctx-send-back" onclick="sendToBack()">
+        <i class="fas fa-layer-group fa-flip-vertical"></i> Send to Back
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" id="ctx-delete" onclick="deleteSelected()">
+        <i class="fas fa-trash"></i> Delete
+    </div>
+</div>
+
 @section Scripts {
     <!-- Fabric.js 5.3.1 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
@@ -544,6 +622,14 @@
         let isPanning = false;
         let lastPosX, lastPosY;
         let currentShareUrl = '';
+
+        // Arrow connection management
+        let connections = []; // { arrow: fabricObject, fromShape: fabricObject, toShape: fabricObject, fromAnchor: string, toAnchor: string }
+        let arrowStartShape = null;
+        let arrowStartAnchor = null;
+        let snapDistance = 20; // pixels for magnetic snap
+        let arrowPreviewLine = null; // Preview line while drawing arrow
+        let arrowPreviewHead = null; // Preview arrow head
 
         // Initialize canvas
         document.addEventListener('DOMContentLoaded', function() {
@@ -584,7 +670,17 @@
                     lastPosX = opt.e.clientX;
                     lastPosY = opt.e.clientY;
                     canvas.defaultCursor = 'grabbing';
-                } else if (currentTool !== 'select') {
+                } else if (currentTool === 'select') {
+                    // Select tool: click to select object
+                    if (opt.target) {
+                        canvas.setActiveObject(opt.target);
+                        canvas.renderAll();
+                    } else {
+                        canvas.discardActiveObject();
+                        canvas.renderAll();
+                    }
+                } else {
+                    // Drawing tools
                     handleDrawStart(opt);
                 }
             });
@@ -597,7 +693,7 @@
                     canvas.requestRenderAll();
                     lastPosX = opt.e.clientX;
                     lastPosY = opt.e.clientY;
-                } else if (isDrawing && currentShape) {
+                } else if (isDrawing) {
                     handleDrawMove(opt);
                 }
             });
@@ -632,6 +728,49 @@
                 canvas.setHeight(container.clientHeight - 100);
                 canvas.renderAll();
             });
+
+            // Object moving - update connected arrows
+            canvas.on('object:moving', function(opt) {
+                updateConnectedArrows(opt.target);
+            });
+
+            // Object scaling/rotating - update connected arrows
+            canvas.on('object:scaling', function(opt) {
+                updateConnectedArrows(opt.target);
+            });
+            canvas.on('object:rotating', function(opt) {
+                updateConnectedArrows(opt.target);
+            });
+
+            // Right-click context menu on canvas
+            document.getElementById('canvas-container').addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                showContextMenu(e.clientX, e.clientY);
+            });
+
+            // Hide context menu on click elsewhere
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.context-menu')) {
+                    hideContextMenu();
+                }
+            });
+
+            // Double-click to edit text inside group
+            canvas.on('mouse:dblclick', function(opt) {
+                const target = opt.target;
+                if (!target) return;
+
+                // If it's a group, find text inside
+                if (target.type === 'group' && !target.connectionInfo) {
+                    const pointer = canvas.getPointer(opt.e);
+                    const textObj = findTextInGroup(target, pointer);
+                    if (textObj) {
+                        editTextInGroup(target, textObj);
+                    }
+                }
+            });
+
         }
 
         function setTool(tool) {
@@ -658,10 +797,32 @@
                 canvas.selection = false;
                 canvas.defaultCursor = 'grab';
                 canvas.hoverCursor = 'grab';
-            } else {
-                canvas.selection = (tool === 'select');
+                // Disable object selection during pan
+                canvas.forEachObject(function(obj) {
+                    obj.selectable = false;
+                    obj.evented = false;
+                });
+            } else if (tool === 'select') {
+                canvas.selection = true;
                 canvas.defaultCursor = 'default';
                 canvas.hoverCursor = 'move';
+                // Enable object selection
+                canvas.forEachObject(function(obj) {
+                    obj.selectable = true;
+                    obj.evented = true;
+                    obj.setCoords();
+                });
+                canvas.renderAll();
+            } else {
+                // Drawing tools
+                canvas.selection = false;
+                canvas.defaultCursor = 'crosshair';
+                canvas.hoverCursor = 'crosshair';
+                // Keep objects non-selectable during drawing
+                canvas.forEachObject(function(obj) {
+                    obj.selectable = false;
+                    obj.evented = false;
+                });
             }
         }
 
@@ -724,10 +885,42 @@
                     });
                     break;
                 case 'arrow':
-                    // Arrow will be created on mouse up
+                    // Arrow: detect start shape for magnetic snap
+                    const snapResult = findNearestShapeAnchor(pointer.x, pointer.y);
+                    if (snapResult) {
+                        arrowStartShape = snapResult.shape;
+                        arrowStartAnchor = snapResult.anchor;
+                        startX = snapResult.point.x;
+                        startY = snapResult.point.y;
+                    } else {
+                        arrowStartShape = null;
+                        arrowStartAnchor = null;
+                    }
+                    // Create preview line and arrow head
+                    arrowPreviewLine = new fabric.Line([startX, startY, startX, startY], {
+                        stroke: strokeColor,
+                        strokeWidth: strokeWidth,
+                        selectable: false,
+                        evented: false,
+                        strokeDashArray: [5, 5] // Dashed line for preview
+                    });
+                    arrowPreviewHead = new fabric.Triangle({
+                        left: startX,
+                        top: startY,
+                        width: 15,
+                        height: 15,
+                        fill: strokeColor,
+                        angle: 0,
+                        originX: 'center',
+                        originY: 'center',
+                        selectable: false,
+                        evented: false
+                    });
+                    canvas.add(arrowPreviewLine);
+                    canvas.add(arrowPreviewHead);
                     break;
                 case 'text':
-                    currentShape = new fabric.IText('Text', {
+                    currentShape = new fabric.IText('', {
                         left: startX,
                         top: startY,
                         fontSize: 16,
@@ -736,7 +929,17 @@
                     canvas.add(currentShape);
                     canvas.setActiveObject(currentShape);
                     currentShape.enterEditing();
+
+                    // Remove text object if empty when editing ends
+                    currentShape.on('editing:exited', function() {
+                        if (this.text.trim() === '') {
+                            canvas.remove(this);
+                            canvas.renderAll();
+                        }
+                    });
+
                     isDrawing = false;
+                    setTool('select');
                     return;
             }
 
@@ -746,12 +949,13 @@
         }
 
         function handleDrawMove(opt) {
-            if (!isDrawing || !currentShape) return;
+            if (!isDrawing) return;
 
             const pointer = canvas.getPointer(opt.e);
 
             switch (currentTool) {
                 case 'rect':
+                    if (!currentShape) return;
                     const width = pointer.x - startX;
                     const height = pointer.y - startY;
                     currentShape.set({
@@ -762,11 +966,38 @@
                     });
                     break;
                 case 'circle':
+                    if (!currentShape) return;
                     const radius = Math.sqrt(Math.pow(pointer.x - startX, 2) + Math.pow(pointer.y - startY, 2)) / 2;
                     currentShape.set({ radius: radius });
                     break;
                 case 'line':
+                    if (!currentShape) return;
                     currentShape.set({ x2: pointer.x, y2: pointer.y });
+                    break;
+                case 'arrow':
+                    // Update arrow preview
+                    if (arrowPreviewLine && arrowPreviewHead) {
+                        let endX = pointer.x;
+                        let endY = pointer.y;
+
+                        // Check for snap to shape
+                        const snapResult = findNearestShapeAnchor(pointer.x, pointer.y);
+                        if (snapResult) {
+                            endX = snapResult.point.x;
+                            endY = snapResult.point.y;
+                        }
+
+                        // Update preview line
+                        arrowPreviewLine.set({ x2: endX, y2: endY });
+
+                        // Update preview arrow head position and angle
+                        const angle = Math.atan2(endY - startY, endX - startX);
+                        arrowPreviewHead.set({
+                            left: endX,
+                            top: endY,
+                            angle: (angle * 180 / Math.PI) + 90
+                        });
+                    }
                     break;
             }
 
@@ -776,7 +1007,36 @@
         function handleDrawEnd(opt) {
             if (currentTool === 'arrow') {
                 const pointer = canvas.getPointer(opt.e);
-                createArrow(startX, startY, pointer.x, pointer.y);
+                let endX = pointer.x;
+                let endY = pointer.y;
+                let arrowEndShape = null;
+                let arrowEndAnchor = null;
+
+                // Detect end shape for magnetic snap
+                const snapResult = findNearestShapeAnchor(pointer.x, pointer.y);
+                if (snapResult) {
+                    arrowEndShape = snapResult.shape;
+                    arrowEndAnchor = snapResult.anchor;
+                    endX = snapResult.point.x;
+                    endY = snapResult.point.y;
+                }
+
+                // Remove preview elements
+                if (arrowPreviewLine) {
+                    canvas.remove(arrowPreviewLine);
+                    arrowPreviewLine = null;
+                }
+                if (arrowPreviewHead) {
+                    canvas.remove(arrowPreviewHead);
+                    arrowPreviewHead = null;
+                }
+
+                // Create arrow with connection info
+                createArrowWithConnection(startX, startY, endX, endY, arrowStartShape, arrowEndShape, arrowStartAnchor, arrowEndAnchor);
+
+                // Reset arrow state
+                arrowStartShape = null;
+                arrowStartAnchor = null;
             }
 
             isDrawing = false;
@@ -814,13 +1074,454 @@
             canvas.add(group);
         }
 
+        // Create arrow with connection tracking
+        function createArrowWithConnection(x1, y1, x2, y2, fromShape, toShape, fromAnchor, toAnchor) {
+            const strokeColor = document.getElementById('strokeColor').value;
+            const strokeWidth = parseInt(document.getElementById('strokeWidth').value);
+
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            const headLen = 15;
+
+            const line = new fabric.Line([x1, y1, x2, y2], {
+                stroke: strokeColor,
+                strokeWidth: strokeWidth
+            });
+
+            const head = new fabric.Triangle({
+                left: x2,
+                top: y2,
+                width: headLen,
+                height: headLen,
+                fill: strokeColor,
+                angle: (angle * 180 / Math.PI) + 90,
+                originX: 'center',
+                originY: 'center'
+            });
+
+            const group = new fabric.Group([line, head], {
+                selectable: true
+            });
+
+            // Store connection info on the arrow group
+            group.connectionInfo = {
+                fromShape: fromShape,
+                toShape: toShape,
+                fromAnchor: fromAnchor,
+                toAnchor: toAnchor
+            };
+
+            canvas.add(group);
+
+            // Track the connection if shapes are involved
+            if (fromShape || toShape) {
+                connections.push({
+                    arrow: group,
+                    fromShape: fromShape,
+                    toShape: toShape,
+                    fromAnchor: fromAnchor,
+                    toAnchor: toAnchor
+                });
+            }
+        }
+
+        // Find the nearest shape and its anchor point for magnetic snap
+        function findNearestShapeAnchor(x, y) {
+            const objects = canvas.getObjects();
+            let nearestResult = null;
+            let minDistance = Infinity;
+
+            for (const obj of objects) {
+                // Skip arrows (groups with line+triangle)
+                if (obj.type === 'group' && obj.connectionInfo) continue;
+
+                // Skip arrow preview objects
+                if (obj === arrowPreviewLine || obj === arrowPreviewHead) continue;
+
+                // Skip non-selectable objects (lines, triangles that are part of arrows)
+                if (obj.type === 'line' && !obj.selectable) continue;
+                if (obj.type === 'triangle' && !obj.selectable) continue;
+
+                // Check if point is inside the shape
+                const isInside = isPointInsideShape(obj, x, y);
+                const anchors = getShapeAnchors(obj);
+
+                for (const anchorName in anchors) {
+                    if (anchorName === 'center') continue; // Skip center anchor for edge connections
+
+                    const anchor = anchors[anchorName];
+                    const distance = Math.sqrt(Math.pow(x - anchor.x, 2) + Math.pow(y - anchor.y, 2));
+
+                    // If inside shape, always snap to nearest anchor of this shape
+                    if (isInside) {
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            nearestResult = {
+                                shape: obj,
+                                anchor: anchorName,
+                                point: anchor
+                            };
+                        }
+                    } else if (distance < snapDistance && distance < minDistance) {
+                        // Outside shape, use snapDistance threshold
+                        minDistance = distance;
+                        nearestResult = {
+                            shape: obj,
+                            anchor: anchorName,
+                            point: anchor
+                        };
+                    }
+                }
+            }
+
+            return nearestResult;
+        }
+
+        // Check if point is inside a shape's bounding box
+        function isPointInsideShape(obj, x, y) {
+            const bound = obj.getBoundingRect(true, true);
+            return x >= bound.left && x <= bound.left + bound.width &&
+                   y >= bound.top && y <= bound.top + bound.height;
+        }
+
+        // Get anchor points for a shape (center of each edge)
+        function getShapeAnchors(obj) {
+            const bound = obj.getBoundingRect(true, true);
+            const centerX = bound.left + bound.width / 2;
+            const centerY = bound.top + bound.height / 2;
+
+            return {
+                top: { x: centerX, y: bound.top },
+                bottom: { x: centerX, y: bound.top + bound.height },
+                left: { x: bound.left, y: centerY },
+                right: { x: bound.left + bound.width, y: centerY },
+                center: { x: centerX, y: centerY }
+            };
+        }
+
+        // Update all arrows connected to a moving shape
+        function updateConnectedArrows(movedShape) {
+            if (!movedShape) return;
+
+            connections.forEach(conn => {
+                if (conn.fromShape === movedShape || conn.toShape === movedShape) {
+                    // Get updated anchor positions
+                    let x1, y1, x2, y2;
+
+                    if (conn.fromShape) {
+                        const fromAnchors = getShapeAnchors(conn.fromShape);
+                        const fromPoint = fromAnchors[conn.fromAnchor] || fromAnchors.right;
+                        x1 = fromPoint.x;
+                        y1 = fromPoint.y;
+                    } else {
+                        // Keep original start position from arrow
+                        const arrow = conn.arrow;
+                        if (arrow && arrow._objects && arrow._objects[0]) {
+                            x1 = arrow._objects[0].x1 + arrow.left + arrow.width / 2;
+                            y1 = arrow._objects[0].y1 + arrow.top + arrow.height / 2;
+                        }
+                    }
+
+                    if (conn.toShape) {
+                        const toAnchors = getShapeAnchors(conn.toShape);
+                        const toPoint = toAnchors[conn.toAnchor] || toAnchors.left;
+                        x2 = toPoint.x;
+                        y2 = toPoint.y;
+                    } else {
+                        // Keep original end position from arrow
+                        const arrow = conn.arrow;
+                        if (arrow && arrow._objects && arrow._objects[0]) {
+                            x2 = arrow._objects[0].x2 + arrow.left + arrow.width / 2;
+                            y2 = arrow._objects[0].y2 + arrow.top + arrow.height / 2;
+                        }
+                    }
+
+                    // Update the arrow
+                    updateArrowPosition(conn.arrow, x1, y1, x2, y2);
+                }
+            });
+
+            canvas.renderAll();
+        }
+
+        // Update arrow line and head position
+        function updateArrowPosition(arrow, x1, y1, x2, y2) {
+            if (!arrow || !arrow._objects || arrow._objects.length < 2) return;
+
+            const line = arrow._objects[0];
+            const head = arrow._objects[1];
+
+            // Ungroup temporarily to update
+            const items = arrow._objects;
+            arrow._restoreObjectsState();
+            canvas.remove(arrow);
+
+            // Update line
+            line.set({ x1: x1, y1: y1, x2: x2, y2: y2 });
+            line.setCoords();
+
+            // Update arrow head
+            const angle = Math.atan2(y2 - y1, x2 - x1);
+            head.set({
+                left: x2,
+                top: y2,
+                angle: (angle * 180 / Math.PI) + 90
+            });
+            head.setCoords();
+
+            // Re-group
+            const newGroup = new fabric.Group([line, head], {
+                selectable: true
+            });
+            newGroup.connectionInfo = arrow.connectionInfo;
+
+            canvas.add(newGroup);
+
+            // Update connection reference
+            const connIndex = connections.findIndex(c => c.arrow === arrow);
+            if (connIndex >= 0) {
+                connections[connIndex].arrow = newGroup;
+            }
+        }
+
         function deleteSelected() {
             const activeObjects = canvas.getActiveObjects();
             if (activeObjects.length) {
-                activeObjects.forEach(obj => canvas.remove(obj));
+                activeObjects.forEach(obj => {
+                    // Remove from connections if this is an arrow
+                    const connIndex = connections.findIndex(c => c.arrow === obj);
+                    if (connIndex >= 0) {
+                        connections.splice(connIndex, 1);
+                    }
+
+                    // Remove connections that reference this shape
+                    connections = connections.filter(c => c.fromShape !== obj && c.toShape !== obj);
+
+                    canvas.remove(obj);
+                });
                 canvas.discardActiveObject();
                 canvas.renderAll();
             }
+            hideContextMenu();
+        }
+
+        // Context Menu Functions
+        function showContextMenu(x, y) {
+            const menu = document.getElementById('context-menu');
+            const activeObjects = canvas.getActiveObjects();
+            const activeObject = canvas.getActiveObject();
+
+            // Update menu items based on selection
+            const groupItem = document.getElementById('ctx-group');
+            const ungroupItem = document.getElementById('ctx-ungroup');
+            const deleteItem = document.getElementById('ctx-delete');
+            const bringFrontItem = document.getElementById('ctx-bring-front');
+            const sendBackItem = document.getElementById('ctx-send-back');
+
+            // Group: enabled when 2+ objects selected
+            if (activeObjects.length >= 2) {
+                groupItem.classList.remove('disabled');
+            } else {
+                groupItem.classList.add('disabled');
+            }
+
+            // Ungroup: enabled when a group is selected (not arrow group)
+            if (activeObject && activeObject.type === 'group' && !activeObject.connectionInfo) {
+                ungroupItem.classList.remove('disabled');
+            } else {
+                ungroupItem.classList.add('disabled');
+            }
+
+            // Delete, Bring to Front, Send to Back: enabled when any object selected
+            if (activeObjects.length > 0) {
+                deleteItem.classList.remove('disabled');
+                bringFrontItem.classList.remove('disabled');
+                sendBackItem.classList.remove('disabled');
+            } else {
+                deleteItem.classList.add('disabled');
+                bringFrontItem.classList.add('disabled');
+                sendBackItem.classList.add('disabled');
+            }
+
+            // Position menu
+            menu.style.left = x + 'px';
+            menu.style.top = y + 'px';
+            menu.classList.add('show');
+        }
+
+        function hideContextMenu() {
+            const menu = document.getElementById('context-menu');
+            menu.classList.remove('show');
+        }
+
+        // Group selected objects
+        function groupSelected() {
+            const activeObjects = canvas.getActiveObjects();
+            if (activeObjects.length < 2) return;
+
+            // Check if disabled
+            if (document.getElementById('ctx-group').classList.contains('disabled')) return;
+
+            canvas.discardActiveObject();
+
+            const group = new fabric.Group(activeObjects, {
+                selectable: true,
+                subTargetCheck: true, // Enable sub-target checking for text editing
+                interactive: true
+            });
+
+            // Mark as user group (not arrow)
+            group.isUserGroup = true;
+
+            // Remove individual objects and add group
+            activeObjects.forEach(obj => canvas.remove(obj));
+            canvas.add(group);
+            canvas.setActiveObject(group);
+            canvas.renderAll();
+
+            hideContextMenu();
+        }
+
+        // Ungroup selected group
+        function ungroupSelected() {
+            const activeObject = canvas.getActiveObject();
+            if (!activeObject || activeObject.type !== 'group' || activeObject.connectionInfo) return;
+
+            // Check if disabled
+            if (document.getElementById('ctx-ungroup').classList.contains('disabled')) return;
+
+            const items = activeObject._objects;
+            activeObject._restoreObjectsState();
+            canvas.remove(activeObject);
+
+            items.forEach(item => {
+                item.selectable = true;
+                item.evented = true;
+                canvas.add(item);
+            });
+
+            canvas.discardActiveObject();
+            canvas.renderAll();
+
+            hideContextMenu();
+        }
+
+        // Bring to front
+        function bringToFront() {
+            const activeObject = canvas.getActiveObject();
+            if (!activeObject) return;
+
+            if (document.getElementById('ctx-bring-front').classList.contains('disabled')) return;
+
+            canvas.bringToFront(activeObject);
+            canvas.renderAll();
+            hideContextMenu();
+        }
+
+        // Send to back
+        function sendToBack() {
+            const activeObject = canvas.getActiveObject();
+            if (!activeObject) return;
+
+            if (document.getElementById('ctx-send-back').classList.contains('disabled')) return;
+
+            canvas.sendToBack(activeObject);
+            canvas.renderAll();
+            hideContextMenu();
+        }
+
+        // Find text object in group at pointer position
+        function findTextInGroup(group, pointer) {
+            if (!group._objects) return null;
+
+            // Get group's transform
+            const groupCenter = group.getCenterPoint();
+            const groupAngle = group.angle || 0;
+            const groupScaleX = group.scaleX || 1;
+            const groupScaleY = group.scaleY || 1;
+
+            // Transform pointer to group's local coordinate
+            const cos = Math.cos(-groupAngle * Math.PI / 180);
+            const sin = Math.sin(-groupAngle * Math.PI / 180);
+            const dx = pointer.x - groupCenter.x;
+            const dy = pointer.y - groupCenter.y;
+            const localX = (dx * cos - dy * sin) / groupScaleX;
+            const localY = (dx * sin + dy * cos) / groupScaleY;
+
+            // Find text object that contains the point
+            for (const obj of group._objects) {
+                if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+                    const objBound = obj.getBoundingRect(false, true);
+                    const objLeft = obj.left - objBound.width / 2;
+                    const objTop = obj.top - objBound.height / 2;
+                    const objRight = objLeft + objBound.width;
+                    const objBottom = objTop + objBound.height;
+
+                    if (localX >= objLeft && localX <= objRight && localY >= objTop && localY <= objBottom) {
+                        return obj;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        // Edit text inside group
+        function editTextInGroup(group, textObj) {
+            // Store group reference and position
+            const groupLeft = group.left;
+            const groupTop = group.top;
+            const groupAngle = group.angle;
+            const groupScaleX = group.scaleX;
+            const groupScaleY = group.scaleY;
+
+            // Get all objects from group
+            const items = group._objects.slice();
+            const textIndex = items.indexOf(textObj);
+
+            // Ungroup temporarily
+            group._restoreObjectsState();
+            canvas.remove(group);
+
+            // Add all items back
+            items.forEach(item => {
+                item.selectable = (item === textObj);
+                item.evented = (item === textObj);
+                canvas.add(item);
+            });
+
+            // Select and edit the text
+            canvas.setActiveObject(textObj);
+            if (textObj.type === 'i-text' || textObj.type === 'textbox') {
+                textObj.enterEditing();
+                textObj.selectAll();
+            }
+
+            // Re-group when editing ends
+            textObj.on('editing:exited', function onEditEnd() {
+                textObj.off('editing:exited', onEditEnd);
+
+                // Remove all items
+                items.forEach(item => canvas.remove(item));
+
+                // Re-create group
+                const newGroup = new fabric.Group(items, {
+                    left: groupLeft,
+                    top: groupTop,
+                    angle: groupAngle,
+                    scaleX: groupScaleX,
+                    scaleY: groupScaleY,
+                    selectable: true,
+                    subTargetCheck: true,
+                    interactive: true
+                });
+                newGroup.isUserGroup = true;
+
+                canvas.add(newGroup);
+                canvas.setActiveObject(newGroup);
+                canvas.renderAll();
+            });
+
+            canvas.renderAll();
         }
 
         function updateSelectedFill() {
