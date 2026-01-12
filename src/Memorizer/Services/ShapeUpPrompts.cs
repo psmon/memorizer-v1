@@ -755,6 +755,29 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
 - **frame**: 프레임 박스 (id, x, y, width, height, title, color)
 - **section**: 섹션 박스 (id, x, y, width, height, title, content)
 
+### SVG 요소 (벡터 드로잉) - ""그림"", ""아이콘"", ""도형"", ""SVG"" 요청 시 적극 활용!
+- **svgbox**: 커스텀 SVG 드로잉 (id, x, y, width, height, path, stroke, strokeWidth)
+  - **path**: SVG path 데이터 (d attribute) - 자유로운 도형/그림 표현
+  - viewBox 0 0 24 24 기준으로 path 작성
+- **svgicon**: 프리셋 아이콘 (id, x, y, iconId, size)
+  - iconId: arrow-right, arrow-left, arrow-up, arrow-down, user, users, cloud, server, database, monitor, globe, lock, gear, document, folder
+
+### SVG Path 레퍼런스 (viewBox 0 0 24 24)
+별: M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z
+하트: M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z
+번개: M13 2L3 14h9l-1 8 10-12h-9l1-8z
+체크: M20 6L9 17l-5-5
+X: M18 6L6 18M6 6l12 12
+다이아몬드: M12 2L2 12l10 10 10-10L12 2z
+헥사곤: M21 16.5V7.5L12 2 3 7.5v9L12 22l9-5.5z
+3D박스: M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z
+화살표→: M5 12h14M12 5l7 7-7 7
+양방향↔: M5 12h14M5 12l4-4M5 12l4 4M19 12l-4-4M19 12l-4 4
+사람: M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z
+서버: M2 4h20v6H2zM2 14h20v6H2zM6 7h.01M6 17h.01
+DB: M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4
+클라우드: M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z
+
 ## 출력 형식 (Fabric.js JSON)
 다음 JSON 구조로 정확히 출력하세요. 코드 블록 없이 순수 JSON만 출력합니다.
 
@@ -914,6 +937,92 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
   ]
 }}
 
+## 예시 4: 시스템 아키텍처 (SVG path 활용)
+{{
+  ""boardType"": ""freeboard"",
+  ""title"": ""시스템 아키텍처"",
+  ""elements"": [
+    {{
+      ""type"": ""text"",
+      ""id"": ""title"",
+      ""x"": 50,
+      ""y"": 20,
+      ""text"": ""클라우드 시스템 아키텍처"",
+      ""fontSize"": 24,
+      ""fill"": ""#333""
+    }},
+    {{
+      ""type"": ""svgbox"",
+      ""id"": ""user-svg"",
+      ""x"": 50,
+      ""y"": 80,
+      ""width"": 100,
+      ""height"": 100,
+      ""path"": ""M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z"",
+      ""stroke"": ""#4A90D9"",
+      ""strokeWidth"": 2
+    }},
+    {{
+      ""type"": ""text"",
+      ""id"": ""user-label"",
+      ""x"": 70,
+      ""y"": 190,
+      ""text"": ""사용자"",
+      ""fontSize"": 14,
+      ""fill"": ""#4A90D9""
+    }},
+    {{
+      ""type"": ""svgbox"",
+      ""id"": ""cloud-svg"",
+      ""x"": 250,
+      ""y"": 80,
+      ""width"": 120,
+      ""height"": 100,
+      ""path"": ""M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"",
+      ""stroke"": ""#11998e"",
+      ""strokeWidth"": 2
+    }},
+    {{
+      ""type"": ""text"",
+      ""id"": ""cloud-label"",
+      ""x"": 275,
+      ""y"": 190,
+      ""text"": ""클라우드"",
+      ""fontSize"": 14,
+      ""fill"": ""#11998e""
+    }},
+    {{
+      ""type"": ""svgbox"",
+      ""id"": ""db-svg"",
+      ""x"": 470,
+      ""y"": 80,
+      ""width"": 100,
+      ""height"": 100,
+      ""path"": ""M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"",
+      ""stroke"": ""#f093fb"",
+      ""strokeWidth"": 2
+    }},
+    {{
+      ""type"": ""text"",
+      ""id"": ""db-label"",
+      ""x"": 475,
+      ""y"": 190,
+      ""text"": ""데이터베이스"",
+      ""fontSize"": 14,
+      ""fill"": ""#f093fb""
+    }},
+    {{
+      ""type"": ""text"",
+      ""id"": ""flow"",
+      ""x"": 50,
+      ""y"": 220,
+      ""text"": ""[데이터 흐름] 클라이언트 → API 서버 → 데이터베이스"",
+      ""fontSize"": 14,
+      ""fill"": ""#666""
+    }}
+  ]
+}}
+
 ## 생성 규칙
 1. 모든 요소에 고유한 id를 부여하세요 (예: ""user"", ""order"", ""phase1"")
 2. 요소들이 겹치지 않도록 충분한 간격을 두세요 (최소 20px)
@@ -924,6 +1033,11 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
 7. **연결 관계가 필요한 경우**: 별도의 text 요소를 사용하여 관계를 글로 설명하세요
    - 예: ""User → Order (1:N)"", ""Phase1 → Phase2 → Phase3""
    - 보드 하단이나 적절한 위치에 ""관계 설명"" 텍스트 블록을 배치
+8. **시스템/아키텍처 다이어그램**: svgbox와 svgicon을 활용하여 시각적으로 표현
+   - 서버: server, server-stack 아이콘
+   - 데이터베이스: database, database-alt 아이콘
+   - 클라우드: cloud, cloud-upload, cloud-download 아이콘
+   - 사용자: user, users 아이콘
 
 사용자의 요청에 맞는 시각화 보드를 생성하세요.";
     }
@@ -980,6 +1094,43 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
     }
 
     /// <summary>
+    /// Batch evaluate multiple memories and select top 3 most relevant
+    /// </summary>
+    public static string GetBatchMemoryRelevancePrompt(string boardPrompt, List<(string Title, string Summary, int Index)> candidates)
+    {
+        var candidateList = new System.Text.StringBuilder();
+        foreach (var (title, summary, index) in candidates)
+        {
+            candidateList.AppendLine($"[{index}] 제목: {title}");
+            candidateList.AppendLine($"    요약: {summary}");
+            candidateList.AppendLine();
+        }
+
+        return $@"당신은 참고자료 평가 전문가입니다.
+아래 보드 생성 요청에 가장 연관성 높은 메모리 3개를 선택해주세요.
+
+## 보드 생성 요청
+{boardPrompt.Substring(0, Math.Min(boardPrompt.Length, 800))}
+
+## 후보 메모리 목록
+{candidateList}
+
+## 선택 기준
+1. 보드 생성 요청의 주제/도메인과 직접적 관련성
+2. 시각화에 활용 가능한 구체적 정보 포함 여부
+3. 보드 구성에 참고할 수 있는 패턴/구조 제공 여부
+
+## 응답 형식
+가장 연관성 높은 순서대로 3개의 인덱스를 쉼표로 구분하여 출력하세요.
+연관성 있는 메모리가 3개 미만이면 연관성 있는 것만 출력하세요.
+연관성 있는 메모리가 없으면 '없음'을 출력하세요.
+
+예시: 2,5,1 또는 3,1 또는 없음
+
+선택:";
+    }
+
+    /// <summary>
     /// Generate Free Board with memory references
     /// </summary>
     public static string GetFreeBoardWithMemoryPrompt(string prompt, string memoryReferences)
@@ -1010,6 +1161,24 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
 ### 레이아웃 요소 (반드시 고유한 id 부여)
 - **frame**: 프레임 박스 (id, x, y, width, height, title, color)
 - **section**: 섹션 박스 (id, x, y, width, height, title, content)
+
+### SVG 요소 (벡터 드로잉) - ""그림"", ""아이콘"", ""도형"", ""SVG"" 요청 시 적극 활용!
+- **svgbox**: 커스텀 SVG 드로잉 (id, x, y, width, height, path, stroke, strokeWidth)
+  - **path**: SVG path 데이터 - 자유로운 도형/그림 표현 (viewBox 0 0 24 24 기준)
+- **svgicon**: 프리셋 아이콘 (id, x, y, iconId, size)
+  - iconId: arrow-right, arrow-left, arrow-up, arrow-down, user, users, cloud, server, database, monitor, globe, lock, gear, document, folder
+
+### SVG Path 레퍼런스
+별: M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z
+하트: M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z
+번개: M13 2L3 14h9l-1 8 10-12h-9l1-8z
+체크: M20 6L9 17l-5-5
+다이아몬드: M12 2L2 12l10 10 10-10L12 2z
+화살표: M5 12h14M12 5l7 7-7 7
+사람: M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z
+서버: M2 4h20v6H2zM2 14h20v6H2zM6 7h.01M6 17h.01
+DB: M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4
+클라우드: M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z
 
 ### 메모리 참조 표시 요소 (참고자료 활용 시 필수)
 - **memoryRef**: 참고 메모리 정보 표시 (id, x, y, width, title, similarity, keyword)
@@ -1063,6 +1232,11 @@ Problem과 Solution은 구체적으로 작성하고, Rabbit Holes와 No-Gos는 �
 5. **중요: 화살표(arrow, connector)는 사용하지 마세요**
 6. **참고 자료의 정보를 보드 구성에 적극 활용하세요**
 7. **보드 하단에 참고한 메모리 정보를 표시하세요**
+8. **시스템/아키텍처 다이어그램**: svgbox와 svgicon을 활용하여 시각적으로 표현
+   - 서버: server, server-stack 아이콘
+   - 데이터베이스: database, database-alt 아이콘
+   - 클라우드: cloud, cloud-upload, cloud-download 아이콘
+   - 사용자: user, users 아이콘
 
 사용자의 요청과 참고 자료를 활용하여 풍부한 시각화 보드를 생성하세요.";
     }

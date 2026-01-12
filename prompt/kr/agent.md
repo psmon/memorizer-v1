@@ -41,12 +41,27 @@
     - ui/shapeup/share/{숏링크} - 공유된 Shape Up 보드 보기 페이지
     - ui/shapeup/shares - 공유된 Shape Up 보드 목록 페이지
 
-## 메모리 검색 기능 (v43 추가)
-- PRD Maker 예제 맵핑 토론: 이벤트 스토밍 결과에서 3개 키워드 추출 → 각 키워드별 메모리 검색 (0.3 이상 유사도) → LLM 유용성 판단 → 최대 3개 메모리가 토론에 참여 (메모리1, 메모리2, 메모리3)
-- ShapeUp Free Board: 프롬프트에서 3개 키워드 추출 → 각 키워드별 메모리 검색 → 유용성 판단 → 보드 생성에 참고
-- 진행과정 표시: phase SSE 이벤트로 "키워드 추출 중", "메모리 검색 중", "적합성 판단 중", "생성 중" 단계 표시
+## 메모리 검색 기능 (v43 추가, v44 업그레이드)
+- PRD Maker 예제 맵핑 토론: 이벤트 스토밍 결과에서 3개 키워드 추출 → 각 키워드별 메모리 검색 3개씩 (0.3 이상 유사도, 최대 9개) → LLM 배치 평가로 상위 3개 선택 → 최대 3개 메모리가 토론에 참여
+- ShapeUp Free Board: 프롬프트에서 3개 키워드 추출 → 각 키워드별 메모리 검색 3개씩 → LLM 배치 평가로 상위 3개 선택 → 보드 생성에 참고
+- 진행과정 표시: phase SSE 이벤트로 "키워드 추출 중", "메모리 검색 중", "최적 3개 선택 중", "생성 중" 단계 표시
 - 토스트 알림: memory_found SSE 이벤트로 "메모리 조각 N개 검색, M개 채택" 메시지 토스트로 표시
 
+## SVG BOX 기능 (v44 추가)
+- ShapeUp에서 SVG 벡터 이미지 드로잉 지원 (투명 배경, 테두리 색상/두께 조절)
+- SVG 아이콘 라이브러리: 화살표, 사용자, 클라우드, 서버, 데이터베이스 등 20종
+- SVG Content Editor 모달: 템플릿 선택, SVG path 직접 입력, 실시간 미리보기
+- PRD 와이어프레임 ShapeUp 연동: PRD 페이지에서 "ShapeUp으로 와이어프레임 생성" 버튼 클릭 시 ShapeUp Free Board 자동 프롬프트 설정
+- JSON 파싱 개선: LLM 응답에서 주석 제거, 다중 추출 전략 (코드블록, 균형 중괄호 등)
 
-마지막 자동수정일시분 : 2026-01-11 00:00:00
-마지막 버전 반영 : 43
+## 주요 파일 (v44 관련)
+- src/Memorizer/wwwroot/js/shapeup.js - SVG BOX 드로잉, PRD 와이어프레임 모드 처리
+- src/Memorizer/wwwroot/js/shapeup-templates.js - JSON 파싱 개선 (extractJsonFromContent, removeJsonComments)
+- src/Memorizer/Views/ShapeUpView/_Modals.cshtml - SVG Content Editor 모달
+- src/Memorizer/Views/ShapeUpView/_ToolPanel.cshtml - SVG 아이콘 패널
+- src/Memorizer/Services/ShapeUpPrompts.cs - SVG path 레퍼런스, 배치 메모리 평가 프롬프트
+- src/Memorizer/Services/PrdMakerPrompts.cs - 배치 메모리 평가 프롬프트
+
+
+마지막 자동수정일시분 : 2026-01-12 00:00:00
+마지막 버전 반영 : 44

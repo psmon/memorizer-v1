@@ -127,6 +127,7 @@ public class ShapeUpController : ControllerBase
 
     /// <summary>
     /// Generate Free Board prompt with memory search
+    /// Enhanced: Search 3 per keyword (max 9), LLM selects top 3 most relevant
     /// </summary>
     private async Task<string> GenerateFreeBoardWithMemorySearch(string userPrompt)
     {
@@ -153,24 +154,21 @@ public class ShapeUpController : ControllerBase
                 _logger.LogInformation("Extracted {Count} keywords: {Keywords}", keywords.Count, string.Join(", ", keywords));
                 await WriteSSEEvent("phase", new { phase = "searching", message = $"메모리 검색 중... (키워드: {string.Join(", ", keywords)})" });
 
-                // Phase 2: Search memories for each keyword (0.3 similarity threshold, top 1 per keyword)
+                // Phase 2: Search memories for each keyword (0.3 similarity threshold, top 3 per keyword = max 9)
                 var foundMemoryIds = new HashSet<Guid>();
-                int totalSearched = 0;
+                var candidateMemories = new List<(Guid Id, string Title, string Content, string Keyword, double Similarity)>();
 
                 foreach (var keyword in keywords)
                 {
                     var memories = await _storage.Search(
                         keyword,
-                        limit: 1,
+                        limit: 3,  // Changed: 1 -> 3 per keyword
                         minSimilarity: 0.3,
                         cancellationToken: HttpContext.RequestAborted
                     );
 
-                    if (memories.Count > 0)
+                    foreach (var memory in memories)
                     {
-                        totalSearched++;
-                        var memory = memories[0];
-
                         // Skip if already found with another keyword
                         if (foundMemoryIds.Contains(memory.Id))
                         {
@@ -181,52 +179,69 @@ public class ShapeUpController : ControllerBase
                         foundMemoryIds.Add(memory.Id);
                         var similarity = memory.Similarity.HasValue ? 1 - memory.Similarity.Value : 0;
 
+                        candidateMemories.Add((memory.Id, memory.Title ?? "제목 없음", memory.Text ?? "", keyword, similarity));
                         _logger.LogInformation("Found memory for keyword '{Keyword}': {Title} (similarity: {Similarity:F2})",
                             keyword, memory.Title, similarity);
-
-                        // Phase 3: Evaluate usefulness
-                        await WriteSSEEvent("phase", new { phase = "evaluating", message = $"'{memory.Title}' 적합성 판단 중..." });
-
-                        var usefulnessPrompt = ShapeUpPrompts.GetMemoryUsefulnessPrompt(
-                            userPrompt,
-                            memory.Title ?? "제목 없음",
-                            memory.Text ?? ""
-                        );
-
-                        var usefulnessResult = await _llmExService.CompleteAsync(usefulnessPrompt, HttpContext.RequestAborted);
-
-                        if (usefulnessResult?.Contains("유용함") == true)
-                        {
-                            usefulMemories.Add((memory.Title ?? "제목 없음", memory.Text ?? "", keyword, similarity));
-                            _logger.LogInformation("Memory '{Title}' evaluated as useful for keyword '{Keyword}'", memory.Title, keyword);
-                        }
-                        else
-                        {
-                            _logger.LogInformation("Memory '{Title}' evaluated as not useful for keyword '{Keyword}'", memory.Title, keyword);
-                        }
                     }
                 }
 
-                // Notify about memory search results
-                if (usefulMemories.Count > 0)
+                if (candidateMemories.Count > 0)
                 {
+                    _logger.LogInformation("Found {Count} candidate memories, evaluating relevance...", candidateMemories.Count);
+                    await WriteSSEEvent("phase", new { phase = "evaluating", message = $"{candidateMemories.Count}개 메모리 후보 중 최적 3개 선택 중..." });
+
+                    // Phase 3: Batch evaluate - LLM selects top 3 most relevant
+                    var candidates = candidateMemories.Select((m, idx) => (
+                        Title: m.Title,
+                        Summary: m.Content.Length > 200 ? m.Content.Substring(0, 200) + "..." : m.Content,
+                        Index: idx + 1
+                    )).ToList();
+
+                    var batchPrompt = ShapeUpPrompts.GetBatchMemoryRelevancePrompt(userPrompt, candidates);
+                    var selectionResult = await _llmExService.CompleteAsync(batchPrompt, HttpContext.RequestAborted);
+
+                    // Parse selected indices
+                    var selectedIndices = new List<int>();
+                    if (!string.IsNullOrWhiteSpace(selectionResult) && !selectionResult.Contains("없음"))
+                    {
+                        selectedIndices = selectionResult
+                            .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => int.TryParse(s.Trim(), out var idx) ? idx : 0)
+                            .Where(idx => idx > 0 && idx <= candidateMemories.Count)
+                            .Take(3)
+                            .ToList();
+                    }
+
+                    _logger.LogInformation("LLM selected {Count} relevant memories: {Indices}",
+                        selectedIndices.Count, string.Join(", ", selectedIndices));
+
+                    // Add selected memories
+                    foreach (var idx in selectedIndices)
+                    {
+                        var m = candidateMemories[idx - 1];
+                        usefulMemories.Add((m.Title, m.Content, m.Keyword, m.Similarity));
+                    }
+
+                    // Notify about memory search results
                     await WriteSSEEvent("memory_found", new {
-                        searchedCount = totalSearched,
+                        searchedCount = candidateMemories.Count,
                         adoptedCount = usefulMemories.Count,
                         memories = usefulMemories.Select(m => new {
                             title = m.Title,
                             keyword = m.Keyword,
                             similarity = m.Similarity
                         }).ToArray(),
-                        message = $"메모리 조각 {totalSearched}개를 검색했습니다. 그 중 {usefulMemories.Count}개가 적합하다고 판단되어 참고했습니다."
+                        message = usefulMemories.Count > 0
+                            ? $"메모리 조각 {candidateMemories.Count}개를 검색했습니다. 그 중 {usefulMemories.Count}개가 가장 적합하다고 판단되어 참고했습니다."
+                            : "연관성 높은 참고자료를 찾지 못했습니다."
                     });
                 }
                 else
                 {
                     await WriteSSEEvent("memory_found", new {
-                        searchedCount = totalSearched,
+                        searchedCount = 0,
                         adoptedCount = 0,
-                        message = "유용한 참고자료를 찾지 못했습니다."
+                        message = "검색된 메모리가 없습니다."
                     });
                 }
             }

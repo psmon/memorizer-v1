@@ -18,6 +18,29 @@
 })();
 
 // ============================================================================
+// Custom Property Serialization for Fabric.js
+// ============================================================================
+// Add custom properties to Fabric.js serialization for proper share/load
+(function() {
+    // Custom properties to include in JSON serialization
+    const customProperties = ['objectType', 'iconId', 'svgPath', 'connectedArrows', 'startShape', 'endShape', 'startAnchor', 'endAnchor', 'listType', 'listNumber'];
+
+    // Override toObject for all shape types to include custom properties
+    const originalToObject = fabric.Object.prototype.toObject;
+    fabric.Object.prototype.toObject = function(propertiesToInclude) {
+        return originalToObject.call(this, (propertiesToInclude || []).concat(customProperties));
+    };
+
+    // Also override for Group
+    if (fabric.Group) {
+        const originalGroupToObject = fabric.Group.prototype.toObject;
+        fabric.Group.prototype.toObject = function(propertiesToInclude) {
+            return originalGroupToObject.call(this, (propertiesToInclude || []).concat(customProperties));
+        };
+    }
+})();
+
+// ============================================================================
 // Canvas State Variables
 // ============================================================================
 let canvas;
@@ -175,7 +198,7 @@ function initCanvas() {
             canvas.requestRenderAll();
             lastPosX = opt.e.clientX;
             lastPosY = opt.e.clientY;
-        } else if (isDrawing) {
+        } else if (isDrawing || svgBoxDrawing) {
             handleDrawMove(opt);
         }
     });
@@ -189,7 +212,7 @@ function initCanvas() {
                 canvas.selection = true;
             }
         }
-        if (isDrawing) {
+        if (isDrawing || svgBoxDrawing) {
             handleDrawEnd(opt);
         }
     });
@@ -285,6 +308,56 @@ function initCanvas() {
     canvas.on('selection:cleared', function() {
         document.getElementById('text-properties').style.display = 'none';
     });
+
+    // Check for PRD wireframe mode
+    checkPrdWireframeMode();
+}
+
+// ============================================================================
+// PRD Wireframe Mode Handler
+// ============================================================================
+function checkPrdWireframeMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPrdWireframe = urlParams.get('prdWireframe') === 'true';
+
+    if (isPrdWireframe) {
+        const wireframePrompt = sessionStorage.getItem('prdWireframePrompt');
+        if (wireframePrompt) {
+            // Clear sessionStorage
+            sessionStorage.removeItem('prdWireframePrompt');
+
+            // Clean URL without reloading
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+
+            // Open AI Panel and set prompt (user will click Generate manually)
+            setTimeout(() => {
+                // Open AI Board Generator panel
+                openAIPanel();
+
+                // Select Free Board mode
+                setTimeout(() => {
+                    const freeBoardBtn = document.querySelector('.board-type-btn[data-type="freeboard"]');
+                    if (freeBoardBtn) {
+                        freeBoardBtn.click();
+                    }
+
+                    // Set prompt text
+                    setTimeout(() => {
+                        const promptInput = document.getElementById('ai-prompt');
+                        if (promptInput) {
+                            promptInput.value = wireframePrompt;
+                            // Focus on the input
+                            promptInput.focus();
+                        }
+
+                        // Show toast notification (type, title, message)
+                        showToast('info', 'PRD 와이어프레임', 'Generate 버튼을 클릭하여 와이어프레임을 생성하세요.');
+                    }, 200);
+                }, 200);
+            }, 300);
+        }
+    }
 }
 
 // ============================================================================
@@ -366,6 +439,12 @@ function openAIPanel() {
 // ============================================================================
 function handleDrawStart(opt) {
     if (currentTool === 'select') return;
+
+    // Handle SVG box tool separately
+    if (currentTool === 'svgbox') {
+        startSvgBoxDraw(opt);
+        return;
+    }
 
     isDrawing = true;
     const pointer = canvas.getPointer(opt.e);
@@ -474,6 +553,12 @@ function handleDrawStart(opt) {
 }
 
 function handleDrawMove(opt) {
+    // Handle SVG box drawing
+    if (currentTool === 'svgbox' && svgBoxDrawing) {
+        updateSvgBoxDraw(opt);
+        return;
+    }
+
     if (!isDrawing) return;
 
     const pointer = canvas.getPointer(opt.e);
@@ -530,6 +615,12 @@ function handleDrawMove(opt) {
 }
 
 function handleDrawEnd(opt) {
+    // Handle SVG box drawing end
+    if (currentTool === 'svgbox' && svgBoxDrawing) {
+        endSvgBoxDraw(opt);
+        return;
+    }
+
     if (currentTool === 'arrow') {
         const pointer = canvas.getPointer(opt.e);
         let endX = pointer.x;
@@ -1657,4 +1748,531 @@ function exportToSVG() {
     const svg = canvas.toSVG();
     const blob = new Blob([svg], { type: 'image/svg+xml' });
     saveAs(blob, 'shapeup-board.svg');
+}
+
+// ============================================================================
+// SVG Icon Library
+// ============================================================================
+const svgIcons = {
+    'arrow-right': {
+        path: 'M5 12h14M12 5l7 7-7 7',
+        viewBox: '0 0 24 24',
+        name: 'Arrow Right'
+    },
+    'arrow-left': {
+        path: 'M19 12H5M12 19l-7-7 7-7',
+        viewBox: '0 0 24 24',
+        name: 'Arrow Left'
+    },
+    'arrow-up': {
+        path: 'M12 19V5M5 12l7-7 7 7',
+        viewBox: '0 0 24 24',
+        name: 'Arrow Up'
+    },
+    'arrow-down': {
+        path: 'M12 5v14M19 12l-7 7-7-7',
+        viewBox: '0 0 24 24',
+        name: 'Arrow Down'
+    },
+    'arrow-bidirectional': {
+        path: 'M5 12h14M5 12l4-4M5 12l4 4M19 12l-4-4M19 12l-4 4',
+        viewBox: '0 0 24 24',
+        name: 'Bidirectional'
+    },
+    'user': {
+        path: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+        viewBox: '0 0 24 24',
+        name: 'User'
+    },
+    'users': {
+        path: 'M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+        viewBox: '0 0 24 24',
+        name: 'Users'
+    },
+    'cloud': {
+        path: 'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z',
+        viewBox: '0 0 24 24',
+        name: 'Cloud'
+    },
+    'cloud-upload': {
+        path: 'M16 16l-4-4-4 4M12 12v9M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3',
+        viewBox: '0 0 24 24',
+        name: 'Cloud Upload'
+    },
+    'cloud-download': {
+        path: 'M8 17l4 4 4-4M12 12v9M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29',
+        viewBox: '0 0 24 24',
+        name: 'Cloud Download'
+    },
+    'server': {
+        path: 'M2 4h20v6H2zM2 14h20v6H2zM6 7h.01M6 17h.01',
+        viewBox: '0 0 24 24',
+        name: 'Server'
+    },
+    'server-stack': {
+        path: 'M2 2h20v5H2zM2 9h20v5H2zM2 16h20v5H2zM6 4.5h.01M6 11.5h.01M6 18.5h.01',
+        viewBox: '0 0 24 24',
+        name: 'Server Stack'
+    },
+    'database': {
+        path: 'M12 2C6.48 2 2 4.02 2 6.5v11c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5v-11c0-2.48-4.48-4.5-10-4.5zM2 12c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5M2 6.5c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5',
+        viewBox: '0 0 24 24',
+        name: 'Database'
+    },
+    'database-alt': {
+        path: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4M4 12c0 2.21 3.582 4 8 4s8-1.79 8-4',
+        viewBox: '0 0 24 24',
+        name: 'Database Alt'
+    },
+    'monitor': {
+        path: 'M2 4h20v12H2zM8 20h8M12 16v4',
+        viewBox: '0 0 24 24',
+        name: 'Monitor'
+    },
+    'smartphone': {
+        path: 'M5 2h14a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM12 18h.01',
+        viewBox: '0 0 24 24',
+        name: 'Smartphone'
+    },
+    'globe': {
+        path: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+        viewBox: '0 0 24 24',
+        name: 'Globe'
+    },
+    'lock': {
+        path: 'M5 11h14v10H5zM8 11V7a4 4 0 1 1 8 0v4M12 15v2',
+        viewBox: '0 0 24 24',
+        name: 'Lock'
+    },
+    'api': {
+        path: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM17 14v3h-3M17 20v-3h3M14 17h6',
+        viewBox: '0 0 24 24',
+        name: 'API'
+    },
+    'gear': {
+        path: 'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z',
+        viewBox: '0 0 24 24',
+        name: 'Gear'
+    },
+    'document': {
+        path: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8',
+        viewBox: '0 0 24 24',
+        name: 'Document'
+    },
+    'folder': {
+        path: 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
+        viewBox: '0 0 24 24',
+        name: 'Folder'
+    }
+};
+
+// Get SVG icon list for UI
+function getSvgIconList() {
+    return Object.keys(svgIcons).map(key => ({
+        id: key,
+        name: svgIcons[key].name
+    }));
+}
+
+// ============================================================================
+// SVG Box Functions
+// ============================================================================
+
+// SVG Templates for quick selection
+const svgTemplates = {
+    'star': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+    'heart': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+    'lightning': 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+    'check': 'M20 6L9 17l-5-5',
+    'x': 'M18 6L6 18M6 6l12 12',
+    'box': 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z',
+    'hexagon': 'M21 16.5V7.5L12 2 3 7.5v9L12 22l9-5.5z',
+    'diamond': 'M12 2L2 12l10 10 10-10L12 2z',
+    'default': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' // Default: star
+};
+
+// Pending SVG box data (waiting for modal input)
+let pendingSvgBox = null;
+
+// Create SVG box with custom path content
+function createSvgBox(x, y, width, height, pathData = null, strokeColor = null, strokeWidth = null) {
+    const sc = strokeColor || document.getElementById('strokeColor').value;
+    const sw = strokeWidth || parseInt(document.getElementById('strokeWidth').value);
+
+    // Use provided path or default
+    const path = pathData || svgTemplates.default;
+
+    // Validate path
+    const isValid = validateSvgPath(path);
+
+    if (isValid) {
+        // Create SVG path object
+        createSvgPathObject(x, y, width, height, path, sc, sw);
+    } else {
+        // Create error placeholder (X mark)
+        createSvgErrorPlaceholder(x, y, width, height, sc, sw);
+    }
+}
+
+// Create actual SVG path object on canvas
+function createSvgPathObject(x, y, width, height, pathData, strokeColor, strokeWidth) {
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+        <path d="${pathData}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+
+    fabric.loadSVGFromString(svgString, function(objects, options) {
+        if (objects && objects.length > 0) {
+            const svgGroup = fabric.util.groupSVGElements(objects, options);
+
+            // Scale to fit the drawn box
+            const scaleX = width / 24;
+            const scaleY = height / 24;
+            const scale = Math.min(scaleX, scaleY) * 0.8; // 80% to add padding
+
+            svgGroup.set({
+                left: x + width / 2,
+                top: y + height / 2,
+                scaleX: scale,
+                scaleY: scale,
+                originX: 'center',
+                originY: 'center',
+                objectType: 'svgbox',
+                svgPath: pathData
+            });
+
+            // Add border frame
+            const frame = new fabric.Rect({
+                left: x,
+                top: y,
+                width: width,
+                height: height,
+                fill: 'transparent',
+                stroke: strokeColor,
+                strokeWidth: 1,
+                strokeDashArray: [4, 4],
+                selectable: false,
+                evented: false
+            });
+
+            // Group path and frame
+            const group = new fabric.Group([frame, svgGroup], {
+                left: x,
+                top: y,
+                objectType: 'svgbox',
+                svgPath: pathData
+            });
+
+            canvas.add(group);
+            canvas.setActiveObject(group);
+            canvas.renderAll();
+        } else {
+            createSvgErrorPlaceholder(x, y, width, height, strokeColor, strokeWidth);
+        }
+    });
+}
+
+// Create error placeholder with X mark
+function createSvgErrorPlaceholder(x, y, width, height, strokeColor, strokeWidth) {
+    const frame = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: width,
+        height: height,
+        fill: '#fff5f5',
+        stroke: '#dc3545',
+        strokeWidth: 2
+    });
+
+    const line1 = new fabric.Line([10, 10, width - 10, height - 10], {
+        stroke: '#dc3545',
+        strokeWidth: 2
+    });
+
+    const line2 = new fabric.Line([width - 10, 10, 10, height - 10], {
+        stroke: '#dc3545',
+        strokeWidth: 2
+    });
+
+    const group = new fabric.Group([frame, line1, line2], {
+        left: x,
+        top: y,
+        objectType: 'svgbox-error',
+        svgPath: ''
+    });
+
+    canvas.add(group);
+    canvas.setActiveObject(group);
+    canvas.renderAll();
+}
+
+// Validate SVG path
+function validateSvgPath(pathData) {
+    if (!pathData || typeof pathData !== 'string' || pathData.trim() === '') {
+        return false;
+    }
+
+    // Basic validation: should start with valid command
+    const validCommands = /^[MmZzLlHhVvCcSsQqTtAa]/;
+    const trimmed = pathData.trim();
+
+    if (!validCommands.test(trimmed)) {
+        return false;
+    }
+
+    // Try to create a path to validate
+    try {
+        const testPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+        testPath.setAttribute('d', trimmed);
+        const length = testPath.getTotalLength();
+        return !isNaN(length) && length > 0;
+    } catch (e) {
+        return false;
+    }
+}
+
+// Open SVG content modal after drawing box
+function openSvgContentModal(x, y, width, height) {
+    pendingSvgBox = { x, y, width, height };
+
+    // Set default values
+    const strokeColor = document.getElementById('strokeColor').value;
+    document.getElementById('svg-path-input').value = svgTemplates.default;
+    document.getElementById('svg-stroke-color').value = strokeColor;
+    document.getElementById('svg-stroke-width').value = '2';
+
+    // Update preview
+    updateSvgPreview();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('svgContentModal'));
+    modal.show();
+
+    // Add input listener for live preview
+    document.getElementById('svg-path-input').addEventListener('input', updateSvgPreview);
+    document.getElementById('svg-stroke-color').addEventListener('input', updateSvgPreview);
+    document.getElementById('svg-stroke-width').addEventListener('input', updateSvgPreview);
+}
+
+// Update SVG preview in modal
+function updateSvgPreview() {
+    const pathData = document.getElementById('svg-path-input').value;
+    const strokeColor = document.getElementById('svg-stroke-color').value;
+    const strokeWidth = document.getElementById('svg-stroke-width').value;
+
+    const previewPath = document.getElementById('svg-preview-path');
+    const previewError = document.getElementById('svg-preview-error');
+    const previewSvg = document.getElementById('svg-preview');
+
+    if (validateSvgPath(pathData)) {
+        previewPath.setAttribute('d', pathData);
+        previewPath.setAttribute('stroke', strokeColor);
+        previewPath.setAttribute('stroke-width', strokeWidth);
+        previewPath.style.display = 'block';
+        previewError.style.display = 'none';
+        previewSvg.style.opacity = '1';
+    } else {
+        previewPath.style.display = 'none';
+        previewError.style.display = 'flex';
+        previewSvg.style.opacity = '0.3';
+    }
+}
+
+// Set SVG template
+function setSvgTemplate(templateName) {
+    const path = svgTemplates[templateName];
+    if (path) {
+        document.getElementById('svg-path-input').value = path;
+        updateSvgPreview();
+    }
+}
+
+// Apply SVG content from modal
+function applySvgContent() {
+    if (!pendingSvgBox) return;
+
+    const pathData = document.getElementById('svg-path-input').value;
+    const strokeColor = document.getElementById('svg-stroke-color').value;
+    const strokeWidth = parseInt(document.getElementById('svg-stroke-width').value);
+
+    const { x, y, width, height } = pendingSvgBox;
+
+    createSvgBox(x, y, width, height, pathData, strokeColor, strokeWidth);
+
+    // Close modal
+    const modal = bootstrap.Modal.getInstance(document.getElementById('svgContentModal'));
+    modal.hide();
+
+    pendingSvgBox = null;
+    setTool('select');
+}
+
+// Handle modal close without applying
+document.addEventListener('DOMContentLoaded', function() {
+    const svgModal = document.getElementById('svgContentModal');
+    if (svgModal) {
+        svgModal.addEventListener('hidden.bs.modal', function() {
+            // Just reset the pending box - user cancelled
+            pendingSvgBox = null;
+        });
+    }
+});
+
+// Add SVG icon to canvas
+function addSvgIcon(iconId, x, y, size = 48) {
+    const icon = svgIcons[iconId];
+    if (!icon) {
+        console.error('SVG icon not found:', iconId);
+        return;
+    }
+
+    const strokeColor = document.getElementById('strokeColor').value;
+    const strokeWidth = parseInt(document.getElementById('strokeWidth').value);
+
+    // Create SVG path
+    const pathStr = icon.path;
+    const viewBox = icon.viewBox.split(' ').map(Number);
+    const viewBoxWidth = viewBox[2];
+    const viewBoxHeight = viewBox[3];
+
+    // Calculate scale to fit desired size
+    const scale = size / Math.max(viewBoxWidth, viewBoxHeight);
+
+    fabric.loadSVGFromString(
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${icon.viewBox}">
+            <path d="${pathStr}" fill="none" stroke="${strokeColor}" stroke-width="${strokeWidth / scale}" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>`,
+        function(objects, options) {
+            const svgGroup = fabric.util.groupSVGElements(objects, options);
+
+            svgGroup.set({
+                left: x || (canvas.width / 2),
+                top: y || (canvas.height / 2),
+                scaleX: scale,
+                scaleY: scale,
+                originX: 'center',
+                originY: 'center',
+                objectType: 'svgicon',
+                iconId: iconId
+            });
+
+            canvas.add(svgGroup);
+            canvas.setActiveObject(svgGroup);
+            canvas.renderAll();
+        }
+    );
+}
+
+// Add SVG icon from the icon panel (centered on canvas)
+function addSvgIconToCanvas(iconId) {
+    // Get center of visible canvas area
+    const vpt = canvas.viewportTransform;
+    const centerX = (-vpt[4] + canvas.width / 2) / zoomLevel;
+    const centerY = (-vpt[5] + canvas.height / 2) / zoomLevel;
+
+    addSvgIcon(iconId, centerX, centerY, 64);
+
+    // Switch to select tool after adding
+    setTool('select');
+
+    // Close the icons panel
+    toggleSvgIconsPanel(false);
+}
+
+// Toggle SVG icons panel
+let svgIconsPanelOpen = false;
+
+function toggleSvgIconsPanel(forceState) {
+    const panel = document.getElementById('svg-icons-panel');
+    const chevron = document.getElementById('svg-icons-chevron');
+    if (!panel) return;
+
+    if (typeof forceState === 'boolean') {
+        svgIconsPanelOpen = forceState;
+    } else {
+        svgIconsPanelOpen = !svgIconsPanelOpen;
+    }
+
+    if (svgIconsPanelOpen) {
+        panel.classList.add('show');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+        // Update toggle button
+        const toggleBtn = document.getElementById('svg-icons-toggle');
+        if (toggleBtn) toggleBtn.classList.add('active');
+    } else {
+        panel.classList.remove('show');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+        const toggleBtn = document.getElementById('svg-icons-toggle');
+        if (toggleBtn) toggleBtn.classList.remove('active');
+    }
+}
+
+// Handle SVG box drawing
+let svgBoxDrawing = false;
+let svgBoxStart = null;
+let svgBoxPreview = null;
+
+function startSvgBoxDraw(opt) {
+    const pointer = canvas.getPointer(opt.e);
+    svgBoxDrawing = true;
+    svgBoxStart = { x: pointer.x, y: pointer.y };
+
+    const strokeColor = document.getElementById('strokeColor').value;
+    const strokeWidth = parseInt(document.getElementById('strokeWidth').value);
+
+    svgBoxPreview = new fabric.Rect({
+        left: pointer.x,
+        top: pointer.y,
+        width: 0,
+        height: 0,
+        fill: 'transparent',
+        stroke: strokeColor,
+        strokeWidth: strokeWidth,
+        strokeDashArray: [5, 5],
+        selectable: false,
+        evented: false
+    });
+
+    canvas.add(svgBoxPreview);
+}
+
+function updateSvgBoxDraw(opt) {
+    if (!svgBoxDrawing || !svgBoxPreview) return;
+
+    const pointer = canvas.getPointer(opt.e);
+    const width = pointer.x - svgBoxStart.x;
+    const height = pointer.y - svgBoxStart.y;
+
+    svgBoxPreview.set({
+        width: Math.abs(width),
+        height: Math.abs(height),
+        left: width > 0 ? svgBoxStart.x : pointer.x,
+        top: height > 0 ? svgBoxStart.y : pointer.y
+    });
+
+    canvas.renderAll();
+}
+
+function endSvgBoxDraw(opt) {
+    if (!svgBoxDrawing) return;
+
+    const pointer = canvas.getPointer(opt.e);
+    const width = Math.abs(pointer.x - svgBoxStart.x);
+    const height = Math.abs(pointer.y - svgBoxStart.y);
+
+    // Remove preview
+    if (svgBoxPreview) {
+        canvas.remove(svgBoxPreview);
+        svgBoxPreview = null;
+    }
+
+    // Open SVG content modal if size is meaningful
+    if (width > 30 && height > 30) {
+        const left = Math.min(svgBoxStart.x, pointer.x);
+        const top = Math.min(svgBoxStart.y, pointer.y);
+        openSvgContentModal(left, top, width, height);
+    }
+
+    svgBoxDrawing = false;
+    svgBoxStart = null;
+    setTool('select');
 }

@@ -423,14 +423,185 @@ async function generateFreeBoard(prompt, btn) {
     }
 }
 
+// Remove comments from JSON string (LLM sometimes adds comments)
+function removeJsonComments(str) {
+    // Remove single-line comments (// ...)
+    // Be careful not to remove // inside strings
+    let result = '';
+    let inString = false;
+    let escape = false;
+    let i = 0;
+
+    while (i < str.length) {
+        const char = str[i];
+        const nextChar = str[i + 1];
+
+        if (escape) {
+            result += char;
+            escape = false;
+            i++;
+            continue;
+        }
+
+        if (char === '\\' && inString) {
+            result += char;
+            escape = true;
+            i++;
+            continue;
+        }
+
+        if (char === '"') {
+            inString = !inString;
+            result += char;
+            i++;
+            continue;
+        }
+
+        if (!inString) {
+            // Check for single-line comment
+            if (char === '/' && nextChar === '/') {
+                // Skip until end of line
+                while (i < str.length && str[i] !== '\n') {
+                    i++;
+                }
+                continue;
+            }
+            // Check for multi-line comment
+            if (char === '/' && nextChar === '*') {
+                i += 2; // Skip /*
+                // Skip until */
+                while (i < str.length - 1) {
+                    if (str[i] === '*' && str[i + 1] === '/') {
+                        i += 2; // Skip */
+                        break;
+                    }
+                    i++;
+                }
+                continue;
+            }
+        }
+
+        result += char;
+        i++;
+    }
+
+    return result;
+}
+
+// Extract JSON from LLM response with multiple strategies
+function extractJsonFromContent(content) {
+    if (!content || typeof content !== 'string') {
+        return null;
+    }
+
+    // First, remove any comments from the content
+    const cleanContent = removeJsonComments(content);
+
+    // Strategy 1: Extract from markdown code block (```json ... ``` or ``` ... ```)
+    const codeBlockMatch = cleanContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+        const extracted = codeBlockMatch[1].trim();
+        if (extracted.startsWith('{')) {
+            try {
+                JSON.parse(extracted);
+                return extracted;
+            } catch (e) {
+                console.log('Code block JSON parse failed, trying other strategies');
+            }
+        }
+    }
+
+    // Strategy 2: Find JSON object starting with {"boardType" or {"elements"
+    const specificMatch = cleanContent.match(/\{[\s\S]*?"(?:boardType|elements)"[\s\S]*\}/);
+    if (specificMatch) {
+        try {
+            // Find balanced braces
+            const jsonStr = extractBalancedJson(specificMatch[0]);
+            if (jsonStr) {
+                JSON.parse(jsonStr);
+                return jsonStr;
+            }
+        } catch (e) {
+            console.log('Specific pattern JSON parse failed');
+        }
+    }
+
+    // Strategy 3: Find first { and try to find matching }
+    const firstBrace = cleanContent.indexOf('{');
+    if (firstBrace !== -1) {
+        const jsonStr = extractBalancedJson(cleanContent.substring(firstBrace));
+        if (jsonStr) {
+            try {
+                JSON.parse(jsonStr);
+                return jsonStr;
+            } catch (e) {
+                console.log('Balanced brace extraction failed');
+            }
+        }
+    }
+
+    // Strategy 4: Original greedy match (fallback)
+    const greedyMatch = cleanContent.match(/\{[\s\S]*\}/);
+    if (greedyMatch) {
+        try {
+            JSON.parse(greedyMatch[0]);
+            return greedyMatch[0];
+        } catch (e) {
+            console.log('Greedy match JSON parse failed');
+        }
+    }
+
+    return null;
+}
+
+// Extract balanced JSON by counting braces
+function extractBalancedJson(str) {
+    let depth = 0;
+    let start = -1;
+    let inString = false;
+    let escape = false;
+
+    for (let i = 0; i < str.length; i++) {
+        const char = str[i];
+
+        if (escape) {
+            escape = false;
+            continue;
+        }
+
+        if (char === '\\' && inString) {
+            escape = true;
+            continue;
+        }
+
+        if (char === '"' && !escape) {
+            inString = !inString;
+            continue;
+        }
+
+        if (inString) continue;
+
+        if (char === '{') {
+            if (depth === 0) start = i;
+            depth++;
+        } else if (char === '}') {
+            depth--;
+            if (depth === 0 && start !== -1) {
+                return str.substring(start, i + 1);
+            }
+        }
+    }
+
+    return null;
+}
+
 // Render Free Board elements from JSON
 function renderFreeBoard(content) {
     try {
-        // Try to extract JSON from the content
-        let jsonStr = content;
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-            jsonStr = jsonMatch[0];
+        // Try to extract JSON from the content with multiple strategies
+        let jsonStr = extractJsonFromContent(content);
+        if (!jsonStr) {
+            throw new Error('No valid JSON found in response');
         }
 
         const boardData = JSON.parse(jsonStr);
@@ -763,6 +934,115 @@ function renderFreeBoard(content) {
                         fontSize: el.size || 24
                     });
                     canvas.add(iconText);
+                    break;
+
+                case 'svgbox':
+                    // SVG Box with custom path support
+                    registerElement(el);
+                    const svgBoxX = el.x || 0;
+                    const svgBoxY = el.y || 0;
+                    const svgBoxWidth = el.width || 100;
+                    const svgBoxHeight = el.height || 80;
+                    const svgBoxStroke = el.stroke || el.color || '#333333';
+                    const svgBoxStrokeWidth = el.strokeWidth || 2;
+
+                    if (el.path) {
+                        // Render custom SVG path
+                        const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                            <path d="${el.path}" fill="none" stroke="${svgBoxStroke}" stroke-width="${svgBoxStrokeWidth}" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>`;
+
+                        fabric.loadSVGFromString(svgString, function(objects, options) {
+                            if (objects && objects.length > 0) {
+                                const svgGroup = fabric.util.groupSVGElements(objects, options);
+
+                                // Scale to fit the box
+                                const scaleX = svgBoxWidth / 24;
+                                const scaleY = svgBoxHeight / 24;
+                                const scale = Math.min(scaleX, scaleY) * 0.8;
+
+                                svgGroup.set({
+                                    left: svgBoxX + svgBoxWidth / 2,
+                                    top: svgBoxY + svgBoxHeight / 2,
+                                    scaleX: scale,
+                                    scaleY: scale,
+                                    originX: 'center',
+                                    originY: 'center',
+                                    objectType: 'svgbox',
+                                    svgPath: el.path
+                                });
+
+                                // Add dashed border frame
+                                const frame = new fabric.Rect({
+                                    left: svgBoxX,
+                                    top: svgBoxY,
+                                    width: svgBoxWidth,
+                                    height: svgBoxHeight,
+                                    fill: 'transparent',
+                                    stroke: svgBoxStroke,
+                                    strokeWidth: 1,
+                                    strokeDashArray: [4, 4],
+                                    selectable: false,
+                                    evented: false
+                                });
+
+                                const group = new fabric.Group([frame, svgGroup], {
+                                    left: svgBoxX,
+                                    top: svgBoxY,
+                                    objectType: 'svgbox',
+                                    svgPath: el.path
+                                });
+
+                                canvas.add(group);
+                                canvas.renderAll();
+                            }
+                        });
+                    } else {
+                        // Fallback: simple rectangle with border
+                        const svgBox = new fabric.Rect({
+                            left: svgBoxX,
+                            top: svgBoxY,
+                            width: svgBoxWidth,
+                            height: svgBoxHeight,
+                            fill: 'transparent',
+                            stroke: svgBoxStroke,
+                            strokeWidth: svgBoxStrokeWidth,
+                            rx: el.rx || 0,
+                            ry: el.ry || 0,
+                            objectType: 'svgbox'
+                        });
+                        canvas.add(svgBox);
+
+                        if (el.label || el.text) {
+                            const svgBoxLabel = new fabric.IText(el.label || el.text, {
+                                left: svgBoxX + 10,
+                                top: svgBoxY + 10,
+                                fontSize: el.fontSize || 12,
+                                fill: el.textColor || '#333333'
+                            });
+                            canvas.add(svgBoxLabel);
+                        }
+                    }
+                    break;
+
+                case 'svgicon':
+                    // SVG Icon from library
+                    if (el.iconId && typeof addSvgIcon === 'function') {
+                        addSvgIcon(el.iconId, el.x || 0, el.y || 0, el.size || 48);
+                    } else if (el.path) {
+                        // Custom SVG path
+                        const customPath = new fabric.Path(el.path, {
+                            left: el.x || 0,
+                            top: el.y || 0,
+                            fill: el.fill || 'transparent',
+                            stroke: el.stroke || el.color || '#333333',
+                            strokeWidth: el.strokeWidth || 2,
+                            scaleX: el.scale || 1,
+                            scaleY: el.scale || 1,
+                            objectType: 'svgicon'
+                        });
+                        canvas.add(customPath);
+                    }
                     break;
 
                 default:
@@ -1136,16 +1416,16 @@ function renderGeneratedBoard(content, boardType) {
     }
 
     try {
-        // Try to extract JSON from the content
-        let jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
+        // Try to extract JSON from the content with multiple strategies
+        let jsonStr = extractJsonFromContent(content);
+        if (!jsonStr) {
             console.error('No JSON found in response');
             addBoardTemplate(boardType);
             alert('Template added. AI response could not be parsed.');
             return;
         }
 
-        const boardData = JSON.parse(jsonMatch[0]);
+        const boardData = JSON.parse(jsonStr);
         console.log('Parsed board data:', boardData);
 
         if (boardData.elements && Array.isArray(boardData.elements)) {

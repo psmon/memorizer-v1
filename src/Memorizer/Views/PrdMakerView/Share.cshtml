@@ -397,42 +397,8 @@
             <!-- Wireframe Action Section (shown when refinedPrdResult exists) -->
             <div class="wireframe-action-section" id="wireframeActionSection" style="display: none;">
                 <button class="btn btn-wireframe" id="btnWireframe" onclick="generateWireframe()">
-                    <i class="fas fa-desktop me-2"></i> PRD 데모 와이어프레임 생성
+                    <i class="fas fa-palette me-2"></i> ShapeUp으로 와이어프레임 생성
                 </button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Wireframe Result Modal -->
-<div class="modal fade" id="wireframeModal" tabindex="-1" aria-labelledby="wireframeModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
-                <h5 class="modal-title" id="wireframeModalLabel">
-                    <i class="fas fa-desktop me-2"></i> PRD 데모 와이어프레임 생성 완료
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-success">
-                    <i class="fas fa-check-circle me-2"></i> 와이어프레임이 성공적으로 생성되었습니다!
-                </div>
-                <p class="text-muted mb-2">아래 링크로 데모 페이지에 접근할 수 있습니다:</p>
-                <div class="input-group mb-3">
-                    <input type="text" class="form-control" id="wireframeUrlInput" readonly>
-                    <button class="btn btn-outline-primary" type="button" onclick="copyWireframeUrl()">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                </div>
-                <small class="text-success d-none mb-3" id="wireframeCopySuccess">
-                    <i class="fas fa-check me-1"></i> 클립보드에 복사되었습니다!
-                </small>
-                <div class="d-grid gap-2">
-                    <button class="btn btn-wireframe" onclick="openWireframePage()">
-                        <i class="fas fa-external-link-alt me-2"></i> 새 창에서 데모 페이지 열기
-                    </button>
-                </div>
             </div>
         </div>
     </div>
@@ -452,7 +418,6 @@
             eventStormingResult: '',
             exampleMappingResult: ''
         };
-        let currentWireframeUrl = '';
 
         document.addEventListener('DOMContentLoaded', async function() {
             if (typeof mermaid !== 'undefined') {
@@ -617,62 +582,44 @@
             return div.innerHTML;
         }
 
-        async function generateWireframe() {
+        // Generate wireframe using ShapeUp
+        function generateWireframe() {
             if (!sharedData.refinedPrdResult) {
                 alert('보완된 PRD가 없어 와이어프레임을 생성할 수 없습니다.');
                 return;
             }
 
-            const btn = document.getElementById('btnWireframe');
-            btn.disabled = true;
-            btn.innerHTML = '<span class="loading-spinner"></span> 와이어프레임 생성 중...';
+            // Build wireframe prompt from PRD data
+            const wireframePrompt = buildWireframePrompt();
 
-            try {
-                const response = await fetch('/api/prd/generate-wireframe', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        refinedPrdResult: sharedData.refinedPrdResult,
-                        eventStormingResult: sharedData.eventStormingResult,
-                        exampleMappingResult: sharedData.exampleMappingResult
-                    })
-                });
+            // Store in sessionStorage for ShapeUp to read
+            sessionStorage.setItem('prdWireframePrompt', wireframePrompt);
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || 'Failed to generate wireframe');
-                }
-
-                const data = await response.json();
-
-                // Build full URL using current origin
-                currentWireframeUrl = `${window.location.origin}${data.demoUrl}`;
-
-                // Show modal with URL
-                document.getElementById('wireframeUrlInput').value = currentWireframeUrl;
-                new bootstrap.Modal(document.getElementById('wireframeModal')).show();
-            } catch (error) {
-                console.error('Wireframe generation error:', error);
-                alert('와이어프레임 생성에 실패했습니다. 다시 시도해주세요.');
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-desktop me-2"></i> PRD 데모 와이어프레임 생성';
-            }
+            // Navigate to ShapeUp with prdWireframe flag
+            window.location.href = '/ui/shapeup?prdWireframe=true';
         }
 
-        function copyWireframeUrl() {
-            const input = document.getElementById('wireframeUrlInput');
-            navigator.clipboard.writeText(input.value).then(() => {
-                const success = document.getElementById('wireframeCopySuccess');
-                success.classList.remove('d-none');
-                setTimeout(() => success.classList.add('d-none'), 3000);
-            });
-        }
+        function buildWireframePrompt() {
+            return `PRD 기반 UI 와이어프레임을 시각화해주세요.
 
-        function openWireframePage() {
-            if (currentWireframeUrl) {
-                window.open(currentWireframeUrl, '_blank');
-            }
+## 보완된 PRD
+${sharedData.refinedPrdResult.substring(0, 2000)}${sharedData.refinedPrdResult.length > 2000 ? '...' : ''}
+
+## 이벤트 스토밍 결과 (요약)
+${sharedData.eventStormingResult.substring(0, 1000)}${sharedData.eventStormingResult.length > 1000 ? '...' : ''}
+
+## 예제 맵핑 결과 (요약)
+${sharedData.exampleMappingResult.substring(0, 1000)}${sharedData.exampleMappingResult.length > 1000 ? '...' : ''}
+
+## 요청사항
+위 PRD를 기반으로 주요 화면의 와이어프레임을 그려주세요:
+1. 메인 페이지 레이아웃 (헤더, 네비게이션, 메인 콘텐츠 영역)
+2. 핵심 기능별 화면 구성
+3. 사용자 플로우를 화살표로 연결
+4. 주요 UI 컴포넌트 (버튼, 폼, 목록 등) 배치
+
+Frame과 Shape를 활용하여 화면 구조를 명확하게 표현하고,
+텍스트로 각 영역의 기능을 설명해주세요.`;
         }
     </script>
 }

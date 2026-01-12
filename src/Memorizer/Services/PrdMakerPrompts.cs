@@ -76,6 +76,43 @@ public static class PrdMakerPrompts
     }
 
     /// <summary>
+    /// Batch evaluate multiple memories and select top 3 most relevant for Example Mapping
+    /// </summary>
+    public static string GetBatchMemoryRelevancePrompt(string eventStormingResult, List<(string Title, string Summary, int Index)> candidates)
+    {
+        var candidateList = new System.Text.StringBuilder();
+        foreach (var (title, summary, index) in candidates)
+        {
+            candidateList.AppendLine($"[{index}] 제목: {title}");
+            candidateList.AppendLine($"    요약: {summary}");
+            candidateList.AppendLine();
+        }
+
+        return $@"당신은 기술 문서 평가 전문가입니다.
+아래 이벤트 스토밍 결과를 기반으로 예제 맵핑 토론에 가장 유용한 메모리 3개를 선택해주세요.
+
+## 이벤트 스토밍 결과 (요약)
+{eventStormingResult.Substring(0, Math.Min(eventStormingResult.Length, 1000))}
+
+## 후보 메모리 목록
+{candidateList}
+
+## 선택 기준
+1. 이벤트 스토밍에서 도출된 도메인/기술과 직접적 관련성
+2. 예제 맵핑 토론에서 구체적 인사이트 제공 가능 여부
+3. 비즈니스 규칙, 기술 패턴, 구현 사례 등 실질적 정보 포함 여부
+
+## 응답 형식
+가장 연관성 높은 순서대로 3개의 인덱스를 쉼표로 구분하여 출력하세요.
+연관성 있는 메모리가 3개 미만이면 연관성 있는 것만 출력하세요.
+연관성 있는 메모리가 없으면 '없음'을 출력하세요.
+
+예시: 2,5,1 또는 3,1 또는 없음
+
+선택:";
+    }
+
+    /// <summary>
     /// Generate virtual collaborator discussion for Example Mapping with memory references (supports multiple memories)
     /// </summary>
     public static string GetExampleMappingDiscussionWithMemoryPrompt(string prdContent, string eventStormingResult, string memoryReferences, int memoryCount = 1)

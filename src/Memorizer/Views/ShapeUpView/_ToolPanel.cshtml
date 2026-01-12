@@ -20,9 +20,108 @@
         <button class="tool-btn" onclick="setTool('text')" id="tool-text">
             <i class="fas fa-font"></i> Text
         </button>
+        <button class="tool-btn" onclick="setTool('svgbox')" id="tool-svgbox">
+            <i class="fas fa-vector-square"></i> SVG Box
+        </button>
         <button class="tool-btn" onclick="deleteSelected()">
             <i class="fas fa-trash"></i> Delete
         </button>
+    </div>
+
+    <!-- SVG Icons Section (Expandable) -->
+    <div class="tool-section">
+        <div class="tool-section-title svg-icons-header" onclick="toggleSvgIconsPanel()">
+            <span><i class="fas fa-shapes me-1"></i> SVG Icons</span>
+            <i class="fas fa-chevron-down svg-icons-chevron" id="svg-icons-chevron"></i>
+        </div>
+        <div class="svg-icons-panel" id="svg-icons-panel">
+            <div class="svg-icons-category">
+                <div class="svg-icons-category-title">Arrows</div>
+                <div class="svg-icons-grid">
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('arrow-right')" title="Arrow Right">
+                        <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('arrow-left')" title="Arrow Left">
+                        <svg viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('arrow-up')" title="Arrow Up">
+                        <svg viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('arrow-down')" title="Arrow Down">
+                        <svg viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('arrow-bidirectional')" title="Bidirectional">
+                        <svg viewBox="0 0 24 24"><path d="M5 12h14M5 12l4-4M5 12l4 4M19 12l-4-4M19 12l-4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="svg-icons-category">
+                <div class="svg-icons-category-title">People</div>
+                <div class="svg-icons-grid">
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('user')" title="User">
+                        <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('users')" title="Users">
+                        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="svg-icons-category">
+                <div class="svg-icons-category-title">Cloud & Infrastructure</div>
+                <div class="svg-icons-grid">
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('cloud')" title="Cloud">
+                        <svg viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('cloud-upload')" title="Cloud Upload">
+                        <svg viewBox="0 0 24 24"><path d="M16 16l-4-4-4 4M12 12v9M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('cloud-download')" title="Cloud Download">
+                        <svg viewBox="0 0 24 24"><path d="M8 17l4 4 4-4M12 12v9M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('server')" title="Server">
+                        <svg viewBox="0 0 24 24"><path d="M2 4h20v6H2zM2 14h20v6H2zM6 7h.01M6 17h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('server-stack')" title="Server Stack">
+                        <svg viewBox="0 0 24 24"><path d="M2 2h20v5H2zM2 9h20v5H2zM2 16h20v5H2zM6 4.5h.01M6 11.5h.01M6 18.5h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('database')" title="Database">
+                        <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 4.02 2 6.5v11c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5v-11c0-2.48-4.48-4.5-10-4.5zM2 12c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5M2 6.5c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('database-alt')" title="Database Alt">
+                        <svg viewBox="0 0 24 24"><path d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4M4 12c0 2.21 3.582 4 8 4s8-1.79 8-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('globe')" title="Globe">
+                        <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            </div>
+            <div class="svg-icons-category">
+                <div class="svg-icons-category-title">Devices & Objects</div>
+                <div class="svg-icons-grid">
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('monitor')" title="Monitor">
+                        <svg viewBox="0 0 24 24"><path d="M2 4h20v12H2zM8 20h8M12 16v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('smartphone')" title="Smartphone">
+                        <svg viewBox="0 0 24 24"><path d="M5 2h14a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM12 18h.01" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('lock')" title="Lock">
+                        <svg viewBox="0 0 24 24"><path d="M5 11h14v10H5zM8 11V7a4 4 0 1 1 8 0v4M12 15v2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('api')" title="API">
+                        <svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM17 14v3h-3M17 20v-3h3M14 17h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('gear')" title="Gear">
+                        <svg viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('document')" title="Document">
+                        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <button class="svg-icon-btn" onclick="addSvgIconToCanvas('folder')" title="Folder">
+                        <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="tool-section">

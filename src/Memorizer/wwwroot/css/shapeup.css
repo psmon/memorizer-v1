@@ -424,6 +424,71 @@
     background: #f8f9fa;
 }
 
+/* SVG Content Modal */
+.svg-template-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 6px;
+}
+
+.svg-template-btn {
+    width: 36px;
+    height: 36px;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.svg-template-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.svg-template-btn:hover svg path {
+    stroke: white;
+}
+
+.svg-preview-container {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    position: relative;
+    min-height: 230px;
+}
+
+.svg-preview-container svg {
+    border-radius: 4px;
+}
+
+.svg-preview-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #dc3545;
+    font-size: 0.9rem;
+}
+
+.svg-preview-error i {
+    font-size: 2rem;
+}
+
+#svg-path-input {
+    font-size: 0.85rem;
+    resize: vertical;
+}
+
+#svg-stroke-width {
+    margin-top: 8px;
+}
+
 /* Board type colors */
 .color-problem { color: #667eea; }
 .color-breadboard { color: #00c6ff; }
@@ -583,4 +648,101 @@
 .property-popup .btn-group .btn {
     flex: 1;
     padding: 4px 8px;
+}
+
+/* SVG Icons Panel Styles */
+.svg-icons-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.svg-icons-header:hover {
+    color: #667eea;
+}
+
+.svg-icons-chevron {
+    font-size: 0.7rem;
+    transition: transform 0.3s ease;
+}
+
+.svg-icons-panel.show + .svg-icons-chevron,
+.svg-icons-panel.show ~ .svg-icons-chevron {
+    transform: rotate(180deg);
+}
+
+.svg-icons-panel {
+    display: none;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 10px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.svg-icons-panel.show {
+    display: flex;
+}
+
+.svg-icons-category {
+    margin-bottom: 4px;
+}
+
+.svg-icons-category-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 6px;
+    padding-bottom: 3px;
+    border-bottom: 1px dashed #e9ecef;
+}
+
+.svg-icons-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 4px;
+}
+
+.svg-icon-btn {
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    border: 1px solid #e9ecef;
+    background: #f8f9fa;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.svg-icon-btn:hover {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
+.svg-icon-btn:hover svg path {
+    stroke: white;
+}
+
+.svg-icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+.svg-icon-btn svg path {
+    stroke: #495057;
+    transition: stroke 0.2s;
+}
+
+/* SVG Box Tool Active State */
+#tool-svgbox.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
 }
