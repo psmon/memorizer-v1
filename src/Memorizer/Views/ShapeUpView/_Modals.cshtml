@@ -1,0 +1,47 @@
+@* ShapeUp Modals Partial View *@
+
+<!-- Toast Container -->
+<div id="toastContainer" class="toast-container"></div>
+
+<!-- Progress Indicator (for Free Board generation) -->
+<div id="progressIndicator" class="progress-indicator" style="display: none;">
+    <div class="progress-icon">
+        <i class="fas fa-circle-notch fa-spin"></i>
+    </div>
+    <div class="progress-text" id="progressText">처리 중...</div>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="modal-title">
+                    <i class="fas fa-share-alt me-2"></i> Share Shape Up Board
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Title</label>
+                    <input type="text" class="form-control" id="share-title" placeholder="Shape Up Board">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Share URL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control share-url-input" id="share-url" readonly>
+                        <button class="btn btn-outline-primary" onclick="copyShareUrl()">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="alert alert-success d-none" id="copy-success">
+                    <i class="fas fa-check me-1"></i> Copied to clipboard!
+                </div>
+                <button class="btn btn-primary w-100" onclick="openSharePage()">
+                    <i class="fas fa-external-link-alt me-1"></i> Open in New Tab
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

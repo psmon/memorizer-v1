@@ -1,0 +1,24 @@
+@* ShapeUp Context Menu Partial View *@
+<div class="context-menu" id="context-menu">
+    <div class="context-menu-item" id="ctx-properties" onclick="showPropertyPopup(event);">
+        <i class="fas fa-sliders-h"></i> Properties
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" id="ctx-group" onclick="groupSelected()">
+        <i class="fas fa-object-group"></i> Group
+    </div>
+    <div class="context-menu-item" id="ctx-ungroup" onclick="ungroupSelected()">
+        <i class="fas fa-object-ungroup"></i> Ungroup
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" id="ctx-bring-front" onclick="bringToFront()">
+        <i class="fas fa-layer-group"></i> Bring to Front
+    </div>
+    <div class="context-menu-item" id="ctx-send-back" onclick="sendToBack()">
+        <i class="fas fa-layer-group fa-flip-vertical"></i> Send to Back
+    </div>
+    <div class="context-menu-divider"></div>
+    <div class="context-menu-item" id="ctx-delete" onclick="deleteSelected()">
+        <i class="fas fa-trash"></i> Delete
+    </div>
+</div>

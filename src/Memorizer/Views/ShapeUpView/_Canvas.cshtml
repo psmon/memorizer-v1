@@ -1,0 +1,53 @@
+@* ShapeUp Canvas Area Partial View *@
+<div class="canvas-area" id="canvas-container">
+    <canvas id="shapeup-canvas"></canvas>
+
+    <!-- Canvas Controls -->
+    <div class="canvas-controls">
+        <button class="canvas-control-btn" onclick="setTool('pan')" id="tool-pan" title="Pan (Hand)">
+            <i class="fas fa-hand-paper"></i>
+        </button>
+        <div class="control-divider"></div>
+        <button class="canvas-control-btn" onclick="zoomIn()" title="Zoom In">
+            <i class="fas fa-plus"></i>
+        </button>
+        <span class="zoom-level" id="zoom-level">100%</span>
+        <button class="canvas-control-btn" onclick="zoomOut()" title="Zoom Out">
+            <i class="fas fa-minus"></i>
+        </button>
+        <button class="canvas-control-btn" onclick="resetZoom()" title="Reset View">
+            <i class="fas fa-compress-arrows-alt"></i>
+        </button>
+        <div class="control-divider"></div>
+        <button class="canvas-control-btn ai-toggle" onclick="toggleAIPanel()" title="AI Generate">
+            <i class="fas fa-magic"></i>
+        </button>
+    </div>
+
+    <!-- AI Prompt Panel -->
+    <div class="ai-prompt-panel" id="ai-prompt-panel">
+        <div class="ai-prompt-header">
+            <span class="ai-prompt-title">
+                <i class="fas fa-magic me-1"></i> AI Board Generator
+            </span>
+            <button class="ai-prompt-close" onclick="closeAIPanel()" title="Close">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="ai-prompt-body">
+            <textarea id="ai-prompt" class="prompt-input" rows="4"
+                placeholder="Describe your project or feature to generate Shape Up boards..."></textarea>
+            <select id="board-type" class="board-type-select">
+                <option value="freeboard">Free Board</option>
+                <option value="problem">1. Problem</option>
+                <option value="breadboard">2. Breadboard</option>
+                <option value="fat-marker">3. Fat Marker</option>
+                <option value="risk">4. Risk</option>
+                <option value="pitch">5. Pitch</option>
+            </select>
+            <button class="btn-generate" id="btn-generate" onclick="generateWithAI()">
+                <i class="fas fa-magic me-1"></i> Generate
+            </button>
+        </div>
+    </div>
+</div>
