@@ -145,6 +145,92 @@
             color: #adb5bd;
             margin-bottom: 20px;
         }
+
+        /* Prompt Section */
+        .prompt-section {
+            background: white;
+            border-top: 1px solid #dee2e6;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        }
+
+        .prompt-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 20px;
+            cursor: pointer;
+            user-select: none;
+            background: #f8f9fa;
+            transition: background 0.2s;
+        }
+
+        .prompt-section-header:hover {
+            background: #e9ecef;
+        }
+
+        .prompt-section-title {
+            font-weight: 600;
+            color: #495057;
+            font-size: 0.9rem;
+        }
+
+        .prompt-section-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-prompt-action {
+            background: none;
+            border: 1px solid #dee2e6;
+            padding: 6px 10px;
+            border-radius: 4px;
+            color: #6c757d;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-prompt-action:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .prompt-chevron {
+            color: #6c757d;
+            transition: transform 0.3s ease;
+            font-size: 0.8rem;
+        }
+
+        .prompt-section:not(.collapsed) .prompt-chevron {
+            transform: rotate(180deg);
+        }
+
+        .prompt-section-body {
+            padding: 15px 20px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: white;
+            border-top: 1px solid #e9ecef;
+            transition: max-height 0.3s ease, padding 0.3s ease;
+        }
+
+        .prompt-section.collapsed .prompt-section-body {
+            max-height: 0;
+            padding: 0 20px;
+            overflow: hidden;
+        }
+
+        .prompt-text {
+            margin: 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 0.9rem;
+            color: #495057;
+            line-height: 1.6;
+            font-family: 'Segoe UI', sans-serif;
+            background: transparent;
+        }
     </style>
 }
 
@@ -162,6 +248,9 @@
             <a href="/ui/shapeup" class="btn-header">
                 <i class="fas fa-plus me-1"></i> Create New
             </a>
+            <button class="btn-header" id="btn-edit-board" onclick="editBoard()">
+                <i class="fas fa-edit me-1"></i> Edit
+            </button>
             <button class="btn-header" onclick="exportToPNG()">
                 <i class="fas fa-image me-1"></i> PNG
             </button>
@@ -203,6 +292,24 @@
             </a>
         </div>
     </div>
+
+    <!-- Prompt Section (Collapsible) -->
+    <div class="prompt-section collapsed" id="prompt-section" style="display: none;">
+        <div class="prompt-section-header" onclick="togglePromptSection()">
+            <div class="prompt-section-title">
+                <i class="fas fa-lightbulb me-2"></i>Original Prompt
+            </div>
+            <div class="prompt-section-actions">
+                <button class="btn-prompt-action" onclick="copyPrompt(event)" title="Copy Prompt">
+                    <i class="fas fa-copy"></i>
+                </button>
+                <i class="fas fa-chevron-down prompt-chevron" id="prompt-chevron"></i>
+            </div>
+        </div>
+        <div class="prompt-section-body" id="prompt-body">
+            <pre class="prompt-text" id="prompt-text"></pre>
+        </div>
+    </div>
 </div>
 
 @section Scripts {
@@ -230,6 +337,10 @@
         let zoomLevel = 1;
         const shortCode = '@shortCode';
 
+        // Store board data for editing
+        let currentBoardData = null;
+        let currentOriginalPrompt = null;
+
         document.addEventListener('DOMContentLoaded', function() {
             loadSharedBoard();
         });
@@ -245,6 +356,10 @@
 
                 const data = await response.json();
 
+                // Store data for edit functionality
+                currentBoardData = data.boardData;
+                currentOriginalPrompt = data.originalPrompt;
+
                 // Update header
                 document.getElementById('board-title').innerHTML =
                     `<i class="fas fa-chalkboard me-2"></i>${escapeHtml(data.title)}`;
@@ -258,6 +373,9 @@
                 // Initialize and load canvas
                 initCanvas();
                 loadCanvasData(data.boardData);
+
+                // Initialize prompt section
+                initPromptSection(data.originalPrompt);
 
             } catch (error) {
                 console.error('Error loading board:', error);
@@ -404,6 +522,66 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // ============================================================================
+        // Edit Board Function
+        // ============================================================================
+        function editBoard() {
+            if (!currentBoardData) {
+                alert('Board data not loaded yet.');
+                return;
+            }
+
+            // Store board data in sessionStorage for Index page to load
+            sessionStorage.setItem('shapeupEditBoardData', currentBoardData);
+
+            // Navigate to Index page with editMode parameter
+            window.location.href = '/ui/shapeup?editMode=true';
+        }
+
+        // ============================================================================
+        // Prompt Section Functions
+        // ============================================================================
+        function initPromptSection(originalPrompt) {
+            const promptSection = document.getElementById('prompt-section');
+
+            if (originalPrompt && originalPrompt.trim()) {
+                document.getElementById('prompt-text').textContent = originalPrompt;
+                promptSection.style.display = 'block';
+            } else {
+                promptSection.style.display = 'none';
+            }
+        }
+
+        function togglePromptSection() {
+            const promptSection = document.getElementById('prompt-section');
+            promptSection.classList.toggle('collapsed');
+        }
+
+        function copyPrompt(event) {
+            event.stopPropagation();
+            const promptText = document.getElementById('prompt-text').textContent;
+
+            navigator.clipboard.writeText(promptText).then(() => {
+                // Show success feedback
+                const btn = event.currentTarget;
+                const originalHTML = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                btn.style.background = '#28a745';
+                btn.style.borderColor = '#28a745';
+                btn.style.color = 'white';
+
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.style.background = '';
+                    btn.style.borderColor = '';
+                    btn.style.color = '';
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                alert('Failed to copy prompt to clipboard.');
+            });
         }
     </script>
 }

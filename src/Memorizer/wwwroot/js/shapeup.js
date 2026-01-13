@@ -219,10 +219,24 @@ function initCanvas() {
 
     // Keyboard shortcuts
     document.addEventListener('keydown', function(e) {
+        // Ignore if typing in input/textarea
+        if (e.target.matches('input, textarea')) return;
+
+        // Delete/Backspace - delete selected
         if (e.key === 'Delete' || e.key === 'Backspace') {
-            if (!e.target.matches('input, textarea')) {
-                deleteSelected();
-            }
+            deleteSelected();
+        }
+
+        // Ctrl+C - copy selected
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+            copySelected();
+            e.preventDefault();
+        }
+
+        // Ctrl+V - paste
+        if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+            pasteSelected();
+            e.preventDefault();
         }
     });
 
@@ -311,6 +325,7 @@ function initCanvas() {
 
     // Check for PRD wireframe mode
     checkPrdWireframeMode();
+    checkEditMode();
 }
 
 // ============================================================================
@@ -357,6 +372,63 @@ function checkPrdWireframeMode() {
                 }, 200);
             }, 300);
         }
+    }
+}
+
+// ============================================================================
+// Edit Mode Handler (from Share page)
+// ============================================================================
+function checkEditMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const isEditMode = urlParams.get('editMode') === 'true';
+
+    if (isEditMode) {
+        const boardDataStr = sessionStorage.getItem('shapeupEditBoardData');
+        if (boardDataStr) {
+            // Clear sessionStorage
+            sessionStorage.removeItem('shapeupEditBoardData');
+
+            // Clean URL without reloading
+            const cleanUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, cleanUrl);
+
+            // Load board data after canvas is initialized
+            setTimeout(() => {
+                loadBoardForEditing(boardDataStr);
+            }, 300);
+        }
+    }
+}
+
+// Load board data for editing
+function loadBoardForEditing(boardDataStr) {
+    try {
+        const boardData = JSON.parse(boardDataStr);
+
+        // Clear current canvas
+        canvas.clear();
+        canvas.backgroundColor = '#f8f9fa';
+
+        // Load from JSON
+        canvas.loadFromJSON(boardData, function() {
+            // Enable all objects for editing (opposite of Share page read-only mode)
+            canvas.forEachObject(function(obj) {
+                obj.selectable = true;
+                obj.evented = true;
+                obj.setCoords();
+            });
+
+            canvas.renderAll();
+
+            // Show success toast
+            showToast('success', '보드 로드 완료', '공유된 보드를 편집할 수 있습니다. 변경 사항은 자동 저장되지 않습니다.');
+
+            // Switch to select tool
+            setTool('select');
+        });
+    } catch (e) {
+        console.error('Error loading board for editing:', e);
+        showToast('warning', '로드 실패', '보드 데이터를 불러오는 데 실패했습니다.');
     }
 }
 
@@ -924,6 +996,68 @@ function deleteSelected() {
         canvas.renderAll();
     }
     hideContextMenu();
+}
+
+// ============================================================================
+// Copy/Paste Functions
+// ============================================================================
+let clipboard = null;
+
+function copySelected() {
+    const activeObject = canvas.getActiveObject();
+    if (!activeObject) return;
+
+    // Clone the active object (handles groups, multiple selections)
+    activeObject.clone(function(cloned) {
+        clipboard = cloned;
+    });
+}
+
+function pasteSelected() {
+    if (!clipboard) return;
+
+    clipboard.clone(function(clonedObj) {
+        canvas.discardActiveObject();
+
+        // Offset to the right to avoid overlapping
+        const offsetX = 30;
+        const offsetY = 30;
+
+        clonedObj.set({
+            left: clonedObj.left + offsetX,
+            top: clonedObj.top + offsetY,
+            evented: true,
+        });
+
+        if (clonedObj.type === 'activeSelection') {
+            // Multiple objects selected - need to handle each
+            clonedObj.canvas = canvas;
+            clonedObj.forEachObject(function(obj) {
+                canvas.add(obj);
+                // Make sure object is selectable and has correct coords
+                obj.selectable = true;
+                obj.evented = true;
+                obj.setCoords();
+            });
+            // Set them as active selection
+            canvas.setActiveObject(clonedObj);
+        } else {
+            // Single object or group
+            canvas.add(clonedObj);
+            clonedObj.selectable = true;
+            clonedObj.evented = true;
+            clonedObj.setCoords();
+            canvas.setActiveObject(clonedObj);
+        }
+
+        // Update clipboard position for next paste (stack effect)
+        clipboard.set({
+            left: clipboard.left + offsetX,
+            top: clipboard.top + offsetY,
+        });
+
+        canvas.renderAll();
+    });
 }
 
 // ============================================================================
@@ -2174,8 +2308,7 @@ function addSvgIconToCanvas(iconId) {
     // Switch to select tool after adding
     setTool('select');
 
-    // Close the icons panel
-    toggleSvgIconsPanel(false);
+    // Note: Panel stays open for easier multi-icon workflow (default is still closed on page load)
 }
 
 // Toggle SVG icons panel
@@ -2203,6 +2336,29 @@ function toggleSvgIconsPanel(forceState) {
         if (chevron) chevron.style.transform = 'rotate(0deg)';
         const toggleBtn = document.getElementById('svg-icons-toggle');
         if (toggleBtn) toggleBtn.classList.remove('active');
+    }
+}
+
+// Toggle Board Templates panel
+let boardTemplatesPanelOpen = false;
+
+function toggleBoardTemplatesPanel(forceState) {
+    const panel = document.getElementById('board-templates-panel');
+    const chevron = document.getElementById('board-templates-chevron');
+    if (!panel) return;
+
+    if (typeof forceState === 'boolean') {
+        boardTemplatesPanelOpen = forceState;
+    } else {
+        boardTemplatesPanelOpen = !boardTemplatesPanelOpen;
+    }
+
+    if (boardTemplatesPanelOpen) {
+        panel.classList.add('show');
+        if (chevron) chevron.style.transform = 'rotate(180deg)';
+    } else {
+        panel.classList.remove('show');
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
     }
 }
 

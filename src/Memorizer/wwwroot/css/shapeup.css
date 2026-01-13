@@ -3,10 +3,12 @@
 /* Page Layout */
 .shapeup-page {
     background: #f0f2f5;
-    min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh;
     padding: 0;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 /* Header */
@@ -49,18 +51,23 @@
 .shapeup-container {
     display: flex;
     flex: 1;
+    min-height: 0;
     overflow: hidden;
 }
 
 /* Tool Panel */
 .tool-panel {
     width: 200px;
+    min-width: 200px;
     background: white;
     border-right: 1px solid #dee2e6;
     display: flex;
     flex-direction: column;
     padding: 15px;
+    min-height: 0;
     overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
 }
 
 .tool-section {
@@ -776,4 +783,33 @@
     background: #667eea;
     color: white;
     border-color: #667eea;
+}
+
+/* Board Templates Panel (Collapsible) */
+.board-templates-header {
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    user-select: none;
+}
+
+.board-templates-header:hover {
+    color: #667eea;
+}
+
+.board-templates-chevron {
+    font-size: 0.75rem;
+    transition: transform 0.3s ease;
+}
+
+.board-templates-panel {
+    display: none;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 10px;
+}
+
+.board-templates-panel.show {
+    display: flex;
 }

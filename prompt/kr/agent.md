@@ -65,6 +65,20 @@
 - src/Memorizer/Services/ShapeUpPrompts.cs - SVG path 레퍼런스, 배치 메모리 평가 프롬프트
 - src/Memorizer/Services/PrdMakerPrompts.cs - 배치 메모리 평가 프롬프트
 
+## ShapeUp 공유 페이지 개선 (v46 추가)
+- 공유 뷰 페이지에서 Edit 버튼 클릭 시 편집 페이지로 이동 및 캔버스 데이터 로드
+- 프롬프트 펼치기 UI: 하단에 접기/펼치기 형태로 원본 프롬프트 표시, 복사 기능 제공
+- SVG Icons, Board Templates 패널 자동 닫힘 제거 (기본값은 접힘 유지)
+- 편집 도구 순서 재배치: Drawing Tools → Properties → SVG Icons → Board Templates
+- Ctrl+C/Ctrl+V 복사/붙여넣기 지원 (그룹 유지, 우측 오프셋으로 겹침 방지)
+- 편집 도구 패널 독립 스크롤 (캔버스 영역과 높이 일치, overscroll-behavior: contain)
+
+## 주요 파일 (v46 관련)
+- src/Memorizer/Views/ShapeUpView/Share.cshtml - Edit 버튼, 프롬프트 펼치기 UI
+- src/Memorizer/Views/ShapeUpView/_ToolPanel.cshtml - 편집 도구 순서 재배치, Board Templates 접기/펼치기
+- src/Memorizer/wwwroot/js/shapeup.js - checkEditMode(), copySelected(), pasteSelected(), toggleBoardTemplatesPanel()
+- src/Memorizer/wwwroot/css/shapeup.css - 편집 도구 패널 독립 스크롤 스타일
+
 
 마지막 자동수정일시분 : 2026-01-14 00:00:00
-마지막 버전 반영 : 45
+마지막 버전 반영 : 46

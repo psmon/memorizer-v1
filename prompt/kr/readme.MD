@@ -268,6 +268,12 @@ ShapeUp LLM 개선 - 메모리 검색 규칙 업그레이드(PRDMaker, ShapeUp �
 
 - [ShapeUp-LLM-Improve](45-shapeup-llm-improve.md)
 
+## Version 1.3.9
+
+ShapeUp 공유 페이지 개선 - 공유 뷰 페이지에서 Edit 버튼으로 편집 페이지 이동 및 캔버스 데이터 로드, 프롬프트 펼치기 UI(복사 기능 포함), SVG Icons/Board Templates 자동 닫힘 제거, 편집 도구 순서 재배치(Drawing Tools → Properties → SVG Icons → Board Templates), Ctrl+C/Ctrl+V 복사/붙여넣기 지원(그룹 유지), 편집 도구 패널 독립 스크롤
+
+- [ShapeUp-Share-Improve](46-shapeup-share-improve.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

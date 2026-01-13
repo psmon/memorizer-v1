@@ -270,6 +270,12 @@ ShapeUp LLM improvement - Memory search rules upgrade (3 per keyword with LLM to
 
 - [ShapeUp-LLM-Improve](45-shapeup-llm-improve.md)
 
+## Version 1.3.9
+
+ShapeUp share page improvements - Edit button on share view page to navigate to edit page and load canvas data, prompt collapsible UI (with copy function), removed SVG Icons/Board Templates auto-close, editing tool order rearrangement (Drawing Tools → Properties → SVG Icons → Board Templates), Ctrl+C/Ctrl+V copy/paste support (maintaining groups), independent scrolling for editing tool panel
+
+- [ShapeUp-Share-Improve](46-shapeup-share-improve.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```
