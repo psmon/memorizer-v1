@@ -145,24 +145,6 @@
             color: #adb5bd;
             margin-bottom: 20px;
         }
-
-        .original-prompt {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            max-width: 400px;
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            font-size: 0.9rem;
-        }
-
-        .original-prompt-title {
-            font-weight: 600;
-            color: #667eea;
-            margin-bottom: 8px;
-        }
     </style>
 }
 
@@ -209,14 +191,6 @@
             <button class="canvas-control-btn" onclick="resetZoom()" title="Reset">
                 <i class="fas fa-compress-arrows-alt"></i>
             </button>
-        </div>
-
-        <!-- Original Prompt -->
-        <div class="original-prompt" id="original-prompt" style="display: none;">
-            <div class="original-prompt-title">
-                <i class="fas fa-lightbulb me-1"></i> Original Prompt
-            </div>
-            <div id="prompt-content"></div>
         </div>
 
         <!-- Not Found -->
@@ -279,12 +253,6 @@
                     const date = new Date(data.createdAt);
                     document.getElementById('board-date').textContent =
                         date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-                }
-
-                // Show original prompt if available
-                if (data.originalPrompt) {
-                    document.getElementById('prompt-content').textContent = data.originalPrompt;
-                    document.getElementById('original-prompt').style.display = 'block';
                 }
 
                 // Initialize and load canvas

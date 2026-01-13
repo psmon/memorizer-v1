@@ -353,7 +353,37 @@ multimodal-service 스킬을 참고해 "스크린샷 분석" 기능을 추가해
 - 결과를 메모리로 저장
 ```
 
-### 10. 전체 스킬 활용 (대규모 기능)
+### 10. ShapeUp 화이트보드 기능
+
+```
+fullstack-ui 스킬의 ShapeUp 패턴을 참고해 다이어그램 생성 기능을 추가해줘.
+- Fabric.js 캔버스에 도형(박스, 원, 다이아몬드) 그리기
+- 화살표 자석 연결 (연결점 자동 계산)
+- AI 보드 생성 (Free Board 템플릿)
+- 드래그 시 연결된 화살표 자동 업데이트
+```
+
+### 11. SVG 아이콘/BOX 추가
+
+```
+fullstack-ui 스킬을 참고해 커스텀 SVG 도형을 추가해줘.
+- SVG path로 벡터 아이콘 그리기
+- 투명 배경 + 테두리 색상/두께 조절
+- SVG Content Editor 모달로 실시간 미리보기
+- 아이콘 라이브러리 (화살표, 클라우드, 서버 등)
+```
+
+### 12. AI 생성 + 메모리 검색 연동
+
+```
+fullstack-ui 스킬을 참고해 AI 콘텐츠 생성에 메모리 검색을 연동해줘.
+- 프롬프트에서 3개 키워드 추출
+- 각 키워드별 유사 메모리 3개씩 검색
+- LLM 배치 평가로 최적 3개 선택
+- SSE phase 이벤트로 진행 상황 표시
+```
+
+### 13. 전체 스킬 활용 (대규모 기능)
 
 ```
 다음 스킬들을 모두 활용해 "지식 그래프 시각화" 기능을 구현해줘:
@@ -384,6 +414,8 @@ multimodal-service 스킬을 참고해 "스크린샷 분석" 기능을 추가해
 | 검색 기능 개선 | embedding-service + graph-db |
 | 외부 도구 연동 | mcp-tools + project-convention |
 | 이미지 처리 | multimodal-service + actor-model |
+| 화이트보드/다이어그램 | fullstack-ui (ShapeUp 패턴) + llm-api |
+| AI 생성 + 메모리 연동 | fullstack-ui + embedding-service + llm-api |
 
 ### 스킬 선택 플로우차트
 
@@ -403,6 +435,8 @@ LLM 호출 필요? → Yes → llm-api
 비동기/상태 관리? → Yes → actor-model
     ↓ No
 그래프 관계 조회? → Yes → graph-db
+    ↓ No
+화이트보드/다이어그램? → Yes → fullstack-ui (ShapeUp 패턴)
     ↓ No
 UI 페이지 추가? → Yes → fullstack-ui
     ↓

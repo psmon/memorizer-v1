@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.3.7</VersionPrefix>
+    <VersionPrefix>1.3.8</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [ShapeUp SVG BOX - SVG vector drawing with transparent background and border customization, SVG icon library (arrows, users, cloud, server, database etc.), SVG Content Editor modal with templates and preview, memory search upgrade (3 per keyword with LLM top 3 selection), PRD wireframe ShapeUp integration, JSON parsing improvements with comment removal]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [ShapeUp LLM Improve - Memory search rules upgrade (3 per keyword with LLM top 3 selection for PRDMaker and ShapeUp), PRD wireframe ShapeUp integration with auto prompt, prompt summarization for over 2000 characters, memory search option checkbox, text overlap prevention improvements]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

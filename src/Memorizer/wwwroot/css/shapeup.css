@@ -304,6 +304,37 @@
     cursor: not-allowed;
 }
 
+/* AI Options */
+.ai-options {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.memory-search-option {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #495057;
+}
+
+.memory-search-option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: #667eea;
+    cursor: pointer;
+}
+
+.memory-search-option span {
+    user-select: none;
+}
+
+.memory-search-option:hover span {
+    color: #667eea;
+}
+
 /* Loading spinner */
 .loading-spinner {
     display: inline-block;

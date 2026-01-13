@@ -258,9 +258,15 @@ Shape Up 화이트보드 기능 구현 - Shape Up 방법론 기반 통합 피치
 
 ## Version 1.3.7
 
-ShapeUp SVG BOX 기능 추가 - SVG 벡터 이미지 드로잉(투명 배경, 테두리 색상/두께 조절), SVG 아이콘 라이브러리(화살표, 사용자, 클라우드, 서버, 데이터베이스 등), SVG Content Editor 모달(템플릿, 실시간 미리보기), 메모리 검색 규칙 업그레이드(키워드당 3개 검색 후 LLM 상위 3개 선택), PRD 와이어프레임 ShapeUp 연동(PRD 페이지에서 ShapeUp Free Board 자동 생성), JSON 파싱 개선(주석 제거, 다중 추출 전략)
+ShapeUp SVG BOX 기능 추가 - SVG 벡터 이미지 드로잉(투명 배경, 테두리 색상/두께 조절), SVG 아이콘 라이브러리(화살표, 사용자, 클라우드, 서버, 데이터베이스 등), SVG Content Editor 모달(템플릿, 실시간 미리보기)
 
 - [ShapeUp-SVG-Add](44-shapeup-svg-add.md)
+
+## Version 1.3.8
+
+ShapeUp LLM 개선 - 메모리 검색 규칙 업그레이드(PRDMaker, ShapeUp 모두 키워드당 3개씩 검색 후 LLM 판단 상위 3개 선택), PRD 와이어프레임 ShapeUp 연동(자동 프롬프트로 ShapeUp Free Board 이동), 2000글자 초과 시 프롬프트 요약 기능, 메모리 검색 옵션 체크박스, 텍스트 겹침 방지 개선
+
+- [ShapeUp-LLM-Improve](45-shapeup-llm-improve.md)
 
 ## Claude Cli Setting : Vibe 코딩할시 활용
 

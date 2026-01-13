@@ -338,8 +338,45 @@ function addPitchBoard(x, y, color) {
 // ============================================================================
 // AI Generation
 // ============================================================================
+const PROMPT_MAX_LENGTH = 2000;
+
+// Summarize long prompt for wireframe generation
+async function summarizePromptIfNeeded(prompt) {
+    if (prompt.length <= PROMPT_MAX_LENGTH) {
+        return { prompt, wasSummarized: false };
+    }
+
+    try {
+        showProgress('프롬프트 요약 중...');
+        const response = await fetch('/api/shapeup/summarize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ prompt })
+        });
+
+        if (!response.ok) {
+            console.warn('Failed to summarize prompt, using original');
+            return { prompt, wasSummarized: false };
+        }
+
+        const result = await response.json();
+        const summarizedPrompt = result.summary || prompt;
+
+        return {
+            prompt: summarizedPrompt,
+            wasSummarized: true,
+            originalLength: prompt.length,
+            summarizedLength: summarizedPrompt.length
+        };
+    } catch (error) {
+        console.error('Summarization error:', error);
+        return { prompt, wasSummarized: false };
+    }
+}
+
 async function generateWithAI() {
-    const prompt = document.getElementById('ai-prompt').value.trim();
+    let prompt = document.getElementById('ai-prompt').value.trim();
     if (!prompt) {
         alert('Please enter a prompt to generate a board.');
         return;
@@ -355,18 +392,39 @@ async function generateWithAI() {
     }
 }
 
-// Free Board generation - creates custom visualization boards with memory search
+// Free Board generation - creates custom visualization boards with optional memory search
 async function generateFreeBoard(prompt, btn) {
     btn.disabled = true;
     btn.innerHTML = '<span class="loading-spinner"></span> Generating...';
-    showProgress('메모리 검색 준비 중...');
 
     try {
+        // Check if prompt needs summarization (> 2000 chars)
+        const summarizeResult = await summarizePromptIfNeeded(prompt);
+        let finalPrompt = summarizeResult.prompt;
+
+        if (summarizeResult.wasSummarized) {
+            showToast('info', '프롬프트 요약됨',
+                `프롬프트가 ${summarizeResult.originalLength}자에서 ${summarizeResult.summarizedLength}자로 요약되었습니다.`);
+        }
+
+        // Get memory search option
+        const useMemorySearch = document.getElementById('use-memory-search')?.checked || false;
+
+        if (useMemorySearch) {
+            showProgress('메모리 검색 준비 중...');
+        } else {
+            showProgress('보드 생성 중...');
+        }
+
         const response = await fetch('/api/shapeup/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ prompt, boardType: 'freeboard' })
+            body: JSON.stringify({
+                prompt: finalPrompt,
+                boardType: 'freeboard',
+                useMemorySearch: useMemorySearch
+            })
         });
 
         if (!response.ok) throw new Error('Generation failed');
@@ -1114,11 +1172,22 @@ async function generateSingleBoard(prompt, boardType, btn) {
     btn.innerHTML = '<span class="loading-spinner"></span> Generating...';
 
     try {
+        // Check if prompt needs summarization (> 2000 chars)
+        const summarizeResult = await summarizePromptIfNeeded(prompt);
+        let finalPrompt = summarizeResult.prompt;
+
+        if (summarizeResult.wasSummarized) {
+            showToast('info', '프롬프트 요약됨',
+                `프롬프트가 ${summarizeResult.originalLength}자에서 ${summarizeResult.summarizedLength}자로 요약되었습니다.`);
+        }
+
+        showProgress('보드 생성 중...');
+
         const response = await fetch('/api/shapeup/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'include',
-            body: JSON.stringify({ prompt, boardType })
+            body: JSON.stringify({ prompt: finalPrompt, boardType })
         });
 
         if (!response.ok) throw new Error('Generation failed');
@@ -1146,11 +1215,14 @@ async function generateSingleBoard(prompt, boardType, btn) {
             }
         }
 
+        hideProgress();
+
         // Try to parse and render the generated board
         renderGeneratedBoard(fullContent, boardType);
 
     } catch (error) {
         console.error('Generation error:', error);
+        hideProgress();
         alert('Failed to generate board. Please try again.');
     } finally {
         btn.disabled = false;

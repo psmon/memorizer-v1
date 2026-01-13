@@ -493,6 +493,218 @@ document.addEventListener('DOMContentLoaded', function() {
 @await Html.PartialAsync("_MarkdownViewer", new { ContainerId = "viewer1" })
 ```
 
+## ShapeUp 화이트보드 패턴 (Fabric.js)
+
+### 파일 구조
+
+```
+src/Memorizer/
+├── Views/ShapeUpView/
+│   ├── Index.cshtml          # 메인 뷰 (레이아웃)
+│   ├── _ToolPanel.cshtml     # 드로잉 도구 패널
+│   ├── _Canvas.cshtml        # 캔버스 + AI 프롬프트 패널
+│   ├── _Modals.cshtml        # 토스트, 프로그레스, 공유 모달
+│   ├── _ContextMenu.cshtml   # 우클릭 컨텍스트 메뉴
+│   ├── _PropertyPopup.cshtml # 속성 팝업
+│   └── Share.cshtml          # 공유 페이지
+├── wwwroot/css/shapeup.css   # ShapeUp 전용 스타일
+└── wwwroot/js/
+    ├── shapeup.js            # 캔버스 로직 (드로잉, 화살표, 그룹핑)
+    └── shapeup-templates.js  # 보드 템플릿 + AI 생성
+```
+
+### Fabric.js 캔버스 초기화
+
+```javascript
+// 캔버스 생성
+const canvas = new fabric.Canvas('shapeup-canvas', {
+    width: container.clientWidth,
+    height: container.clientHeight - 100,
+    backgroundColor: '#f8f9fa',
+    selection: true
+});
+
+// 마우스 휠 줌
+canvas.on('mouse:wheel', function(opt) {
+    const delta = opt.e.deltaY;
+    let zoom = canvas.getZoom();
+    zoom *= 0.999 ** delta;
+    if (zoom > 5) zoom = 5;
+    if (zoom < 0.1) zoom = 0.1;
+    canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+    opt.e.preventDefault();
+});
+```
+
+### 도형 그리기 패턴
+
+```javascript
+function handleDrawStart(opt) {
+    isDrawing = true;
+    const pointer = canvas.getPointer(opt.e);
+    startX = pointer.x;
+    startY = pointer.y;
+
+    switch (currentTool) {
+        case 'rect':
+            currentShape = new fabric.Rect({
+                left: startX, top: startY,
+                width: 0, height: 0,
+                fill: fillColor,
+                stroke: strokeColor,
+                strokeWidth: strokeWidth,
+                rx: 8, ry: 8
+            });
+            canvas.add(currentShape);
+            break;
+        // circle, line, arrow...
+    }
+}
+```
+
+### 화살표 자석 연결 패턴
+
+```javascript
+// 가장 가까운 앵커 포인트 찾기
+function getClosestAnchor(shape, point) {
+    const anchors = getAnchorPoints(shape);
+    return anchors.reduce((closest, anchor) => {
+        const dist = Math.hypot(anchor.x - point.x, anchor.y - point.y);
+        return dist < closest.dist ? { ...anchor, dist } : closest;
+    }, { dist: Infinity });
+}
+
+// 앵커 포인트 계산 (top, bottom, left, right)
+function getAnchorPoints(obj) {
+    const bounds = obj.getBoundingRect();
+    return [
+        { x: bounds.left + bounds.width / 2, y: bounds.top, anchor: 'top' },
+        { x: bounds.left + bounds.width / 2, y: bounds.top + bounds.height, anchor: 'bottom' },
+        { x: bounds.left, y: bounds.top + bounds.height / 2, anchor: 'left' },
+        { x: bounds.left + bounds.width, y: bounds.top + bounds.height / 2, anchor: 'right' }
+    ];
+}
+```
+
+### SVG BOX 패턴
+
+```javascript
+// SVG 아이콘 라이브러리
+const svgIcons = {
+    'arrow-right': { path: 'M5 12h14m-7-7l7 7-7 7', viewBox: '0 0 24 24' },
+    'user': { path: 'M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', viewBox: '0 0 24 24' },
+    'cloud': { path: 'M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z', viewBox: '0 0 24 24' },
+    // ... more icons
+};
+
+// SVG path 유효성 검사
+function validateSvgPath(pathData) {
+    if (!pathData || typeof pathData !== 'string') return false;
+    const validCommands = /^[MmZzLlHhVvCcSsQqTtAa]/;
+    const pathCommands = pathData.trim().split(/(?=[MmZzLlHhVvCcSsQqTtAa])/);
+    return pathCommands.every(cmd => validCommands.test(cmd.trim()));
+}
+```
+
+### JSON 파싱 개선 패턴 (LLM 응답)
+
+```javascript
+// LLM이 주석을 포함할 수 있으므로 제거
+function removeJsonComments(str) {
+    let result = '', inString = false, escape = false, i = 0;
+    while (i < str.length) {
+        const char = str[i], nextChar = str[i + 1];
+        if (escape) { result += char; escape = false; i++; continue; }
+        if (char === '\\' && inString) { result += char; escape = true; i++; continue; }
+        if (char === '"') { inString = !inString; result += char; i++; continue; }
+        if (!inString) {
+            if (char === '/' && nextChar === '/') {
+                while (i < str.length && str[i] !== '\n') i++;
+                continue;
+            }
+            if (char === '/' && nextChar === '*') {
+                i += 2;
+                while (i < str.length - 1 && !(str[i] === '*' && str[i+1] === '/')) i++;
+                i += 2;
+                continue;
+            }
+        }
+        result += char; i++;
+    }
+    return result;
+}
+
+// JSON 추출 (코드블록, 균형 중괄호)
+function extractJsonFromContent(content) {
+    const cleanContent = removeJsonComments(content);
+    // Strategy 1: 코드블록에서 추출
+    const codeBlockMatch = cleanContent.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) { /* parse */ }
+    // Strategy 2: 균형 중괄호 추출
+    // Strategy 3: 키워드 기반 매칭
+    // ...
+}
+```
+
+### AI 보드 생성 + 메모리 검색 패턴
+
+```javascript
+async function generateFreeBoard() {
+    // 1. 키워드 추출 → 메모리 검색 (SSE phase 이벤트)
+    // 2. LLM 배치 평가로 상위 3개 메모리 선택
+    // 3. 메모리 참조와 함께 보드 생성
+
+    const response = await fetch('/api/shapeup/generate-freeboard', {
+        method: 'POST',
+        body: JSON.stringify({ prompt, useMemory: true })
+    });
+
+    // SSE 스트리밍 처리
+    const reader = response.body.getReader();
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const lines = decoder.decode(value).split('\n');
+        for (const line of lines) {
+            if (line.startsWith('data:')) {
+                const data = JSON.parse(line.substring(5));
+                if (data.phase) showProgress(data.message);
+                if (data.memory_found) showToast(data.message);
+                if (data.content) fullContent += data.content;
+            }
+        }
+    }
+
+    // JSON 파싱 후 렌더링
+    renderFreeBoard(fullContent);
+}
+```
+
+### PRD 와이어프레임 연동 패턴
+
+```javascript
+// PRD 페이지에서 ShapeUp으로 전환
+function generateWireframe() {
+    const wireframePrompt = buildWireframePrompt(); // PRD 데이터 기반
+    sessionStorage.setItem('prdWireframePrompt', wireframePrompt);
+    window.location.href = '/ui/shapeup?prdWireframe=true';
+}
+
+// ShapeUp에서 PRD 와이어프레임 모드 감지
+function checkPrdWireframeMode() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('prdWireframe') === 'true') {
+        const prompt = sessionStorage.getItem('prdWireframePrompt');
+        if (prompt) {
+            sessionStorage.removeItem('prdWireframePrompt');
+            openAIPanel();
+            document.getElementById('ai-prompt').value = prompt;
+            showToast('info', 'PRD 와이어프레임', 'Generate 버튼을 클릭하세요.');
+        }
+    }
+}
+```
+
 ## 주의사항
 
 1. **SSE 버퍼링**: Nginx 사용 시 `X-Accel-Buffering: no` 필수
@@ -500,3 +712,5 @@ document.addEventListener('DOMContentLoaded', function() {
 3. **XSS 방지**: Markdown 렌더링 시 DOMPurify로 sanitize
 4. **모바일 대응**: 테이블, 다이어그램에 가로 스크롤 적용
 5. **에러 처리**: 스트리밍 중 에러 발생 시 사용자에게 알림
+6. **Fabric.js 커스텀 속성**: `toObject` 오버라이드로 공유/저장 시 커스텀 속성 보존
+7. **JSON 파싱**: LLM 응답에 주석이 포함될 수 있으므로 제거 후 파싱

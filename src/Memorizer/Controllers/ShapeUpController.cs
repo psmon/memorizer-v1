@@ -94,10 +94,17 @@ public class ShapeUpController : ControllerBase
 
             string prompt;
 
-            // For Free Board, perform memory search first
+            // For Free Board, optionally perform memory search
             if (request.BoardType.ToLower() == "freeboard" && !request.IsIntegrated)
             {
-                prompt = await GenerateFreeBoardWithMemorySearch(request.Prompt);
+                if (request.UseMemorySearch)
+                {
+                    prompt = await GenerateFreeBoardWithMemorySearch(request.Prompt);
+                }
+                else
+                {
+                    prompt = ShapeUpPrompts.GetFreeBoardPrompt(request.Prompt);
+                }
             }
             else
             {
@@ -122,6 +129,32 @@ public class ShapeUpController : ControllerBase
         {
             _logger.LogError(ex, "Error generating Shape Up board");
             await WriteSSEEvent("error", new { message = "Failed to generate Shape Up board" });
+        }
+    }
+
+    /// <summary>
+    /// Summarize a long prompt for wireframe generation
+    /// Preserves core features, UI components, and user flow
+    /// </summary>
+    [HttpPost("summarize")]
+    public async Task<IActionResult> SummarizePrompt([FromBody] SummarizePromptRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.Prompt))
+            {
+                return BadRequest(new { error = "Prompt is required" });
+            }
+
+            var summarizePrompt = ShapeUpPrompts.GetWireframeSummarizationPrompt(request.Prompt);
+            var summary = await _llmExService.CompleteAsync(summarizePrompt, HttpContext.RequestAborted);
+
+            return Ok(new { summary = summary?.Trim() ?? request.Prompt });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error summarizing prompt");
+            return StatusCode(500, new { error = "Failed to summarize prompt" });
         }
     }
 
@@ -520,6 +553,15 @@ public class GenerateBoardRequest
     public string Prompt { get; set; } = string.Empty;
     public string BoardType { get; set; } = "pitch";  // problem, breadboard, fat-marker, risk, pitch
     public bool IsIntegrated { get; set; } = false;  // For integrated generation (step-by-step)
+    public bool UseMemorySearch { get; set; } = false;  // Whether to use memory search for Free Board
+}
+
+/// <summary>
+/// Request for summarizing a long prompt
+/// </summary>
+public class SummarizePromptRequest
+{
+    public string Prompt { get; set; } = string.Empty;
 }
 
 /// <summary>

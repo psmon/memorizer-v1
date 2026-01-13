@@ -260,9 +260,15 @@ Memory fragment reference feature improvements - Memory search by 3 keywords (0.
 
 ## Version 1.3.7
 
-ShapeUp SVG BOX feature addition - SVG vector image drawing (transparent background, border color/thickness adjustment), SVG icon library (arrows, users, cloud, server, database, etc.), SVG Content Editor modal (templates, real-time preview), memory search rules upgrade (search 3 per keyword then LLM selects top 3), PRD wireframe ShapeUp integration (auto-generate ShapeUp Free Board from PRD page), JSON parsing improvements (comment removal, multi-extraction strategies)
+ShapeUp SVG BOX feature addition - SVG vector image drawing (transparent background, border color/thickness adjustment), SVG icon library (arrows, users, cloud, server, database, etc.), SVG Content Editor modal (templates, real-time preview)
 
 - [ShapeUp-SVG-Add](44-shapeup-svg-add.md)
+
+## Version 1.3.8
+
+ShapeUp LLM improvement - Memory search rules upgrade (3 per keyword with LLM top 3 selection for both PRDMaker and ShapeUp), PRD wireframe ShapeUp integration (navigate to ShapeUp Free Board with auto prompt), prompt summarization for over 2000 characters, memory search option checkbox, text overlap prevention improvements
+
+- [ShapeUp-LLM-Improve](45-shapeup-llm-improve.md)
 
 ## Claude Cli Setting: Use for Vibe Coding
 
