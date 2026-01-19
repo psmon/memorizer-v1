@@ -2001,14 +2001,207 @@ function createConnection(from, to, label) {
 // ============================================================================
 // Share Functionality
 // ============================================================================
+
+/**
+ * Collect all text objects from canvas (including nested in groups)
+ */
+function collectCanvasTextObjects() {
+    if (!canvas) return [];
+
+    const textObjects = [];
+
+    function collectFromObjects(objects) {
+        objects.forEach(obj => {
+            if (obj.type === 'i-text' || obj.type === 'text' || obj.type === 'textbox') {
+                const text = (obj.text || '').trim();
+                if (text && text.length > 0) {
+                    textObjects.push({
+                        text: text,
+                        fontSize: obj.fontSize || 14,
+                        top: obj.top || 0,
+                        left: obj.left || 0,
+                        fontWeight: obj.fontWeight || 'normal'
+                    });
+                }
+            } else if (obj.type === 'group' && obj._objects) {
+                collectFromObjects(obj._objects);
+            }
+        });
+    }
+
+    collectFromObjects(canvas.getObjects());
+    return textObjects;
+}
+
+/**
+ * Extract title from canvas Text elements when no prompt is available
+ * Finds the most prominent text (largest font size or first text) to use as title
+ */
+function extractTitleFromCanvas() {
+    const textObjects = collectCanvasTextObjects();
+    if (textObjects.length === 0) return null;
+
+    // Sort by: 1) bold/larger font first, 2) top position (higher = earlier)
+    const sorted = [...textObjects].sort((a, b) => {
+        // Bold text gets priority
+        const aIsBold = a.fontWeight === 'bold' ? 1 : 0;
+        const bIsBold = b.fontWeight === 'bold' ? 1 : 0;
+        if (aIsBold !== bIsBold) return bIsBold - aIsBold;
+
+        // Larger font size gets priority
+        if (a.fontSize !== b.fontSize) return b.fontSize - a.fontSize;
+
+        // Higher position (smaller top) gets priority
+        return a.top - b.top;
+    });
+
+    // Get the most prominent text
+    let title = sorted[0].text;
+
+    // Clean up the title
+    title = title
+        .split('\n')[0]  // Take only first line
+        .replace(/^[•\-✗✓○●]\s*/, '')  // Remove list markers
+        .replace(/^\d+\.\s*/, '')  // Remove number prefixes
+        .trim();
+
+    // Limit to 30 characters
+    if (title.length > 30) {
+        title = title.substring(0, 27) + '...';
+    }
+
+    return title || null;
+}
+
+/**
+ * Extract description/summary from canvas Text elements when no prompt is available
+ * Combines multiple text elements to create a meaningful description
+ * @param {string|null} excludeTitle - Title text to exclude from description
+ */
+function extractDescriptionFromCanvas(excludeTitle = null) {
+    const textObjects = collectCanvasTextObjects();
+    if (textObjects.length === 0) return null;
+
+    // Normalize title for comparison
+    const normalizedExcludeTitle = excludeTitle ? excludeTitle.toLowerCase().replace(/\.{3}$/, '') : null;
+
+    // Sort by position: top to bottom, left to right
+    const sorted = [...textObjects].sort((a, b) => {
+        if (Math.abs(a.top - b.top) > 20) return a.top - b.top;
+        return a.left - b.left;
+    });
+
+    // Collect unique text snippets (avoid duplicates)
+    const seen = new Set();
+    const snippets = [];
+
+    for (const obj of sorted) {
+        // Clean up text
+        let text = obj.text
+            .split('\n')[0]  // Take first line only
+            .replace(/^[•\-✗✓○●]\s*/, '')  // Remove list markers
+            .replace(/^\d+\.\s*/, '')  // Remove number prefixes
+            .trim();
+
+        // Skip empty, very short, or placeholder texts
+        if (!text || text.length < 3) continue;
+        if (text.startsWith('[') && text.endsWith(']')) continue;  // Skip placeholders like [content]
+
+        // Skip duplicates
+        const normalized = text.toLowerCase();
+        if (seen.has(normalized)) continue;
+
+        // Skip if this text matches the title (to avoid duplicate title in description)
+        if (normalizedExcludeTitle && normalized.startsWith(normalizedExcludeTitle)) continue;
+
+        seen.add(normalized);
+        snippets.push(text);
+
+        // Limit to first 5 unique snippets
+        if (snippets.length >= 5) break;
+    }
+
+    if (snippets.length === 0) return null;
+
+    // Join snippets with separator
+    let description = snippets.join(' | ');
+
+    // Limit to 150 characters
+    if (description.length > 150) {
+        description = description.substring(0, 147) + '...';
+    }
+
+    return description;
+}
+
+/**
+ * Extract all canvas text as a single string for LLM processing
+ * Combines all text elements up to 500 characters
+ */
+function extractCanvasTextForLLM() {
+    const textObjects = collectCanvasTextObjects();
+    if (textObjects.length === 0) return '';
+
+    // Sort by position: top to bottom, left to right
+    const sorted = [...textObjects].sort((a, b) => {
+        if (Math.abs(a.top - b.top) > 20) return a.top - b.top;
+        return a.left - b.left;
+    });
+
+    // Collect unique text snippets up to 500 chars total
+    const seen = new Set();
+    const snippets = [];
+    let totalLength = 0;
+    const MAX_LENGTH = 500;
+
+    for (const obj of sorted) {
+        // Use full text (not just first line)
+        let text = obj.text
+            .replace(/^[•\-✗✓○●]\s*/gm, '')  // Remove list markers
+            .replace(/^\d+\.\s*/gm, '')  // Remove number prefixes
+            .trim();
+
+        if (!text || text.length < 2) continue;
+        if (text.startsWith('[') && text.endsWith(']')) continue;
+
+        // Skip duplicates
+        const normalized = text.toLowerCase();
+        if (seen.has(normalized)) continue;
+        seen.add(normalized);
+
+        // Check if adding this text exceeds limit
+        if (totalLength + text.length + 1 > MAX_LENGTH) {
+            // Add partial text if there's room
+            const remaining = MAX_LENGTH - totalLength - 1;
+            if (remaining > 20) {
+                snippets.push(text.substring(0, remaining) + '...');
+            }
+            break;
+        }
+
+        snippets.push(text);
+        totalLength += text.length + 1;  // +1 for newline
+    }
+
+    return snippets.join('\n');
+}
+
 async function shareBoard() {
     const boardData = JSON.stringify(canvas.toJSON());
     const prompt = document.getElementById('ai-prompt').value.trim();
 
+    // Show progress indicator
+    showProgress('공유 링크 생성 중...');
+
     try {
-        // Generate title
+        // Generate title and description using LLM
         let title = 'Shape Up Board';
+        let description = '';  // Used as originalPrompt for summary display
+
         if (prompt) {
+            // Use LLM to generate title from prompt
+            showProgress('제목 생성 중...');
+            description = prompt;  // Use prompt as description
             try {
                 const titleResponse = await fetch('/api/shapeup/generate-title', {
                     method: 'POST',
@@ -2020,7 +2213,32 @@ async function shareBoard() {
                     title = titleData.title || 'Shape Up Board';
                 }
             } catch (e) {}
+        } else {
+            // No prompt - use LLM to generate title and description from canvas text
+            const canvasText = extractCanvasTextForLLM();
+            if (canvasText) {
+                showProgress('제목 및 설명 생성 중...');
+                try {
+                    const metadataResponse = await fetch('/api/shapeup/generate-metadata', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ canvasText })
+                    });
+                    if (metadataResponse.ok) {
+                        const metadata = await metadataResponse.json();
+                        title = metadata.title || 'Shape Up Board';
+                        description = metadata.description || '';
+                    }
+                } catch (e) {
+                    console.error('Metadata generation failed:', e);
+                    // Fallback to local extraction
+                    title = extractTitleFromCanvas() || 'Shape Up Board';
+                    description = extractDescriptionFromCanvas(title) || '';
+                }
+            }
         }
+
+        showProgress('공유 링크 저장 중...');
 
         document.getElementById('share-title').value = title;
 
@@ -2032,7 +2250,7 @@ async function shareBoard() {
                 title,
                 boardData,
                 boardType: document.getElementById('board-type').value,
-                originalPrompt: prompt
+                originalPrompt: description  // Use extracted description when no prompt
             })
         });
 
@@ -2042,8 +2260,10 @@ async function shareBoard() {
         currentShareUrl = `${window.location.origin}/ui/shapeup/share/${data.shortCode}`;
         document.getElementById('share-url').value = currentShareUrl;
 
+        hideProgress();
         new bootstrap.Modal(document.getElementById('shareModal')).show();
     } catch (error) {
+        hideProgress();
         console.error('Share error:', error);
         alert('Failed to create share link.');
     }

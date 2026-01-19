@@ -378,12 +378,53 @@ fullstack-ui 스킬을 참고해 커스텀 SVG 도형을 추가해줘.
 ```
 fullstack-ui 스킬을 참고해 AI 콘텐츠 생성에 메모리 검색을 연동해줘.
 - 프롬프트에서 3개 키워드 추출
-- 각 키워드별 유사 메모리 3개씩 검색
+- 각 키워드별 유사 메모리 3개씩 검색 (총 최대 9개)
 - LLM 배치 평가로 최적 3개 선택
 - SSE phase 이벤트로 진행 상황 표시
 ```
 
-### 13. 전체 스킬 활용 (대규모 기능)
+### 13. 공유 페이지 캔버스 뷰어
+
+```
+fullstack-ui 스킬을 참고해 공유 페이지에 캔버스 뷰어를 구현해줘.
+- 읽기 전용 Fabric.js 캔버스
+- 마우스 휠 줌 (Container 레벨 이벤트, passive: false)
+- Pan 모드 (손바닥 아이콘, 드래그로 이동)
+- Edit 버튼 → /ui/shapeup으로 편집 모드 전환
+- PNG/SVG 내보내기
+```
+
+### 14. 프롬프트 요약 기능
+
+```
+fullstack-ui 스킬을 참고해 긴 프롬프트 요약 기능을 추가해줘.
+- 2000자 초과 시 LLM으로 요약
+- 핵심 기능, 화면 구성, 사용자 흐름 유지
+- 불필요한 설명, 중복 내용 제거
+- 토스트 팝업으로 요약 완료 알림
+```
+
+### 15. 요소 복사/붙여넣기 기능
+
+```
+fullstack-ui 스킬을 참고해 캔버스 요소 복사/붙여넣기를 구현해줘.
+- Ctrl+C/V로 복사/붙여넣기
+- 그룹 요소도 그룹 유지한 채로 복사
+- 복제 시 우측으로 오프셋 (겹침 방지)
+- 커스텀 속성 유지 (customType, connectedArrows 등)
+```
+
+### 16. 비AI 생성 시 제목/설명 자동 생성
+
+```
+fullstack-ui 스킬을 참고해 비AI 생성 보드 공유 시 제목/설명 자동 생성해줘.
+- 캔버스 텍스트 요소에서 내용 추출 (최대 500자)
+- LLM으로 Title(30자 이하)과 Description 생성
+- Share 버튼 클릭 시 프로그레스 표시
+- "No description available" 방지
+```
+
+### 17. 전체 스킬 활용 (대규모 기능)
 
 ```
 다음 스킬들을 모두 활용해 "지식 그래프 시각화" 기능을 구현해줘:
@@ -411,11 +452,13 @@ fullstack-ui 스킬을 참고해 AI 콘텐츠 생성에 메모리 검색을 연�
 | 새 UI 페이지 | project-convention + fullstack-ui |
 | 데이터 모델 변경 | db-migration + project-convention |
 | AI 기능 추가 | llm-api + actor-model |
-| 검색 기능 개선 | embedding-service + graph-db |
+| 검색 기능 개선 | embedding-service + graph-db + llm-api (배치 평가) |
 | 외부 도구 연동 | mcp-tools + project-convention |
 | 이미지 처리 | multimodal-service + actor-model |
 | 화이트보드/다이어그램 | fullstack-ui (ShapeUp 패턴) + llm-api |
 | AI 생성 + 메모리 연동 | fullstack-ui + embedding-service + llm-api |
+| 공유 페이지 뷰어 | fullstack-ui (캔버스 뷰어 패턴) |
+| 긴 프롬프트 처리 | fullstack-ui (요약 기능) + llm-api |
 
 ### 스킬 선택 플로우차트
 
@@ -429,7 +472,7 @@ MCP 도구 추가? → Yes → mcp-tools
 이미지 처리 필요? → Yes → multimodal-service
     ↓ No
 벡터 검색 필요? → Yes → embedding-service
-    ↓ No
+    ↓ No                    + 배치 평가 → llm-api
 LLM 호출 필요? → Yes → llm-api
     ↓ No
 비동기/상태 관리? → Yes → actor-model
@@ -437,6 +480,10 @@ LLM 호출 필요? → Yes → llm-api
 그래프 관계 조회? → Yes → graph-db
     ↓ No
 화이트보드/다이어그램? → Yes → fullstack-ui (ShapeUp 패턴)
+    ↓ No
+공유 페이지 뷰어? → Yes → fullstack-ui (캔버스 뷰어 패턴)
+    ↓ No
+긴 프롬프트 처리? → Yes → fullstack-ui (요약 기능)
     ↓ No
 UI 페이지 추가? → Yes → fullstack-ui
     ↓

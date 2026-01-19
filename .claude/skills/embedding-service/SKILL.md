@@ -316,6 +316,116 @@ public async Task<List<Memory>> SearchWithFallback(string query, double minSimil
 }
 ```
 
+## AI 생성 시 메모리 검색 통합 패턴
+
+### 개선된 검색 규칙 (3×3 → LLM 평가 → 최종 3개)
+
+AI 기반 콘텐츠 생성 시 관련 메모리를 더 효과적으로 검색하고 활용하는 패턴:
+
+```
+기존: 키워드 3개 × 유사도 1위 1개 = 3개 후보 → 적합성 검토
+개선: 키워드 3개 × 유사도 상위 3개 = 9개 후보 → LLM 배치 평가 → 최종 3개 선택
+```
+
+### IStorage.Search 활용
+
+```csharp
+// 키워드당 상위 3개 검색 (총 최대 9개)
+foreach (var keyword in keywords)
+{
+    var memories = await _storage.Search(
+        keyword,
+        limit: 3,           // 키워드당 3개
+        minSimilarity: 0.3, // 최소 유사도 임계값
+        cancellationToken: ct
+    );
+
+    foreach (var memory in memories)
+    {
+        // 중복 제거 (다른 키워드로 이미 검색된 경우)
+        if (foundIds.Contains(memory.Id)) continue;
+        foundIds.Add(memory.Id);
+
+        // 유사도 변환 (코사인 거리 → 유사도)
+        var similarity = memory.Similarity.HasValue ? 1 - memory.Similarity.Value : 0;
+        candidates.Add((memory.Id, memory.Title, memory.Text, keyword, similarity));
+    }
+}
+```
+
+### LLM 배치 평가로 최종 선택
+
+```csharp
+// 9개 후보를 LLM에게 평가 요청, 최적 3개 선택
+var batchPrompt = $@"다음 사용자 요청에 가장 관련성이 높은 참고자료 번호를 최대 3개까지 선택하세요.
+
+## 사용자 요청
+{userPrompt}
+
+## 후보 참고자료
+{candidateList}
+
+선택 (쉼표 구분):";
+
+var selectionResult = await _llmExService.CompleteAsync(batchPrompt);
+var selectedIndices = ParseSelectedIndices(selectionResult);
+
+// 최종 선택된 메모리만 사용
+foreach (var idx in selectedIndices.Take(3))
+{
+    usefulMemories.Add(candidates[idx - 1]);
+}
+```
+
+### 메모리 검색 옵션 UI
+
+```javascript
+// 메모리 검색 여부 체크박스 (기본값: 미사용)
+<label>
+    <input type="checkbox" id="use-memory-search" />
+    메모리 검색 활용
+</label>
+
+// 생성 요청 시
+const useMemorySearch = document.getElementById('use-memory-search').checked;
+fetch('/api/shapeup/generate', {
+    method: 'POST',
+    body: JSON.stringify({ prompt, useMemorySearch })
+});
+```
+
+### SSE Phase 이벤트로 진행 상황 표시
+
+```javascript
+// 클라이언트에서 Phase 이벤트 처리
+eventSource.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    // 단계별 진행 상황
+    if (data.phase) {
+        switch (data.phase) {
+            case 'extracting':
+                showProgress('키워드 추출 중...');
+                break;
+            case 'searching':
+                showProgress('메모리 검색 중...');
+                break;
+            case 'evaluating':
+                showProgress('적합성 평가 중...');
+                break;
+            case 'generating':
+                showProgress('생성 중...');
+                break;
+        }
+    }
+
+    // 메모리 검색 결과 알림
+    if (data.memory_found) {
+        showToast('info', `${data.searchedCount}개 검색, ${data.adoptedCount}개 참고`);
+    }
+};
+```
+
 ## 주의사항
 
 1. **벡터 차원**: 모델과 DB 스키마의 차원 일치 필수 (기본 384)
@@ -323,3 +433,4 @@ public async Task<List<Memory>> SearchWithFallback(string query, double minSimil
 3. **인덱스 최적화**: 대용량 데이터는 IVFFlat 인덱스 사용
 4. **메모리 사용**: 임베딩 배열은 메모리 소비가 큼
 5. **타임아웃**: 임베딩 생성은 시간이 걸릴 수 있음
+6. **검색 최적화**: 키워드당 3개씩 검색 후 LLM 배치 평가로 최적 선택

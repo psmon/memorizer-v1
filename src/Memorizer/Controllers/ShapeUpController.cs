@@ -371,6 +371,73 @@ public class ShapeUpController : ControllerBase
     }
 
     /// <summary>
+    /// Generate title and description from canvas text elements using LLM
+    /// Used when no AI prompt is available (manual board creation)
+    /// </summary>
+    [HttpPost("generate-metadata")]
+    public async Task<ActionResult> GenerateMetadata([FromBody] GenerateMetadataRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(request.CanvasText))
+            {
+                return Ok(new { title = "Shape Up Board", description = "" });
+            }
+
+            var llmPrompt = $@"다음은 화이트보드에 작성된 텍스트 요소들입니다. 이 내용을 분석하여 제목과 설명을 생성해주세요.
+
+## 화이트보드 텍스트
+{request.CanvasText.Substring(0, Math.Min(request.CanvasText.Length, 500))}
+
+## 규칙
+1. 제목(title): 핵심 주제를 요약한 30자 이내의 제목
+2. 설명(description): 보드 내용을 요약한 100자 이내의 설명
+
+## 출력 형식 (JSON)
+{{""title"": ""제목"", ""description"": ""설명""}}
+
+JSON:";
+
+            var response = await _llmService.CompleteAsync(llmPrompt);
+
+            // Parse JSON response
+            try
+            {
+                // Clean up response - extract JSON
+                var jsonStart = response.IndexOf('{');
+                var jsonEnd = response.LastIndexOf('}');
+                if (jsonStart >= 0 && jsonEnd > jsonStart)
+                {
+                    var jsonStr = response.Substring(jsonStart, jsonEnd - jsonStart + 1);
+                    var result = System.Text.Json.JsonSerializer.Deserialize<GenerateMetadataResponse>(jsonStr);
+
+                    var title = result?.Title ?? "Shape Up Board";
+                    var description = result?.Description ?? "";
+
+                    // Ensure limits
+                    if (title.Length > 30) title = title.Substring(0, 27) + "...";
+                    if (description.Length > 100) description = description.Substring(0, 97) + "...";
+
+                    _logger.LogInformation("Generated metadata - Title: {Title}, Description: {Description}", title, description);
+                    return Ok(new { title, description });
+                }
+            }
+            catch (System.Text.Json.JsonException)
+            {
+                _logger.LogWarning("Failed to parse LLM JSON response: {Response}", response);
+            }
+
+            // Fallback: return default values
+            return Ok(new { title = "Shape Up Board", description = "" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating metadata");
+            return Ok(new { title = "Shape Up Board", description = "" });
+        }
+    }
+
+    /// <summary>
     /// Share Shape Up board
     /// </summary>
     [HttpPost("share")]
@@ -570,6 +637,26 @@ public class SummarizePromptRequest
 public class GenerateShapeUpTitleRequest
 {
     public string Prompt { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Request for generating metadata (title + description) from canvas text
+/// </summary>
+public class GenerateMetadataRequest
+{
+    public string CanvasText { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Response for generate-metadata API
+/// </summary>
+public class GenerateMetadataResponse
+{
+    [System.Text.Json.Serialization.JsonPropertyName("title")]
+    public string Title { get; set; } = string.Empty;
+
+    [System.Text.Json.Serialization.JsonPropertyName("description")]
+    public string Description { get; set; } = string.Empty;
 }
 
 /// <summary>

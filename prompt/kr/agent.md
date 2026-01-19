@@ -79,6 +79,19 @@
 - src/Memorizer/wwwroot/js/shapeup.js - checkEditMode(), copySelected(), pasteSelected(), toggleBoardTemplatesPanel()
 - src/Memorizer/wwwroot/css/shapeup.css - 편집 도구 패널 독립 스크롤 스타일
 
+## ShapeUp 공유 UX 개선 (v47 추가)
+- AI 생성 없이 Share 시 LLM을 통한 제목/설명 자동 생성 (POST /api/shapeup/generate-metadata)
+- 캔버스 텍스트 추출 → LLM이 분석하여 title(30자), description(100자) 생성
+- 공유 페이지 Pan(이동) 기능: 기본 활성화, 왼쪽 마우스 드래그로 캔버스 이동 가능
+- 공유 페이지 손바닥(Pan) 버튼 추가로 이동 모드 토글 가능
+- 마우스 휠로 확대/축소 기능 (container 레벨 이벤트 바인딩으로 브라우저 스크롤 방지)
+- CSS: touch-action: none, overscroll-behavior: contain 적용
 
-마지막 자동수정일시분 : 2026-01-14 00:00:00
-마지막 버전 반영 : 46
+## 주요 파일 (v47 관련)
+- src/Memorizer/Controllers/ShapeUpController.cs - GenerateMetadata API, GenerateMetadataRequest/Response 클래스
+- src/Memorizer/Views/ShapeUpView/Share.cshtml - Pan 버튼, container 레벨 드래그/휠 이벤트, 마우스 휠 줌
+- src/Memorizer/wwwroot/js/shapeup-templates.js - extractCanvasTextForLLM(), shareBoard() LLM 메타데이터 생성
+
+
+마지막 자동수정일시분 : 2026-01-15 00:00:00
+마지막 버전 반영 : 47

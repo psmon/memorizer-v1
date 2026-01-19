@@ -276,6 +276,12 @@ ShapeUp share page improvements - Edit button on share view page to navigate to 
 
 - [ShapeUp-Share-Improve](46-shapeup-share-improve.md)
 
+## Version 1.4.0
+
+ShapeUp share UX improvements - LLM-based auto title/description generation for non-AI boards (POST /api/shapeup/generate-metadata, extracts canvas text up to 500 chars), share page pan functionality (default enabled, left mouse drag to move canvas), hand (pan) button toggle, mouse wheel zoom (container-level event binding to prevent browser scroll), CSS touch-action: none and overscroll-behavior: contain applied, progress indicator during share link generation
+
+- [ShapeUp-Share-UX](47-shapeup-share-ux.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

@@ -67,6 +67,9 @@
             position: relative;
             overflow: hidden;
             background: #e9ecef;
+            /* Prevent browser scroll when interacting with canvas */
+            touch-action: none;
+            overscroll-behavior: contain;
         }
 
         #shapeup-canvas {
@@ -103,6 +106,12 @@
 
         .canvas-control-btn:hover {
             background: #f8f9fa;
+        }
+
+        .canvas-control-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
         }
 
         .zoom-level {
@@ -270,6 +279,9 @@
 
         <!-- Canvas Controls -->
         <div class="canvas-controls" style="display: none;" id="canvas-controls">
+            <button class="canvas-control-btn active" id="btn-pan" onclick="togglePanMode()" title="Pan (Drag to move)">
+                <i class="fas fa-hand-paper"></i>
+            </button>
             <button class="canvas-control-btn" onclick="zoomIn()" title="Zoom In">
                 <i class="fas fa-plus"></i>
             </button>
@@ -341,6 +353,11 @@
         let currentBoardData = null;
         let currentOriginalPrompt = null;
 
+        // Pan mode state (enabled by default for read-only share page)
+        let isPanModeEnabled = true;
+        let isPanning = false;
+        let lastPosX, lastPosY;
+
         document.addEventListener('DOMContentLoaded', function() {
             loadSharedBoard();
         });
@@ -400,45 +417,48 @@
                 selection: false
             });
 
-            // Mouse wheel zoom
-            canvas.on('mouse:wheel', function(opt) {
-                const delta = opt.e.deltaY;
-                let zoom = canvas.getZoom();
-                zoom *= 0.999 ** delta;
-                if (zoom > 5) zoom = 5;
-                if (zoom < 0.1) zoom = 0.1;
-                canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-                zoomLevel = zoom;
-                updateZoomDisplay();
-                opt.e.preventDefault();
-                opt.e.stopPropagation();
-            });
+            // Set initial cursor for pan mode
+            container.style.cursor = 'grab';
 
-            // Pan with middle mouse or alt+drag
-            let isPanning = false;
-            let lastPosX, lastPosY;
-
-            canvas.on('mouse:down', function(opt) {
-                if (opt.e.altKey || opt.e.button === 1) {
+            // Pan with mouse drag at container level (more reliable than Fabric.js events)
+            container.addEventListener('mousedown', function(e) {
+                // Pan with: 1) Pan mode enabled + left click, 2) Alt+drag, 3) Middle mouse
+                if ((isPanModeEnabled && e.button === 0) || e.altKey || e.button === 1) {
                     isPanning = true;
-                    lastPosX = opt.e.clientX;
-                    lastPosY = opt.e.clientY;
+                    lastPosX = e.clientX;
+                    lastPosY = e.clientY;
+                    container.style.cursor = 'grabbing';
+                    e.preventDefault();
                 }
             });
 
-            canvas.on('mouse:move', function(opt) {
+            container.addEventListener('mousemove', function(e) {
                 if (isPanning) {
                     const vpt = canvas.viewportTransform;
-                    vpt[4] += opt.e.clientX - lastPosX;
-                    vpt[5] += opt.e.clientY - lastPosY;
+                    vpt[4] += e.clientX - lastPosX;
+                    vpt[5] += e.clientY - lastPosY;
                     canvas.requestRenderAll();
-                    lastPosX = opt.e.clientX;
-                    lastPosY = opt.e.clientY;
+                    lastPosX = e.clientX;
+                    lastPosY = e.clientY;
                 }
             });
 
-            canvas.on('mouse:up', function() {
+            container.addEventListener('mouseup', function() {
                 isPanning = false;
+                if (isPanModeEnabled) {
+                    container.style.cursor = 'grab';
+                } else {
+                    container.style.cursor = 'default';
+                }
+            });
+
+            container.addEventListener('mouseleave', function() {
+                isPanning = false;
+                if (isPanModeEnabled) {
+                    container.style.cursor = 'grab';
+                } else {
+                    container.style.cursor = 'default';
+                }
             });
 
             // Resize handler
@@ -447,6 +467,48 @@
                 canvas.setHeight(container.clientHeight);
                 canvas.renderAll();
             });
+
+            // Prevent browser scroll on canvas container - capture wheel at container level
+            container.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Handle zoom
+                const delta = e.deltaY;
+                let zoom = canvas.getZoom();
+                zoom *= 0.999 ** delta;
+                if (zoom > 5) zoom = 5;
+                if (zoom < 0.1) zoom = 0.1;
+
+                // Get pointer position relative to canvas
+                const rect = container.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                canvas.zoomToPoint({ x: x, y: y }, zoom);
+                zoomLevel = zoom;
+                updateZoomDisplay();
+            }, { passive: false });
+
+            // Prevent context menu on canvas
+            container.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+            });
+        }
+
+        // Toggle pan mode
+        function togglePanMode() {
+            isPanModeEnabled = !isPanModeEnabled;
+            const btn = document.getElementById('btn-pan');
+            const container = document.getElementById('canvas-container');
+
+            if (isPanModeEnabled) {
+                btn.classList.add('active');
+                container.style.cursor = 'grab';
+            } else {
+                btn.classList.remove('active');
+                container.style.cursor = 'default';
+            }
         }
 
         function loadCanvasData(boardDataStr) {

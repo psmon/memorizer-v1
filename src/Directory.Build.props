@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.3.9</VersionPrefix>
+    <VersionPrefix>1.4.0</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [ShapeUp Share Improve - Edit button on share view page with canvas data load, prompt collapsible UI with copy, SVG Icons/Board Templates no auto-close, tool panel reorder, Ctrl+C/V copy-paste with group support, independent tool panel scrolling]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [ShapeUp Share UX - LLM-based auto title/description generation for non-AI boards, share page pan functionality with mouse wheel zoom, progress indicator during share]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

@@ -705,6 +705,274 @@ function checkPrdWireframeMode() {
 }
 ```
 
+### 프롬프트 요약 기능 (2000자 초과 시)
+
+```javascript
+// 프롬프트 길이 체크 및 요약
+async function checkAndSummarizePrompt(prompt, maxLength = 2000) {
+    if (prompt.length <= maxLength) {
+        return { prompt, wasSummarized: false };
+    }
+
+    // 요약 API 호출
+    const response = await fetch('/api/shapeup/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt })
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to summarize prompt');
+    }
+
+    const data = await response.json();
+    showToast('info', '프롬프트 요약', '2000자 초과로 핵심 내용만 요약되었습니다.');
+    return { prompt: data.summary, wasSummarized: true };
+}
+```
+
+```csharp
+// 서버 측 요약 프롬프트 (핵심 기능, 화면 구성, 사용자 흐름 유지)
+public static string GetWireframeSummarizationPrompt(string originalPrompt) => $@"
+다음 텍스트를 와이어프레임 생성에 적합하게 2000자 이하로 요약하세요.
+
+## 유지해야 할 내용
+- 핵심 기능 및 목적
+- 화면 구성 요소 (버튼, 입력필드, 섹션 등)
+- 사용자 흐름 및 상호작용
+- 레이아웃 관련 요구사항
+
+## 제거해도 되는 내용
+- 불필요한 설명 및 배경
+- 중복된 내용
+- 세부 구현 사항
+
+## 원본:
+{originalPrompt}
+
+## 요약:";
+```
+
+### 공유 페이지 캔버스 뷰어 패턴
+
+```javascript
+// Share 페이지 초기화 (읽기 전용, Pan 모드 기본 활성화)
+let isPanModeEnabled = true;
+let isPanning = false;
+let lastPosX, lastPosY;
+
+function initCanvasViewer() {
+    const container = document.getElementById('canvas-container');
+
+    canvas = new fabric.Canvas('shapeup-canvas', {
+        width: container.clientWidth,
+        height: container.clientHeight,
+        backgroundColor: '#f8f9fa',
+        selection: false  // 읽기 전용
+    });
+
+    // Pan 모드 기본 활성화
+    container.style.cursor = 'grab';
+
+    // 마우스 드래그로 Pan (Container 레벨에서 처리)
+    container.addEventListener('mousedown', function(e) {
+        if ((isPanModeEnabled && e.button === 0) || e.altKey || e.button === 1) {
+            isPanning = true;
+            lastPosX = e.clientX;
+            lastPosY = e.clientY;
+            container.style.cursor = 'grabbing';
+            e.preventDefault();
+        }
+    });
+
+    container.addEventListener('mousemove', function(e) {
+        if (isPanning) {
+            const vpt = canvas.viewportTransform;
+            vpt[4] += e.clientX - lastPosX;
+            vpt[5] += e.clientY - lastPosY;
+            canvas.requestRenderAll();
+            lastPosX = e.clientX;
+            lastPosY = e.clientY;
+        }
+    });
+
+    container.addEventListener('mouseup', () => {
+        isPanning = false;
+        container.style.cursor = isPanModeEnabled ? 'grab' : 'default';
+    });
+
+    // 마우스 휠 줌 (Container 레벨에서 처리 - passive: false)
+    container.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        let zoom = canvas.getZoom() * (0.999 ** e.deltaY);
+        zoom = Math.max(0.1, Math.min(5, zoom));
+
+        const rect = container.getBoundingClientRect();
+        canvas.zoomToPoint({ x: e.clientX - rect.left, y: e.clientY - rect.top }, zoom);
+        updateZoomDisplay();
+    }, { passive: false });
+}
+```
+
+### 프롬프트 펼치기/접기 UI 패턴
+
+```html
+<!-- 프롬프트 섹션 (기본 접힘) -->
+<div class="prompt-section collapsed" id="prompt-section" style="display: none;">
+    <div class="prompt-section-header" onclick="togglePromptSection()">
+        <span class="prompt-section-title">
+            <i class="fas fa-lightbulb me-2"></i>Original Prompt
+        </span>
+        <div class="prompt-section-actions">
+            <button class="btn-prompt-action" onclick="copyPrompt(event)">
+                <i class="fas fa-copy"></i>
+            </button>
+            <i class="fas fa-chevron-down prompt-chevron"></i>
+        </div>
+    </div>
+    <div class="prompt-section-body">
+        <pre class="prompt-text" id="prompt-text"></pre>
+    </div>
+</div>
+
+<style>
+.prompt-section.collapsed .prompt-section-body {
+    max-height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+.prompt-section:not(.collapsed) .prompt-chevron {
+    transform: rotate(180deg);
+}
+</style>
+
+<script>
+function initPromptSection(originalPrompt) {
+    const section = document.getElementById('prompt-section');
+    if (originalPrompt && originalPrompt.trim()) {
+        document.getElementById('prompt-text').textContent = originalPrompt;
+        section.style.display = 'block';
+    }
+}
+
+function togglePromptSection() {
+    document.getElementById('prompt-section').classList.toggle('collapsed');
+}
+
+function copyPrompt(event) {
+    event.stopPropagation();
+    navigator.clipboard.writeText(document.getElementById('prompt-text').textContent);
+    // 성공 피드백 표시
+}
+</script>
+```
+
+### 요소 복사/붙여넣기 패턴 (Ctrl+C, Ctrl+V)
+
+```javascript
+let clipboard = null;
+
+// 복사 (Ctrl+C)
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'c' && !e.target.matches('input, textarea')) {
+        const activeObj = canvas.getActiveObject();
+        if (activeObj) {
+            activeObj.clone(function(cloned) {
+                clipboard = cloned;
+            }, ['customType', 'connectedArrows', 'startShape', 'endShape']);
+        }
+    }
+});
+
+// 붙여넣기 (Ctrl+V) - 우측으로 오프셋하여 겹침 방지
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey && e.key === 'v' && !e.target.matches('input, textarea')) {
+        if (!clipboard) return;
+
+        clipboard.clone(function(cloned) {
+            canvas.discardActiveObject();
+
+            // 그룹인 경우 내부 객체들도 처리
+            if (cloned.type === 'group') {
+                cloned.set({
+                    left: cloned.left + 30,  // 우측 오프셋
+                    top: cloned.top + 30,
+                    evented: true
+                });
+            } else {
+                cloned.set({
+                    left: cloned.left + 30,
+                    top: cloned.top + 30,
+                    evented: true
+                });
+            }
+
+            canvas.add(cloned);
+            canvas.setActiveObject(cloned);
+            canvas.requestRenderAll();
+        }, ['customType', 'connectedArrows', 'startShape', 'endShape']);
+    }
+});
+```
+
+### 비AI 생성 시 Title/Description 자동 생성 패턴
+
+```javascript
+// Share 시 Title/Description 없으면 LLM 생성
+async function shareBoard() {
+    const boardData = getCanvasBoardData();
+
+    // 캔버스에서 텍스트 요소 추출 (최대 500자)
+    const textElements = canvas.getObjects()
+        .filter(obj => obj.type === 'i-text' || obj.type === 'textbox')
+        .map(obj => obj.text)
+        .filter(text => text && text.trim())
+        .join(' ')
+        .substring(0, 500);
+
+    let title = currentTitle;
+    let description = currentDescription;
+
+    // AI 생성이 아니고 텍스트 요소가 있으면 LLM으로 생성
+    if (!title && textElements) {
+        showProgress('제목 생성 중...');
+        const response = await fetch('/api/shapeup/generate-title', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ textContent: textElements })
+        });
+        const data = await response.json();
+        title = data.title;
+        description = data.description;
+    }
+
+    // Share API 호출
+    await saveShare(boardData, title, description);
+}
+```
+
+```csharp
+// 서버 측 - 텍스트 기반 Title/Description 생성
+[HttpPost("generate-title")]
+public async Task<IActionResult> GenerateTitle([FromBody] GenerateTitleRequest request)
+{
+    var prompt = $@"다음 화이트보드 텍스트 내용을 바탕으로 제목과 설명을 생성하세요.
+
+내용: {request.TextContent}
+
+응답 형식 (JSON):
+{{
+  ""title"": ""간결한 제목 (30자 이하)"",
+  ""description"": ""2-3문장 설명""
+}}";
+
+    var result = await _llmService.CompleteAsync(prompt);
+    // JSON 파싱 후 반환
+}
+```
+
 ## 주의사항
 
 1. **SSE 버퍼링**: Nginx 사용 시 `X-Accel-Buffering: no` 필수
@@ -714,3 +982,5 @@ function checkPrdWireframeMode() {
 5. **에러 처리**: 스트리밍 중 에러 발생 시 사용자에게 알림
 6. **Fabric.js 커스텀 속성**: `toObject` 오버라이드로 공유/저장 시 커스텀 속성 보존
 7. **JSON 파싱**: LLM 응답에 주석이 포함될 수 있으므로 제거 후 파싱
+8. **Container 레벨 이벤트**: 공유 페이지 Wheel/Pan은 Canvas가 아닌 Container에서 처리 (`passive: false`)
+9. **프롬프트 요약**: 2000자 초과 시 핵심 기능/UI/흐름 유지하며 요약
