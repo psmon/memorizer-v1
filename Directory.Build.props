@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.4.0</VersionPrefix>
+    <VersionPrefix>1.4.1</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [ShapeUp Share UX - LLM-based auto title/description generation for non-AI boards, share page pan functionality with mouse wheel zoom, progress indicator during share]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [AskBot LLM-EX Upgrade - Full LLM-EX support for AskBot including reasoning process (SearchMemoryActor, DecisionActor), UI toggle switch, memory saving analysis option]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

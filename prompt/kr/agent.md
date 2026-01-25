@@ -92,6 +92,26 @@
 - src/Memorizer/Views/ShapeUpView/Share.cshtml - Pan 버튼, container 레벨 드래그/휠 이벤트, 마우스 휠 줌
 - src/Memorizer/wwwroot/js/shapeup-templates.js - extractCanvasTextForLLM(), shareBoard() LLM 메타데이터 생성
 
+## AskBot LLM-EX 업그레이드 (v48 추가)
+- AskBot에서 LLM-EX(고급 모델) 선택 옵션 추가
+- ui/askbot 헤더에 LLM-EX 토글 스위치 추가
+- ui/askbot/share 메모리 저장 시 LLM-EX 분석 옵션 추가
+- UserChatRequest에 UseExtendedModel 플래그 추가
+- ChatBotActor에 ILlmExService 지원 추가, 요청별로 LLM/LLM-EX 선택 가능
+- SaveMemoryRequest에 UseExtendedModel 플래그 추가
+- **추론 과정 LLM-EX 지원**: SearchMemoryActor, DecisionActor에도 ILlmExService 지원 추가
+  - 메모리 검색 필요 여부 판단, 쿼리 변환, 키워드 추출, 관련성 평가 등 모든 추론 과정에서 LLM-EX 사용 가능
+  - SearchMemoryRequest, AnalyzeQueryTypeRequest, MultiTopicSearchRequest, EvaluateRelevanceRequest에 UseExtendedModel 플래그 추가
 
-마지막 자동수정일시분 : 2026-01-15 00:00:00
-마지막 버전 반영 : 47
+## 주요 파일 (v48 관련)
+- src/Memorizer/Actors/ChatBotMessages.cs - UserChatRequest, SearchMemoryRequest, AnalyzeQueryTypeRequest, MultiTopicSearchRequest, EvaluateRelevanceRequest에 UseExtendedModel 속성 추가
+- src/Memorizer/Actors/ChatBotActor.cs - ILlmExService 주입, CompleteWithLlmAsync 헬퍼 메서드, 하위 액터 요청에 UseExtendedModel 전달
+- src/Memorizer/Actors/SearchMemoryActor.cs - ILlmExService 주입, CompleteWithLlmAsync 헬퍼 메서드, 모든 LLM 호출에서 UseExtendedModel 지원
+- src/Memorizer/Actors/DecisionActor.cs - ILlmExService 주입, CompleteWithLlmAsync 헬퍼 메서드, 관련성 평가에서 UseExtendedModel 지원
+- src/Memorizer/Controllers/AskBotController.cs - ILlmExService 주입, StreamingChatBotActor에 전달, SaveMemoryRequest에 UseExtendedModel
+- src/Memorizer/Views/AskBot/Index.cshtml - LLM-EX 토글 스위치 UI
+- src/Memorizer/Views/AskBot/Share.cshtml - 메모리 저장 시 LLM-EX 옵션
+
+
+마지막 자동수정일시분 : 2026-01-25 00:00:00
+마지막 버전 반영 : 48

@@ -15,6 +15,7 @@ public class ChatBotActor : ReceiveActor, IWithTimers
     private readonly IActorRef _searchMemoryActor;
     private readonly IActorRef _decisionActor;
     private readonly ILlmService _llmService;
+    private readonly ILlmExService? _llmExService;
     private readonly IMultiModalService? _multiModalService;
     private readonly ILoggingAdapter _logger;
 
@@ -33,6 +34,9 @@ public class ChatBotActor : ReceiveActor, IWithTimers
     private const int MaxConversationEntries = 10;
     private const int MaxShortTermMemoryLength = 500;
     private const int MaxLastResponseLength = 300;
+
+    // Current request state for UseExtendedModel tracking
+    protected bool _useExtendedModelForCurrentRequest = false;
 
     // Prompt for general responses with context
     private const string GeneralResponsePrompt = @"
@@ -65,12 +69,14 @@ Maintain conversation continuity and reference previous context when appropriate
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
         ILlmService llmService,
+        ILlmExService? llmExService = null,
         IMultiModalService? multiModalService = null)
     {
         _sessionId = sessionId;
         _searchMemoryActor = searchMemoryActor;
         _decisionActor = decisionActor;
         _llmService = llmService;
+        _llmExService = llmExService;
         _multiModalService = multiModalService;
         _logger = Context.GetLogger();
 
@@ -94,8 +100,11 @@ Maintain conversation continuity and reference previous context when appropriate
 
     private void HandleUserChatRequest(UserChatRequest request)
     {
-        _logger.Info("Processing chat request for session {0}: {1} (MultiModal: {2})",
-            request.SessionId, request.Message, request.IsMultiModal);
+        _logger.Info("Processing chat request for session {0}: {1} (MultiModal: {2}, ExtendedModel: {3})",
+            request.SessionId, request.Message, request.IsMultiModal, request.UseExtendedModel);
+
+        // Store UseExtendedModel state for current request
+        _useExtendedModelForCurrentRequest = request.UseExtendedModel;
 
         // Reset session timer on activity
         ResetSessionTimer();
@@ -132,7 +141,8 @@ Maintain conversation continuity and reference previous context when appropriate
             var analyzeRequest = new AnalyzeQueryTypeRequest
             {
                 Query = request.Message,
-                SessionId = request.SessionId
+                SessionId = request.SessionId,
+                UseExtendedModel = _useExtendedModelForCurrentRequest
             };
 
             // Store context for continuation
@@ -194,7 +204,8 @@ Maintain conversation continuity and reference previous context when appropriate
                 Query = originalRequest.Message,
                 SessionId = originalRequest.SessionId,
                 MaxResults = 5,
-                MinSimilarity = 0.3
+                MinSimilarity = 0.3,
+                UseExtendedModel = _useExtendedModelForCurrentRequest
             };
 
             Context.Become(WaitingForSearchResponse(originalRequest, originalSender));
@@ -211,7 +222,8 @@ Maintain conversation continuity and reference previous context when appropriate
                 SessionId = originalRequest.SessionId,
                 Topics = analysisResponse.Topics,
                 ResultsPerTopic = 1, // 1 result per topic
-                MinSimilarity = 0.3
+                MinSimilarity = 0.3,
+                UseExtendedModel = _useExtendedModelForCurrentRequest
             };
 
             Context.Become(WaitingForMultiTopicSearchResponse(originalRequest, originalSender));
@@ -306,7 +318,8 @@ Maintain conversation continuity and reference previous context when appropriate
             {
                 SessionId = originalRequest.SessionId,
                 Query = originalRequest.Message,
-                Memories = multiSearchResponse.AllMemories
+                Memories = multiSearchResponse.AllMemories,
+                UseExtendedModel = _useExtendedModelForCurrentRequest
             };
 
             Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
@@ -387,7 +400,8 @@ Maintain conversation continuity and reference previous context when appropriate
             {
                 SessionId = originalRequest.SessionId,
                 Query = originalRequest.Message,
-                Memories = searchResponse.Memories
+                Memories = searchResponse.Memories,
+                UseExtendedModel = _useExtendedModelForCurrentRequest
             };
 
             Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
@@ -518,8 +532,8 @@ Maintain conversation continuity and reference previous context when appropriate
                     var conversationContext = GenerateConversationContext();
                     var prompt = string.Format(MemoryBasedResponsePrompt, request.Message, memoriesText, conversationContext);
 
-                    // Generate response using LLM
-                    llmResponse = await _llmService.CompleteAsync(prompt);
+                    // Generate response using LLM (or LLM-EX if enabled)
+                    llmResponse = await CompleteWithLlmAsync(prompt);
                     usedMemoryIds = memoriesToUse.Select(m => m.Id).ToList();
 
                     AddReasoningStep($"Successfully generated response using {count} memory/memories.");
@@ -682,8 +696,8 @@ Maintain conversation continuity and reference previous context when appropriate
             var conversationContext = GenerateConversationContext();
             var prompt = string.Format(GeneralResponsePrompt, request.Message, conversationContext);
 
-            // Generate response using LLM
-            var llmResponse = await _llmService.CompleteAsync(prompt);
+            // Generate response using LLM (or LLM-EX if enabled)
+            var llmResponse = await CompleteWithLlmAsync(prompt);
 
             // Add to conversation history
             _conversationHistory.Add($"Assistant (general): {llmResponse}");
@@ -1075,14 +1089,31 @@ Extract only the most important information:";
         }
     }
 
+    /// <summary>
+    /// Complete prompt using appropriate LLM service based on UseExtendedModel flag
+    /// </summary>
+    protected async Task<string> CompleteWithLlmAsync(string prompt)
+    {
+        if (_useExtendedModelForCurrentRequest && _llmExService != null)
+        {
+            _logger.Info("Using LLM-EX (extended model) for completion");
+            return await _llmExService.CompleteAsync(prompt);
+        }
+        else
+        {
+            return await _llmService.CompleteAsync(prompt);
+        }
+    }
+
     public static Props Props(
         string sessionId,
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
         ILlmService llmService,
+        ILlmExService? llmExService = null,
         IMultiModalService? multiModalService = null)
     {
         return Akka.Actor.Props.Create(() =>
-            new ChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, multiModalService));
+            new ChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, llmExService, multiModalService));
     }
 }

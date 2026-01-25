@@ -22,6 +22,7 @@ public class AskBotController : ControllerBase
     private readonly IActorRef _searchMemoryActor;
     private readonly IActorRef _decisionActor;
     private readonly ILlmService _llmService;
+    private readonly ILlmExService? _llmExService;
     private readonly IMultiModalService? _multiModalService;
     private readonly ILogger<AskBotController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
@@ -43,12 +44,14 @@ public class AskBotController : ControllerBase
         Npgsql.NpgsqlDataSource dataSource,
         IStorage storage,
         AskBotSettings askBotSettings,
+        ILlmExService? llmExService = null,
         IMultiModalService? multiModalService = null)
     {
         _actorSystem = actorSystem;
         _searchMemoryActor = searchMemoryActor.ActorRef;
         _decisionActor = decisionActor.ActorRef;
         _llmService = llmService;
+        _llmExService = llmExService;
         _multiModalService = multiModalService;
         _logger = logger;
         _dataSource = dataSource;
@@ -152,7 +155,7 @@ public class AskBotController : ControllerBase
     [HttpPost("message")]
     [AllowAnonymous]
     [RequestSizeLimit(3 * 1024 * 1024)] // 3MB limit
-    public async Task<IActionResult> SendMessage([FromForm] string message, [FromForm] string? sessionId = null, [FromForm] IFormFile? image = null)
+    public async Task<IActionResult> SendMessage([FromForm] string message, [FromForm] string? sessionId = null, [FromForm] IFormFile? image = null, [FromForm] bool useExtendedModel = false)
     {
         try
         {
@@ -209,7 +212,8 @@ public class AskBotController : ControllerBase
                 Message = message,
                 UserId = "anonymous",
                 ImageData = imageData,
-                ImageFormat = imageFormat
+                ImageFormat = imageFormat,
+                UseExtendedModel = useExtendedModel
             };
 
             // Send initial processing update via SSE
@@ -1005,7 +1009,7 @@ public class AskBotController : ControllerBase
                 pairText.AppendLine($"assistant: {assistantContent}");
                 pairText.AppendLine();
 
-                // Use LLM to analyze and structure this conversation pair
+                // Use LLM (or LLM-EX if enabled) to analyze and structure this conversation pair
                 var analysisPrompt = $@"Analyze the following conversation pair and create metadata for storing it as a knowledge memory.
 
 Conversation:
@@ -1025,7 +1029,16 @@ Return ONLY valid JSON, no markdown formatting:
   ""type"": ""...""
 }}";
 
-                var llmResponse = await _llmService.CompleteAsync(analysisPrompt);
+                string llmResponse;
+                if (request.UseExtendedModel && _llmExService != null)
+                {
+                    _logger.LogInformation("Using LLM-EX for memory analysis");
+                    llmResponse = await _llmExService.CompleteAsync(analysisPrompt);
+                }
+                else
+                {
+                    llmResponse = await _llmService.CompleteAsync(analysisPrompt);
+                }
 
                 // Clean LLM response (remove markdown if present)
                 var jsonResponse = llmResponse.Trim();
@@ -1202,8 +1215,8 @@ Return ONLY valid JSON, no markdown formatting:
             });
             var sseBridgeActor = _actorSystem.ActorOf(sseBridgeProps, $"sse-bridge-{sid}");
 
-            // Create ChatBotActor with SSE bridge and MultiModalService
-            var props = StreamingChatBotActor.Props(sid, _searchMemoryActor, _decisionActor, _llmService, sseBridgeActor, _multiModalService);
+            // Create ChatBotActor with SSE bridge, LLM-EX and MultiModalService
+            var props = StreamingChatBotActor.Props(sid, _searchMemoryActor, _decisionActor, _llmService, sseBridgeActor, _llmExService, _multiModalService);
             var actorName = $"askbot-{sid}";
             var actor = _actorSystem.ActorOf(props, actorName);
 
@@ -1279,6 +1292,11 @@ public class SaveMemoryRequest
     /// Whether to create relationships with referenced memories
     /// </summary>
     public bool CreateRelationships { get; set; } = true;
+
+    /// <summary>
+    /// Use LLM-EX (extended model) for better analysis when saving as memory
+    /// </summary>
+    public bool UseExtendedModel { get; set; } = false;
 }
 
 /// <summary>
@@ -1332,8 +1350,9 @@ public sealed class StreamingChatBotActor : ChatBotActor
         IActorRef decisionActor,
         ILlmService llmService,
         IActorRef sseBridge,
+        ILlmExService? llmExService = null,
         IMultiModalService? multiModalService = null)
-        : base(sessionId, searchMemoryActor, decisionActor, llmService, multiModalService)
+        : base(sessionId, searchMemoryActor, decisionActor, llmService, llmExService, multiModalService)
     {
         _sessionId = sessionId;
         _sseBridge = sseBridge;
@@ -1443,9 +1462,10 @@ public sealed class StreamingChatBotActor : ChatBotActor
         IActorRef decisionActor,
         ILlmService llmService,
         IActorRef sseBridge,
+        ILlmExService? llmExService = null,
         IMultiModalService? multiModalService = null)
     {
         return Akka.Actor.Props.Create(() =>
-            new StreamingChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, sseBridge, multiModalService));
+            new StreamingChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, sseBridge, llmExService, multiModalService));
     }
 }

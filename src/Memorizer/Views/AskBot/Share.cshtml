@@ -158,10 +158,18 @@
             </div>
             @if (isAuthenticated)
             {
-                <button type="button" class="btn btn-light btn-lg" onclick="saveAsMemory()" id="saveMemoryBtn">
-                    <i class="fas fa-save me-2"></i>
-                    Save as Memory
-                </button>
+                <div class="d-flex align-items-center gap-3">
+                    <div class="form-check form-switch" style="display: flex; align-items: center;">
+                        <input class="form-check-input" type="checkbox" id="use-extended-model-save" style="cursor: pointer;">
+                        <label class="form-check-label ms-2" for="use-extended-model-save" style="cursor: pointer; font-size: 0.85rem;" title="Use LLM-EX (extended model) for better analysis">
+                            <i class="fas fa-brain me-1"></i>LLM-EX
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-light btn-lg" onclick="saveAsMemory()" id="saveMemoryBtn">
+                        <i class="fas fa-save me-2"></i>
+                        Save as Memory
+                    </button>
+                </div>
             }
         </div>
     </div>
@@ -488,13 +496,18 @@
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
 
+                // Get useExtendedModel flag
+                const useExtendedModelCheckbox = document.getElementById('use-extended-model-save');
+                const useExtendedModel = useExtendedModelCheckbox ? useExtendedModelCheckbox.checked : false;
+
                 const response = await fetch(`/api/askbot/share/${shortCode}/save-memory`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        createRelationships: true
+                        createRelationships: true,
+                        useExtendedModel: useExtendedModel
                     })
                 });
 

@@ -46,6 +46,11 @@ public sealed record UserChatRequest : IChatBotMessage
     /// Indicates if this is a multi-modal request (has image)
     /// </summary>
     public bool IsMultiModal => ImageData != null && ImageData.Length > 0;
+
+    /// <summary>
+    /// Use LLM-EX (extended model) for higher quality responses
+    /// </summary>
+    public bool UseExtendedModel { get; init; } = false;
 }
 
 /// <summary>
@@ -129,6 +134,11 @@ public sealed record SearchMemoryRequest : IChatBotMessage
     /// Minimum similarity threshold
     /// </summary>
     public double MinSimilarity { get; init; } = 0.3;
+
+    /// <summary>
+    /// Use LLM-EX (extended model) for query analysis
+    /// </summary>
+    public bool UseExtendedModel { get; init; } = false;
 }
 
 /// <summary>
@@ -191,6 +201,11 @@ public sealed record EvaluateRelevanceRequest : IChatBotMessage
     /// Memories to evaluate
     /// </summary>
     public required List<Models.Memory> Memories { get; init; }
+
+    /// <summary>
+    /// Use LLM-EX (extended model) for relevance evaluation
+    /// </summary>
+    public bool UseExtendedModel { get; init; } = false;
 }
 
 /// <summary>
@@ -422,6 +437,11 @@ public sealed record AnalyzeQueryTypeRequest : IChatBotMessage
     /// Session identifier for tracking
     /// </summary>
     public required string SessionId { get; init; }
+
+    /// <summary>
+    /// Use LLM-EX (extended model) for query analysis
+    /// </summary>
+    public bool UseExtendedModel { get; init; } = false;
 }
 
 /// <summary>
@@ -479,6 +499,11 @@ public sealed record MultiTopicSearchRequest : IChatBotMessage
     /// Minimum similarity threshold
     /// </summary>
     public double MinSimilarity { get; init; } = 0.3;
+
+    /// <summary>
+    /// Use LLM-EX (extended model) for query analysis
+    /// </summary>
+    public bool UseExtendedModel { get; init; } = false;
 }
 
 /// <summary>

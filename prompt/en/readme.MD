@@ -282,6 +282,12 @@ ShapeUp share UX improvements - LLM-based auto title/description generation for 
 
 - [ShapeUp-Share-UX](47-shapeup-share-ux.md)
 
+## Version 1.4.1
+
+AskBot LLM-EX upgrade - Full LLM-EX (extended model) support for AskBot, toggle switch in UI header for model selection, LLM-EX option for memory saving analysis, complete reasoning process LLM-EX support including SearchMemoryActor (search required determination, query transformation, keyword extraction) and DecisionActor (relevance evaluation), UseExtendedModel flag propagation to all child actor requests
+
+- [ASKBOT-LLM-UPGRADE](48-ASKBOT-LLM-UPGRADE.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

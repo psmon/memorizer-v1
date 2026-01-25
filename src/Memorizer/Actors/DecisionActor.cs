@@ -11,6 +11,7 @@ namespace Memorizer.Actors;
 public sealed class DecisionActor : ReceiveActor
 {
     private readonly ILlmService _llmService;
+    private readonly ILlmExService? _llmExService;
     private readonly ILoggingAdapter _logger;
 
     // Prompt for relevance evaluation
@@ -57,18 +58,35 @@ REASONING: Brief explanation of your decision(한글로답변)
 RELEVANT_IDS: Comma-separated list of relevant memory IDs (if any)
 TOPICS_COVERED: Number of topics adequately covered (e.g., 2/2, 1/3)";
 
-    public DecisionActor(ILlmService llmService)
+    public DecisionActor(ILlmService llmService, ILlmExService? llmExService = null)
     {
         _llmService = llmService;
+        _llmExService = llmExService;
         _logger = Context.GetLogger();
 
         ReceiveAsync<EvaluateRelevanceRequest>(HandleEvaluateRelevanceRequest);
     }
 
+    /// <summary>
+    /// Complete prompt using appropriate LLM service based on UseExtendedModel flag
+    /// </summary>
+    private async Task<string> CompleteWithLlmAsync(string prompt, bool useExtendedModel)
+    {
+        if (useExtendedModel && _llmExService != null)
+        {
+            _logger.Info("DecisionActor using LLM-EX for completion");
+            return await _llmExService.CompleteAsync(prompt);
+        }
+        else
+        {
+            return await _llmService.CompleteAsync(prompt);
+        }
+    }
+
     private async Task HandleEvaluateRelevanceRequest(EvaluateRelevanceRequest request)
     {
-        _logger.Info("Evaluating relevance for session {0} with {1} memories",
-            request.SessionId, request.Memories.Count);
+        _logger.Info("Evaluating relevance for session {0} with {1} memories (UseExtendedModel: {2})",
+            request.SessionId, request.Memories.Count, request.UseExtendedModel);
 
         try
         {
@@ -89,9 +107,9 @@ TOPICS_COVERED: Number of topics adequately covered (e.g., 2/2, 1/3)";
             // Format memories for evaluation
             var memoriesText = FormatMemoriesForEvaluation(request.Memories);
 
-            // Evaluate relevance using LLM
+            // Evaluate relevance using LLM (or LLM-EX if enabled)
             var prompt = string.Format(RelevanceEvaluationPrompt, request.Query, memoriesText);
-            var llmResponse = await _llmService.CompleteAsync(prompt);
+            var llmResponse = await CompleteWithLlmAsync(prompt, request.UseExtendedModel);
 
             // Parse LLM response
             var (hasRelevant, reasoning, relevantIds) = ParseRelevanceResponse(llmResponse);
@@ -212,8 +230,8 @@ TOPICS_COVERED: Number of topics adequately covered (e.g., 2/2, 1/3)";
         }
     }
 
-    public static Props Props(ILlmService llmService)
+    public static Props Props(ILlmService llmService, ILlmExService? llmExService = null)
     {
-        return Akka.Actor.Props.Create(() => new DecisionActor(llmService));
+        return Akka.Actor.Props.Create(() => new DecisionActor(llmService, llmExService));
     }
 }

@@ -394,6 +394,12 @@
                 </div>
             </div>
             <div class="header-actions">
+                <div class="form-check form-switch me-3" style="display: flex; align-items: center;">
+                    <input class="form-check-input" type="checkbox" id="use-extended-model" style="cursor: pointer;">
+                    <label class="form-check-label ms-2" for="use-extended-model" style="cursor: pointer; font-size: 0.85rem;" title="Use LLM-EX (extended model) for higher quality responses">
+                        <i class="fas fa-brain me-1"></i>LLM-EX
+                    </label>
+                </div>
                 <button class="share-btn" id="share-btn">
                     <i class="fas fa-share-alt me-1"></i>공유
                 </button>
@@ -819,6 +825,10 @@
                 const formData = new FormData();
                 formData.append('message', message);
                 formData.append('sessionId', sessionId);
+
+                // Add useExtendedModel flag
+                const useExtendedModel = document.getElementById('use-extended-model').checked;
+                formData.append('useExtendedModel', useExtendedModel);
 
                 // Add image if selected
                 if (selectedImage) {

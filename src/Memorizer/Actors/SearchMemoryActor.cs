@@ -12,6 +12,7 @@ public sealed class SearchMemoryActor : ReceiveActor
 {
     private readonly IStorage _storage;
     private readonly ILlmService _llmService;
+    private readonly ILlmExService? _llmExService;
     private readonly ILoggingAdapter _logger;
 
     // Prompts for LLM operations
@@ -84,15 +85,32 @@ Query: {0}
 
 Provide keywords separated by commas, nothing else.";
 
-    public SearchMemoryActor(IStorage storage, ILlmService llmService)
+    public SearchMemoryActor(IStorage storage, ILlmService llmService, ILlmExService? llmExService = null)
     {
         _storage = storage;
         _llmService = llmService;
+        _llmExService = llmExService;
         _logger = Context.GetLogger();
 
         ReceiveAsync<SearchMemoryRequest>(HandleSearchMemoryRequest);
         ReceiveAsync<AnalyzeQueryTypeRequest>(HandleAnalyzeQueryTypeRequest);
         ReceiveAsync<MultiTopicSearchRequest>(HandleMultiTopicSearchRequest);
+    }
+
+    /// <summary>
+    /// Complete prompt using appropriate LLM service based on UseExtendedModel flag
+    /// </summary>
+    private async Task<string> CompleteWithLlmAsync(string prompt, bool useExtendedModel)
+    {
+        if (useExtendedModel && _llmExService != null)
+        {
+            _logger.Info("SearchMemoryActor using LLM-EX for completion");
+            return await _llmExService.CompleteAsync(prompt);
+        }
+        else
+        {
+            return await _llmService.CompleteAsync(prompt);
+        }
     }
 
     private async Task HandleSearchMemoryRequest(SearchMemoryRequest request)
@@ -102,8 +120,8 @@ Provide keywords separated by commas, nothing else.";
         try
         {
             // Step 1: Determine if search is needed
-            var searchNeeded = await DetermineIfSearchNeeded(request.Query);
-            _logger.Info("Search needed determination for '{0}': {1}", request.Query, searchNeeded);
+            var searchNeeded = await DetermineIfSearchNeeded(request.Query, request.UseExtendedModel);
+            _logger.Info("Search needed determination for '{0}': {1} (UseExtendedModel: {2})", request.Query, searchNeeded, request.UseExtendedModel);
 
             if (!searchNeeded)
             {
@@ -121,7 +139,7 @@ Provide keywords separated by commas, nothing else.";
             }
 
             // Step 2: Transform query for better search
-            var transformedQuery = await TransformQuery(request.Query);
+            var transformedQuery = await TransformQuery(request.Query, request.UseExtendedModel);
             _logger.Info("Transformed query: {0} -> {1}", request.Query, transformedQuery);
 
             // Step 3: Perform initial search using embedding
@@ -140,7 +158,7 @@ Provide keywords separated by commas, nothing else.";
             if (memories.Count == 0 && retryAttempts < 3)
             {
                 _logger.Debug("No results found, attempting keyword search");
-                extractedKeywords = await ExtractKeywords(request.Query);
+                extractedKeywords = await ExtractKeywords(request.Query, request.UseExtendedModel);
 
                 foreach (var keyword in extractedKeywords.Take(3))
                 {
@@ -190,12 +208,12 @@ Provide keywords separated by commas, nothing else.";
         }
     }
 
-    private async Task<bool> DetermineIfSearchNeeded(string query)
+    private async Task<bool> DetermineIfSearchNeeded(string query, bool useExtendedModel)
     {
         try
         {
             var prompt = string.Format(SearchRequiredPrompt, query);
-            var response = await _llmService.CompleteAsync(prompt);
+            var response = await CompleteWithLlmAsync(prompt, useExtendedModel);
 
             return response.Trim().Equals("YES", StringComparison.OrdinalIgnoreCase);
         }
@@ -206,12 +224,12 @@ Provide keywords separated by commas, nothing else.";
         }
     }
 
-    private async Task<string> TransformQuery(string query)
+    private async Task<string> TransformQuery(string query, bool useExtendedModel)
     {
         try
         {
             var prompt = string.Format(QueryTransformPrompt, query);
-            var transformedQuery = await _llmService.CompleteAsync(prompt);
+            var transformedQuery = await CompleteWithLlmAsync(prompt, useExtendedModel);
 
             return string.IsNullOrWhiteSpace(transformedQuery) ? query : transformedQuery.Trim();
         }
@@ -222,12 +240,12 @@ Provide keywords separated by commas, nothing else.";
         }
     }
 
-    private async Task<List<string>> ExtractKeywords(string query)
+    private async Task<List<string>> ExtractKeywords(string query, bool useExtendedModel)
     {
         try
         {
             var prompt = string.Format(KeywordExtractionPrompt, query);
-            var response = await _llmService.CompleteAsync(prompt);
+            var response = await CompleteWithLlmAsync(prompt, useExtendedModel);
 
             var keywords = response
                 .Split(',')
@@ -253,12 +271,12 @@ Provide keywords separated by commas, nothing else.";
 
     private async Task HandleAnalyzeQueryTypeRequest(AnalyzeQueryTypeRequest request)
     {
-        _logger.Info("Analyzing query type for session {0}: {1}", request.SessionId, request.Query);
+        _logger.Info("Analyzing query type for session {0}: {1} (UseExtendedModel: {2})", request.SessionId, request.Query, request.UseExtendedModel);
 
         try
         {
             var prompt = string.Format(AnalyzeQueryTypePrompt, request.Query);
-            var llmResponse = await _llmService.CompleteAsync(prompt);
+            var llmResponse = await CompleteWithLlmAsync(prompt, request.UseExtendedModel);
 
             var (topicsCount, topics, reasoning) = ParseAnalyzeQueryTypeResponse(llmResponse);
 
@@ -294,8 +312,8 @@ Provide keywords separated by commas, nothing else.";
 
     private async Task HandleMultiTopicSearchRequest(MultiTopicSearchRequest request)
     {
-        _logger.Info("Processing multi-topic search for session {0} with {1} topics",
-            request.SessionId, request.Topics.Count);
+        _logger.Info("Processing multi-topic search for session {0} with {1} topics (UseExtendedModel: {2})",
+            request.SessionId, request.Topics.Count, request.UseExtendedModel);
 
         try
         {
@@ -309,7 +327,7 @@ Provide keywords separated by commas, nothing else.";
                 _logger.Debug("Searching for topic: {0}", topic);
 
                 // Transform the topic query
-                var transformedQuery = await TransformQuery(topic);
+                var transformedQuery = await TransformQuery(topic, request.UseExtendedModel);
                 _logger.Debug("Transformed topic query: {0} -> {1}", topic, transformedQuery);
 
                 // Search for memories related to this topic
@@ -324,7 +342,7 @@ Provide keywords separated by commas, nothing else.";
                 if (memories.Count == 0)
                 {
                     _logger.Debug("No results for topic {0}, trying keyword search", topic);
-                    var keywords = await ExtractKeywords(topic);
+                    var keywords = await ExtractKeywords(topic, request.UseExtendedModel);
 
                     foreach (var keyword in keywords.Take(2))
                     {
@@ -437,8 +455,8 @@ Provide keywords separated by commas, nothing else.";
         }
     }
 
-    public static Props Props(IStorage storage, ILlmService llmService)
+    public static Props Props(IStorage storage, ILlmService llmService, ILlmExService? llmExService = null)
     {
-        return Akka.Actor.Props.Create(() => new SearchMemoryActor(storage, llmService));
+        return Akka.Actor.Props.Create(() => new SearchMemoryActor(storage, llmService, llmExService));
     }
 }
