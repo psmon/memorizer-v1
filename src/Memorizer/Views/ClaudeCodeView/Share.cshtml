@@ -1,0 +1,344 @@
+@{
+    ViewData["Title"] = "Shared Skill - ClaudeCode";
+    Layout = "_Layout";
+    ViewBag.Controller = "ClaudeCodeView";
+    var shortCode = ViewBag.ShortCode as string;
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/markdown-styles.css" />
+    <style>
+        .skill-detail-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .skill-header-card {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+        }
+
+        .skill-meta {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .skill-meta .badge {
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .skill-content-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .skill-content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 20px;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .skill-content-body {
+            padding: 0;
+        }
+
+        .skill-raw-content {
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 24px;
+            margin: 0;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .skill-markdown-content {
+            padding: 24px;
+        }
+
+        .btn-action {
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .btn-copy-skill {
+            background: #667eea;
+            color: white;
+        }
+        .btn-copy-skill:hover { opacity: 0.9; color: white; }
+
+        .btn-share-link {
+            background: #17a2b8;
+            color: white;
+        }
+        .btn-share-link:hover { opacity: 0.9; color: white; }
+
+        .view-toggle {
+            display: flex;
+            gap: 4px;
+            background: #e9ecef;
+            border-radius: 6px;
+            padding: 2px;
+        }
+
+        .view-toggle button {
+            padding: 4px 12px;
+            border: none;
+            border-radius: 4px;
+            background: transparent;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+
+        .view-toggle button.active {
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .copy-toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 60px;
+            color: #6c757d;
+        }
+
+        .file-structure {
+            background: #2d2d2d;
+            color: #d4d4d4;
+            padding: 16px 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            margin-bottom: 20px;
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+    <div class="skill-detail-container">
+        <div id="loadingSpinner" class="loading-spinner">
+            <div class="spinner-border text-primary mb-3" role="status"></div>
+            <p>스킬 정보를 불러오는 중...</p>
+        </div>
+
+        <div id="skillDetail" style="display: none;">
+            <div class="skill-header-card">
+                <h3 id="skillTitle"><i class="fas fa-file-code me-2"></i>SKILL.md</h3>
+                <div class="skill-meta">
+                    <span id="categoryBadge" class="badge bg-info" style="display:none;"></span>
+                    <span id="skillNameBadge" class="badge bg-success" style="display:none;"></span>
+                    <span id="dateBadge" class="badge bg-secondary"></span>
+                </div>
+            </div>
+
+            <div id="fileStructure" class="file-structure" style="display:none;">
+                <div id="fileStructureContent"></div>
+            </div>
+
+            <div style="margin-bottom:20px; padding:16px 18px; background:#f0f4ff; border-left:4px solid #667eea; border-radius:8px; font-size:0.9rem; line-height:1.7;">
+                <strong style="color:#667eea;"><i class="fas fa-lightbulb me-1"></i>SKILL.md 사용 가이드</strong>
+                <p style="margin:8px 0 4px; color:#555;">아래 내용을 "복사하기" 후 다음 경로에 <code>SKILL.md</code> 파일로 저장하세요.</p>
+                <table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:0.85rem;">
+                    <tr style="border-bottom:1px solid #dee2e6;">
+                        <td style="padding:6px 8px; font-weight:600; color:#495057; width:140px;">프로젝트 스킬</td>
+                        <td style="padding:6px 8px;"><code>your-project/.claude/skills/SKILL.md</code></td>
+                        <td style="padding:6px 8px; color:#6c757d; font-size:0.82rem;">팀원과 공유됨 (Git)</td>
+                    </tr>
+                    <tr>
+                        <td style="padding:6px 8px; font-weight:600; color:#495057;">개인 글로벌 스킬</td>
+                        <td style="padding:6px 8px;"><code>~/.claude/skills/SKILL.md</code></td>
+                        <td style="padding:6px 8px; color:#6c757d; font-size:0.82rem;">모든 프로젝트에서 사용</td>
+                    </tr>
+                </table>
+                <p style="margin:8px 0 0; color:#666; font-size:0.82rem;">저장 후 Claude Code에서 <code>/skill</code> 명령으로 스킬을 호출할 수 있습니다.</p>
+            </div>
+
+            <div id="usageGuideSection" style="display:none; margin-bottom:20px; padding:18px 20px; background:#f0fdf4; border-left:4px solid #22c55e; border-radius:8px; font-size:0.9rem; line-height:1.7;">
+                <strong style="color:#16a34a;"><i class="fas fa-rocket me-1"></i>실제 활용 예시</strong>
+                <div id="usageGuideContent" class="mt-2" style="font-size:0.88rem;"></div>
+            </div>
+
+            <div class="skill-content-card">
+                <div class="skill-content-header">
+                    <div class="view-toggle">
+                        <button class="active" onclick="switchView('raw')">Raw</button>
+                        <button onclick="switchView('preview')">Preview</button>
+                    </div>
+                    <div>
+                        <button class="btn-action btn-copy-skill me-2" onclick="copySkill()">
+                            <i class="fas fa-copy me-1"></i>복사하기
+                        </button>
+                        <button class="btn-action btn-share-link" onclick="copyShareLink()">
+                            <i class="fas fa-link me-1"></i>링크 복사
+                        </button>
+                    </div>
+                </div>
+                <div class="skill-content-body">
+                    <pre id="rawView" class="skill-raw-content"></pre>
+                    <div id="previewView" class="skill-markdown-content" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="copy-toast" id="copyToast"></div>
+
+@section Scripts {
+    <script src="~/js/markdown-renderer.js"></script>
+    <script>
+        const shortCode = '@shortCode';
+        let skillData = null;
+
+        document.addEventListener('DOMContentLoaded', loadSkill);
+
+        async function loadSkill() {
+            try {
+                const response = await fetch(`/api/claudecode/share/${shortCode}`);
+                if (!response.ok) {
+                    document.getElementById('loadingSpinner').innerHTML =
+                        '<p class="text-danger"><i class="fas fa-exclamation-circle me-2"></i>스킬을 찾을 수 없습니다.</p>';
+                    return;
+                }
+
+                skillData = await response.json();
+
+                document.getElementById('skillTitle').innerHTML =
+                    `<i class="fas fa-file-code me-2"></i>${escapeHtml(skillData.title || 'SKILL.md')}`;
+
+                if (skillData.jobCategory) {
+                    const badge = document.getElementById('categoryBadge');
+                    badge.textContent = skillData.jobCategory;
+                    badge.style.display = '';
+                }
+
+                if (skillData.skillName) {
+                    const badge = document.getElementById('skillNameBadge');
+                    badge.textContent = skillData.skillName;
+                    badge.style.display = '';
+                }
+
+                const date = new Date(skillData.createdAt);
+                document.getElementById('dateBadge').textContent = date.toLocaleDateString('ko-KR');
+
+                // Show file structure
+                showFileStructure(skillData.skillName || 'my-skill');
+
+                // Set raw content
+                document.getElementById('rawView').textContent = skillData.skillContent;
+
+                // Render markdown preview
+                if (typeof renderMarkdown === 'function') {
+                    document.getElementById('previewView').innerHTML = renderMarkdown(skillData.skillContent);
+                } else {
+                    document.getElementById('previewView').innerHTML = `<pre>${escapeHtml(skillData.skillContent)}</pre>`;
+                }
+
+                // Show usage guide if available
+                if (skillData.conversationData) {
+                    try {
+                        const convData = JSON.parse(skillData.conversationData);
+                        if (convData.usageGuide) {
+                            const guideSection = document.getElementById('usageGuideSection');
+                            const guideContent = document.getElementById('usageGuideContent');
+                            if (typeof renderMarkdown === 'function') {
+                                guideContent.innerHTML = renderMarkdown(convData.usageGuide);
+                            } else {
+                                guideContent.innerHTML = convData.usageGuide.replace(/\n/g, '<br>');
+                            }
+                            guideSection.style.display = '';
+                        }
+                    } catch (e) { /* conversationData is not JSON or no usageGuide */ }
+                }
+
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('skillDetail').style.display = '';
+            } catch (error) {
+                console.error('Failed to load skill:', error);
+                document.getElementById('loadingSpinner').innerHTML =
+                    '<p class="text-danger"><i class="fas fa-exclamation-circle me-2"></i>로딩 중 오류가 발생했습니다.</p>';
+            }
+        }
+
+        function showFileStructure(skillName) {
+            const safeName = skillName.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-');
+            const el = document.getElementById('fileStructure');
+            document.getElementById('fileStructureContent').innerHTML =
+                `<span style="color:#dcdcaa;">${escapeHtml(safeName)}/</span>\n` +
+                `  <span style="color:#9cdcfe;">SKILL.md</span> <span style="color:#6a9955;"># 메인 지침 파일</span>`;
+            el.style.display = '';
+        }
+
+        function switchView(view) {
+            const buttons = document.querySelectorAll('.view-toggle button');
+            buttons.forEach(b => b.classList.remove('active'));
+
+            if (view === 'raw') {
+                document.getElementById('rawView').style.display = '';
+                document.getElementById('previewView').style.display = 'none';
+                buttons[0].classList.add('active');
+            } else {
+                document.getElementById('rawView').style.display = 'none';
+                document.getElementById('previewView').style.display = '';
+                buttons[1].classList.add('active');
+            }
+        }
+
+        function copySkill() {
+            if (!skillData) return;
+            navigator.clipboard.writeText(skillData.skillContent).then(() => {
+                showToast('SKILL.md 내용이 복사되었습니다!');
+            });
+        }
+
+        function copyShareLink() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => {
+                showToast('공유 링크가 복사되었습니다!');
+            });
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('copyToast');
+            toast.textContent = message;
+            toast.style.display = 'block';
+            setTimeout(() => toast.style.display = 'none', 2000);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+}

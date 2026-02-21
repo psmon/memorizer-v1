@@ -3,11 +3,11 @@
     <Copyright>© $([System.DateTime]::Now.Year)</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://github.com/dariogriffo/postg-mem</PackageProjectUrl>
-    <VersionPrefix>1.4.1</VersionPrefix>
+    <VersionPrefix>1.4.2</VersionPrefix>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <Deterministic>true</Deterministic>
-    <PackageReleaseNotes>- [AskBot LLM-EX Upgrade - Full LLM-EX support for AskBot including reasoning process (SearchMemoryActor, DecisionActor), UI toggle switch, memory saving analysis option]</PackageReleaseNotes>
+    <PackageReleaseNotes>- [ClaudeCode Skill Maker stabilization and UX improvements: actor state flow fixes, async context safety, and enhanced share/use guidance]</PackageReleaseNotes>
     <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 </Project>

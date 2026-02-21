@@ -1,0 +1,741 @@
+@{
+    ViewData["Title"] = "Skill 만들기 - ClaudeCode";
+    Layout = "_Layout";
+    ViewBag.Controller = "ClaudeCodeView";
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/markdown-styles.css" />
+    <style>
+        .chat-container {
+            height: calc(100vh - 160px);
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .chat-header {
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .status-badge.connected { background: #28a745; color: white; }
+        .status-badge.disconnected { background: #dc3545; color: white; }
+        .status-badge.connecting { background: #ffc107; color: #333; }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @@keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.assistant {
+            display: flex;
+            gap: 12px;
+        }
+
+        .message.user {
+            display: flex;
+            gap: 12px;
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            flex-shrink: 0;
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.user .message-avatar {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .message-content {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+
+        .message.assistant .message-content {
+            background: white;
+            border: 1px solid #e9ecef;
+        }
+
+        .message.user .message-content {
+            background: #667eea;
+            color: white;
+        }
+
+        .options-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .option-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            border-radius: 20px;
+            background: white;
+            color: #667eea;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .option-btn.custom-input {
+            border-color: #6c757d;
+            color: #6c757d;
+        }
+
+        .option-btn.custom-input:hover {
+            background: #6c757d;
+            color: white;
+        }
+
+        .chat-input {
+            padding: 16px 20px;
+            border-top: 1px solid #e9ecef;
+            background: white;
+            border-radius: 0 0 12px 12px;
+        }
+
+        .chat-input .input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input textarea {
+            flex: 1;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.95rem;
+            resize: none;
+            max-height: 80px;
+        }
+
+        .chat-input textarea:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            outline: none;
+        }
+
+        .btn-send {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+
+        .btn-send:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .phase-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #fff3cd;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #856404;
+            margin-bottom: 12px;
+        }
+
+        .phase-indicator .spinner-border {
+            width: 16px;
+            height: 16px;
+        }
+
+        .skill-result {
+            margin-top: 12px;
+        }
+
+        .btn-view-skill {
+            display: inline-block;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-right: 8px;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-view-skill:hover { opacity: 0.9; color: white; }
+
+        .btn-share-skill {
+            display: inline-block;
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);
+            color: white;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-share-skill:hover { opacity: 0.9; color: white; }
+
+        .streaming-content {
+            white-space: pre-wrap;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 16px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+    <div class="chat-container">
+        <div class="chat-header">
+            <div>
+                <h5 class="mb-0">
+                    <i class="fas fa-magic me-2"></i>Claude Skill Maker
+                    <span id="connectionStatus" class="status-badge connecting">Connecting...</span>
+                </h5>
+                <small class="opacity-75">AI와 대화하며 Claude Code Skill을 만들어보세요</small>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-sm btn-outline-light" onclick="resetSession()">
+                    <i class="fas fa-redo me-1"></i>새로 시작
+                </button>
+            </div>
+        </div>
+
+        <div id="chatMessages" class="chat-messages">
+            <!-- Messages will be added here dynamically -->
+        </div>
+
+        <div class="chat-input">
+            <div class="input-group">
+                <textarea id="messageInput" placeholder="메시지를 입력하세요..." rows="1"
+                    onkeydown="handleKeyDown(event)"></textarea>
+                <button id="sendBtn" class="btn-send" onclick="sendMessage()" disabled>
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/js/markdown-renderer.js"></script>
+    <script>
+        let sessionId = null;
+        let eventSource = null;
+        let currentMessageType = 'answer';
+        let generatedSkillContent = '';
+        let isGenerating = false;
+        let streamingElement = null;
+        let _selectedCategory = '';
+        let _selectedSkillName = '';
+        let _usageGuide = '';
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            createNewSession();
+        });
+
+        async function createNewSession() {
+            try {
+                const response = await fetch('/api/claudecode/session/new', { method: 'POST' });
+                const data = await response.json();
+                sessionId = data.sessionId;
+                connectSSE();
+            } catch (error) {
+                console.error('Failed to create session:', error);
+            }
+        }
+
+        function connectSSE() {
+            if (eventSource) {
+                eventSource.close();
+            }
+
+            updateStatus('connecting');
+            eventSource = new EventSource(`/api/claudecode/stream?sessionId=${sessionId}`);
+
+            eventSource.addEventListener('connected', function(e) {
+                updateStatus('connected');
+            });
+
+            eventSource.addEventListener('options', function(e) {
+                const data = JSON.parse(e.data);
+                // Use server-provided nextMessageType instead of guessing
+                currentMessageType = data.nextMessageType || 'answer';
+                addAssistantMessage(data.content, data.options);
+            });
+
+            eventSource.addEventListener('phase', function(e) {
+                const data = JSON.parse(e.data);
+                showPhaseIndicator(data.content);
+            });
+
+            eventSource.addEventListener('question', function(e) {
+                const data = JSON.parse(e.data);
+                hidePhaseIndicator();
+                addAssistantMessage(data.content);
+                currentMessageType = 'answer';
+                enableInput();
+            });
+
+            eventSource.addEventListener('chunk', function(e) {
+                const data = JSON.parse(e.data);
+                appendStreamingContent(data.content);
+            });
+
+            eventSource.addEventListener('complete', function(e) {
+                const data = JSON.parse(e.data);
+                hidePhaseIndicator();
+                isGenerating = false;
+                generatedSkillContent = data.skillContent || '';
+                _usageGuide = data.usageGuide || '';
+                finalizeStreamingContent();
+                addSkillResult(_usageGuide);
+                enableInput();
+            });
+
+            eventSource.addEventListener('error', function(e) {
+                if (e.data) {
+                    const data = JSON.parse(e.data);
+                    hidePhaseIndicator();
+                    addAssistantMessage(data.content, null, true);
+                }
+                enableInput();
+            });
+
+            eventSource.onerror = function() {
+                updateStatus('disconnected');
+                setTimeout(connectSSE, 3000);
+            };
+        }
+
+        function addAssistantMessage(content, options, isError) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message assistant';
+
+            let optionsHtml = '';
+            if (options && options.length > 0) {
+                optionsHtml = '<div class="options-container">';
+                options.forEach(opt => {
+                    const isCustom = opt === '직접입력';
+                    const btnClass = isCustom ? 'option-btn custom-input' : 'option-btn';
+                    const msgType = isCustom ? 'custominput' : currentMessageType;
+                    optionsHtml += `<button class="${btnClass}" onclick="selectOption('${escapeHtml(opt)}', '${msgType}')">${escapeHtml(opt)}</button>`;
+                });
+                optionsHtml += '</div>';
+            }
+
+            const bgStyle = isError ? 'background: #f8d7da; border-color: #f5c6cb; color: #721c24;' : '';
+
+            msgDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content" style="${bgStyle}">
+                    ${escapeHtml(content)}
+                    ${optionsHtml}
+                </div>
+            `;
+
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function addUserMessage(content) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message user';
+            msgDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-user"></i></div>
+                <div class="message-content">${escapeHtml(content)}</div>
+            `;
+            messagesDiv.appendChild(msgDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function showPhaseIndicator(message) {
+            hidePhaseIndicator();
+            const messagesDiv = document.getElementById('chatMessages');
+            const phaseDiv = document.createElement('div');
+            phaseDiv.id = 'phaseIndicator';
+            phaseDiv.className = 'phase-indicator';
+            phaseDiv.innerHTML = `
+                <div class="spinner-border spinner-border-sm" role="status"></div>
+                <span>${escapeHtml(message)}</span>
+            `;
+            messagesDiv.appendChild(phaseDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function hidePhaseIndicator() {
+            const existing = document.getElementById('phaseIndicator');
+            if (existing) existing.remove();
+        }
+
+        function appendStreamingContent(chunk) {
+            if (!streamingElement) {
+                hidePhaseIndicator();
+                const messagesDiv = document.getElementById('chatMessages');
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message assistant';
+                msgDiv.innerHTML = `
+                    <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                    <div class="message-content">
+                        <div class="streaming-content" id="streamingContent"></div>
+                    </div>
+                `;
+                messagesDiv.appendChild(msgDiv);
+                streamingElement = document.getElementById('streamingContent');
+                isGenerating = true;
+            }
+            streamingElement.textContent += chunk;
+            streamingElement.scrollTop = streamingElement.scrollHeight;
+            document.getElementById('chatMessages').scrollTop = document.getElementById('chatMessages').scrollHeight;
+        }
+
+        function finalizeStreamingContent() {
+            streamingElement = null;
+        }
+
+        function addSkillResult(usageGuide) {
+            const messagesDiv = document.getElementById('chatMessages');
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message assistant';
+
+            let usageHtml = '';
+            if (usageGuide) {
+                usageHtml = `
+                    <div style="margin-top:16px; padding:14px 16px; background:#f0fdf4; border-left:4px solid #22c55e; border-radius:6px; font-size:0.9rem; line-height:1.7; color:#333;">
+                        <strong style="color:#16a34a;"><i class="fas fa-rocket me-1"></i>실제 활용 예시</strong>
+                        <div id="usageGuideContent" class="mt-2" style="font-size:0.88rem;"></div>
+                    </div>`;
+            }
+
+            msgDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content">
+                    <div class="skill-result">
+                        <p><strong>Skill이 생성되었습니다!</strong></p>
+                        <button class="btn-view-skill" onclick="viewSkill()">
+                            <i class="fas fa-eye me-1"></i>Skill 보기
+                        </button>
+                        <button class="btn-share-skill" onclick="shareSkill()">
+                            <i class="fas fa-share-alt me-1"></i>공유하기
+                        </button>
+                        ${usageHtml}
+                        <div style="margin-top:16px; padding:14px 16px; background:#f0f4ff; border-left:4px solid #667eea; border-radius:6px; font-size:0.88rem; line-height:1.7; color:#333;">
+                            <strong style="color:#667eea;"><i class="fas fa-folder-open me-1"></i>SKILL.md 저장 경로</strong>
+                            <div style="margin-top:8px; padding:10px 14px; background:#1e1e1e; color:#d4d4d4; border-radius:6px; font-family:'Courier New',monospace; font-size:0.85rem;">
+                                <div style="color:#9cdcfe;">## 프로젝트 스킬 (팀 공유)</div>
+                                <div><span style="color:#ce9178;">your-project/</span><span style="color:#6a9955;">.claude/skills/</span><span style="color:#dcdcaa;">SKILL.md</span></div>
+                                <div style="margin-top:6px; color:#9cdcfe;">## 개인 글로벌 스킬</div>
+                                <div><span style="color:#ce9178;">~/.claude/skills/</span><span style="color:#dcdcaa;">SKILL.md</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            messagesDiv.appendChild(msgDiv);
+
+            // Render usage guide markdown after DOM insertion
+            if (usageGuide) {
+                const guideEl = document.getElementById('usageGuideContent');
+                if (guideEl && typeof renderMarkdown === 'function') {
+                    guideEl.innerHTML = renderMarkdown(usageGuide);
+                } else if (guideEl) {
+                    guideEl.innerHTML = usageGuide.replace(/\n/g, '<br>');
+                }
+            }
+
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function selectOption(option, messageType) {
+            if (option === '직접입력') {
+                // Show input for custom entry
+                currentMessageType = 'custominput';
+                enableInput();
+                document.getElementById('messageInput').focus();
+                document.getElementById('messageInput').placeholder = '직접 입력해주세요...';
+                return;
+            }
+
+            // Track selected category/skill for sharing
+            if (messageType === 'category') _selectedCategory = option;
+            if (messageType === 'subskill') _selectedSkillName = option;
+
+            addUserMessage(option);
+            disableInput();
+
+            fetch('/api/claudecode/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    message: option,
+                    messageType: messageType
+                })
+            });
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (!message) return;
+
+            addUserMessage(message);
+            input.value = '';
+            disableInput();
+
+            fetch('/api/claudecode/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    sessionId: sessionId,
+                    message: message,
+                    messageType: currentMessageType
+                })
+            });
+        }
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function viewSkill() {
+            // Open skill content in a new window
+            const newWindow = window.open('', '_blank');
+            newWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>Generated Skill - SKILL.md</title>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+                    <style>
+                        body { padding: 30px; background: #f8f9fa; }
+                        .skill-container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                        .skill-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #e9ecef; }
+                        .btn-copy { background: #667eea; color: white; border: none; padding: 8px 20px; border-radius: 6px; cursor: pointer; font-weight: 500; }
+                        .btn-copy:hover { opacity: 0.9; }
+                        .skill-content { white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.9rem; line-height: 1.6; background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; }
+                        .copy-toast { position: fixed; bottom: 20px; right: 20px; background: #28a745; color: white; padding: 10px 20px; border-radius: 6px; display: none; }
+                    </style>
+                </head>
+                <body>
+                    <div class="skill-container">
+                        <div class="skill-header">
+                            <h3><i class="fas fa-file-code me-2" style="color:#667eea;"></i>SKILL.md</h3>
+                            <button class="btn-copy" onclick="copySkill()"><i class="fas fa-copy me-1"></i>복사하기</button>
+                        </div>
+                        <pre class="skill-content" id="skillContent">${escapeHtmlForWindow(generatedSkillContent)}</pre>
+                        <div style="margin-top:20px; padding:16px 18px; background:#f0f4ff; border-left:4px solid #667eea; border-radius:6px; font-size:0.9rem; line-height:1.7;">
+                            <strong style="color:#667eea;">SKILL.md 사용 가이드</strong>
+                            <p style="margin:8px 0 4px; color:#555;">위 내용을 복사한 후 아래 경로 중 하나에 <code>SKILL.md</code> 파일로 저장하세요.</p>
+                            <table style="width:100%; border-collapse:collapse; margin:8px 0; font-size:0.85rem;">
+                                <tr style="border-bottom:1px solid #dee2e6;">
+                                    <td style="padding:6px 8px; font-weight:600; color:#495057; width:140px;">프로젝트 스킬</td>
+                                    <td style="padding:6px 8px;"><code>your-project/.claude/skills/SKILL.md</code></td>
+                                    <td style="padding:6px 8px; color:#6c757d; font-size:0.82rem;">팀원과 공유됨</td>
+                                </tr>
+                                <tr>
+                                    <td style="padding:6px 8px; font-weight:600; color:#495057;">개인 글로벌 스킬</td>
+                                    <td style="padding:6px 8px;"><code>~/.claude/skills/SKILL.md</code></td>
+                                    <td style="padding:6px 8px; color:#6c757d; font-size:0.82rem;">모든 프로젝트에서 사용</td>
+                                </tr>
+                            </table>
+                            <p style="margin:8px 0 0; color:#666; font-size:0.82rem;">저장 후 Claude Code에서 <code>/skill</code> 명령으로 스킬을 호출할 수 있습니다.</p>
+                        </div>
+                    </div>
+                    <div class="copy-toast" id="copyToast">복사되었습니다!</div>
+                    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+                    <script>
+                        function copySkill() {
+                            const content = document.getElementById('skillContent').textContent;
+                            navigator.clipboard.writeText(content).then(() => {
+                                const toast = document.getElementById('copyToast');
+                                toast.style.display = 'block';
+                                setTimeout(() => toast.style.display = 'none', 2000);
+                            });
+                        }
+                    <\/script>
+                </body>
+                </html>
+            `);
+        }
+
+        function extractSkillTitle(content) {
+            // 1. Try YAML frontmatter 'name' field
+            const yamlMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+            if (yamlMatch) {
+                const nameMatch = yamlMatch[1].match(/^name:\s*["']?(.+?)["']?\s*$/m);
+                if (nameMatch) return nameMatch[1].trim();
+            }
+            // 2. Try first markdown heading
+            const headingMatch = content.match(/^#+\s+(.+)$/m);
+            if (headingMatch) return headingMatch[1].trim();
+            // 3. Fallback
+            return 'Claude Skill';
+        }
+
+        async function shareSkill() {
+            if (!generatedSkillContent) {
+                alert('공유할 스킬이 없습니다.');
+                return;
+            }
+
+            const autoTitle = extractSkillTitle(generatedSkillContent);
+
+            try {
+                const response = await fetch('/api/claudecode/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        title: autoTitle,
+                        skillContent: generatedSkillContent,
+                        jobCategory: _selectedCategory || null,
+                        skillName: _selectedSkillName || null,
+                        conversationData: _usageGuide ? JSON.stringify({ usageGuide: _usageGuide }) : null
+                    })
+                });
+
+                const data = await response.json();
+                if (data.shortCode) {
+                    const shareUrl = `${window.location.origin}/ui/claudecode/share/${data.shortCode}`;
+                    // Show share link
+                    const messagesDiv = document.getElementById('chatMessages');
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = 'message assistant';
+                    msgDiv.innerHTML = `
+                        <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                        <div class="message-content">
+                            <p><strong>공유 링크가 생성되었습니다!</strong></p>
+                            <a href="${shareUrl}" target="_blank" style="color: #667eea; word-break: break-all;">${shareUrl}</a>
+                            <br><br>
+                            <button class="option-btn" onclick="navigator.clipboard.writeText('${shareUrl}').then(() => alert('링크가 복사되었습니다!'))">
+                                <i class="fas fa-copy me-1"></i>링크 복사
+                            </button>
+                        </div>
+                    `;
+                    messagesDiv.appendChild(msgDiv);
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                }
+            } catch (error) {
+                console.error('Share failed:', error);
+                alert('공유 중 오류가 발생했습니다.');
+            }
+        }
+
+        async function resetSession() {
+            if (eventSource) eventSource.close();
+            document.getElementById('chatMessages').innerHTML = '';
+            streamingElement = null;
+            generatedSkillContent = '';
+            isGenerating = false;
+            currentMessageType = 'category';
+            _selectedCategory = '';
+            _selectedSkillName = '';
+            _usageGuide = '';
+            await createNewSession();
+        }
+
+        function enableInput() {
+            document.getElementById('sendBtn').disabled = false;
+            document.getElementById('messageInput').disabled = false;
+        }
+
+        function disableInput() {
+            document.getElementById('sendBtn').disabled = true;
+            document.getElementById('messageInput').disabled = true;
+        }
+
+        function updateStatus(status) {
+            const badge = document.getElementById('connectionStatus');
+            badge.className = `status-badge ${status}`;
+            badge.textContent = status === 'connected' ? 'Connected' :
+                              status === 'disconnected' ? 'Disconnected' : 'Connecting...';
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeHtmlForWindow(text) {
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+}

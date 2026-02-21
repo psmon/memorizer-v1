@@ -133,6 +133,29 @@
                                 </li>
                             </ul>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link @(currentController == "ClaudeCodeView" ? "active" : "")"
+                               href="/ui/claudecode">
+                                <i class="fas fa-terminal me-2"></i>
+                                ClaudeCode
+                            </a>
+                            <ul class="nav flex-column ms-3">
+                                <li class="nav-item">
+                                    <a class="nav-link py-1"
+                                       href="/ui/claudecode/skill" style="font-size: 0.9rem;">
+                                        <i class="fas fa-magic me-2"></i>
+                                        SkillCreate
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link py-1"
+                                       href="/ui/claudecode/shares" style="font-size: 0.9rem;">
+                                        <i class="fas fa-share-alt me-2"></i>
+                                        SkillShared
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                         @if (isAuthenticated)
                         {
                             <li class="nav-item">

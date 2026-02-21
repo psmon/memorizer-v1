@@ -55,7 +55,8 @@
       "Bash(ls:*)",
       "mcp__memorizer__search",
       "Bash(xargs:*)",
-      "mcp__memorizer__get"
+      "mcp__memorizer__get",
+      "mcp__memorizer__get_many"
     ],
     "deny": [],
     "ask": []

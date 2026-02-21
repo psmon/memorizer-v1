@@ -40,6 +40,10 @@
     - ui/shapeup - Shape Up 화이트보드 페이지
     - ui/shapeup/share/{숏링크} - 공유된 Shape Up 보드 보기 페이지
     - ui/shapeup/shares - 공유된 Shape Up 보드 목록 페이지
+    - ui/claudecode - ClaudeCode 소개 페이지
+    - ui/claudecode/skillcreate - 스킬 생성 페이지
+    - ui/claudecode/skillshared - 공유된 스킬 목록 페이지
+    - ui/claudecode/share/{숏링크} - 공유된 스킬 상세 페이지
 
 ## 메모리 검색 기능 (v43 추가, v44-v45 업그레이드)
 - PRD Maker 예제 맵핑 토론: 이벤트 스토밍 결과에서 3개 키워드 추출 → 각 키워드별 메모리 검색 3개씩 (0.3 이상 유사도, 최대 9개) → LLM 배치 평가로 상위 3개 선택 → 최대 3개 메모리가 토론에 참여
@@ -112,6 +116,24 @@
 - src/Memorizer/Views/AskBot/Index.cshtml - LLM-EX 토글 스위치 UI
 - src/Memorizer/Views/AskBot/Share.cshtml - 메모리 저장 시 LLM-EX 옵션
 
+## ClaudeCode Skill Maker (v49 추가)
+- ClaudeCode 상위 메뉴 및 스킬 생성/공유 플로우 확장
+- 직군 선택/카테고리/추가정보 수집의 상태머신 안정화 (중복 질문, 미진행 흐름 개선)
+- SkillMakerActor 비동기 처리 안정화 (ActorContext 사용 오류/Unhandled 메시지 경로 보완)
+- 공유 시 스킬 제목 자동 생성 및 활용 가이드(프랙티스) 노출 강화
+- SKILL.md 복사 경로 가이드 및 공유 페이지 정보 확장
 
-마지막 자동수정일시분 : 2026-01-25 00:00:00
-마지막 버전 반영 : 48
+## 주요 파일 (v49 관련)
+- src/Memorizer/Controllers/ClaudeCodeController.cs - ClaudeCode API/페이지 엔드포인트
+- src/Memorizer/Actors/SkillMakerActor.cs - 스킬 생성 대화 상태머신 및 질문/생성 흐름
+- src/Memorizer/Actors/SkillMakerMessages.cs - Skill Maker 메시지 계약
+- src/Memorizer/Services/SkillMakerPrompts.cs - 스킬 생성/후속질문/가이드 프롬프트
+- src/Memorizer/Views/ClaudeCodeView/Index.cshtml - ClaudeCode 소개 뷰
+- src/Memorizer/Views/ClaudeCodeView/SkillCreate.cshtml - 스킬 생성 UI
+- src/Memorizer/Views/ClaudeCodeView/SkillShared.cshtml - 공유 스킬 목록 UI
+- src/Memorizer/Views/ClaudeCodeView/Share.cshtml - 공유 스킬 상세 UI
+- src/Memorizer/migrations/021_add_claudecode_skill_share_links.sql - ClaudeCode 공유 스키마 마이그레이션
+
+
+마지막 자동수정일시분 : 2026-02-21 00:00:00
+마지막 버전 반영 : 49

@@ -103,7 +103,8 @@ public class AuthenticationMiddleware
         if (path.StartsWith("/api/askbot") || path.StartsWith("/ui/askbot") ||
             path.StartsWith("/api/llm") || path.StartsWith("/api/architecture") || path.StartsWith("/ui/architecture") ||
             path.StartsWith("/api/prd") || path.StartsWith("/ui/prd") ||
-            path.StartsWith("/api/shapeup") || path.StartsWith("/ui/shapeup"))
+            path.StartsWith("/api/shapeup") || path.StartsWith("/ui/shapeup") ||
+            path.StartsWith("/api/claudecode") || path.StartsWith("/ui/claudecode"))
         {
             _logger.LogDebug("Public API path (authentication optional): {Path}", path);
 
@@ -175,6 +176,8 @@ public class AuthenticationMiddleware
             "/ui/prd",      // PRD Maker UI is public
             "/api/shapeup", // Shape Up API endpoints are public
             "/ui/shapeup",  // Shape Up UI is public
+            "/api/claudecode", // ClaudeCode API endpoints are public
+            "/ui/claudecode",  // ClaudeCode UI is public
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -236,6 +239,18 @@ public class AuthenticationMiddleware
 
                 // For /ui/shapeup/, all methods are public
                 if (path.StartsWith("/ui/shapeup"))
+                {
+                    return false;
+                }
+
+                // For /api/claudecode/, all methods are public
+                if (path.StartsWith("/api/claudecode"))
+                {
+                    return false;
+                }
+
+                // For /ui/claudecode/, all methods are public
+                if (path.StartsWith("/ui/claudecode"))
                 {
                     return false;
                 }

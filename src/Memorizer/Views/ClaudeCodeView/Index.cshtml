@@ -1,0 +1,175 @@
+@{
+    ViewData["Title"] = "ClaudeCode - Claude Code Skills";
+    Layout = "_Layout";
+    ViewBag.Controller = "ClaudeCodeView";
+}
+
+@section Styles {
+    <style>
+        .claudecode-hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            border-radius: 16px;
+            padding: 60px 40px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .claudecode-hero h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .claudecode-hero p {
+            font-size: 1.1rem;
+            opacity: 0.85;
+            max-width: 600px;
+            margin: 0 auto 30px;
+        }
+
+        .feature-card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+            height: 100%;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .feature-card .icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #666;
+            font-size: 0.95rem;
+            margin-bottom: 20px;
+        }
+
+        .btn-create-skill {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            color: white;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-block;
+            transition: opacity 0.2s;
+        }
+
+        .btn-create-skill:hover {
+            opacity: 0.9;
+            color: white;
+        }
+
+        .skill-structure {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+
+        .skill-structure .folder { color: #dcdcaa; }
+        .skill-structure .file { color: #9cdcfe; }
+        .skill-structure .comment { color: #6a9955; }
+    </style>
+}
+
+<div class="container-fluid px-4">
+    <div class="claudecode-hero">
+        <h1><i class="fas fa-terminal me-3"></i>ClaudeCode</h1>
+        <p>Claude Code의 Skill 시스템을 활용하여 전문 지식을 모듈식 기능으로 패키징하세요. 대화형 인터페이스로 쉽게 만들 수 있습니다.</p>
+        <a href="/ui/claudecode/skill" class="btn-create-skill">
+            <i class="fas fa-magic me-2"></i>Skill 만들기 시작
+        </a>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="icon" style="background: #e8f4fd; color: #2196f3;">
+                    <i class="fas fa-comments"></i>
+                </div>
+                <h3>대화형 생성</h3>
+                <p>직군 선택부터 스킬 완성까지, AI와의 대화를 통해 단계별로 스킬을 만듭니다.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="icon" style="background: #fce4ec; color: #e91e63;">
+                    <i class="fas fa-file-code"></i>
+                </div>
+                <h3>SKILL.md 자동 생성</h3>
+                <p>YAML 프론트매터, Instructions, Examples를 포함한 완전한 SKILL.md를 자동으로 생성합니다.</p>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="feature-card">
+                <div class="icon" style="background: #e8f5e9; color: #4caf50;">
+                    <i class="fas fa-share-alt"></i>
+                </div>
+                <h3>공유 & 복사</h3>
+                <p>생성된 스킬을 숏링크로 공유하거나, 복사하여 바로 프로젝트에 적용할 수 있습니다.</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-md-6">
+            <div class="feature-card">
+                <h3><i class="fas fa-folder-tree me-2"></i>Skill 파일 구조</h3>
+                <div class="skill-structure">
+                    <span class="folder">my-skill/</span><br>
+                    <span class="file">&nbsp;&nbsp;SKILL.md</span> <span class="comment"># 필수: 메인 지침</span><br>
+                    <span class="file">&nbsp;&nbsp;reference.md</span> <span class="comment"># 선택: 상세 문서</span><br>
+                    <span class="file">&nbsp;&nbsp;examples.md</span> <span class="comment"># 선택: 예시 모음</span><br>
+                    <span class="folder">&nbsp;&nbsp;scripts/</span><br>
+                    <span class="file">&nbsp;&nbsp;&nbsp;&nbsp;helper.py</span> <span class="comment"># 선택: 유틸리티</span><br>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="feature-card">
+                <h3><i class="fas fa-layer-group me-2"></i>Skill 타입</h3>
+                <div class="mt-3">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-success me-3" style="min-width: 80px;">개인</span>
+                        <span><code>~/.claude/skills/</code> - 모든 프로젝트에서 사용</span>
+                    </div>
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-info me-3" style="min-width: 80px;">프로젝트</span>
+                        <span><code>.claude/skills/</code> - Git으로 팀 공유</span>
+                    </div>
+                    <div class="d-flex align-items-center">
+                        <span class="badge bg-warning text-dark me-3" style="min-width: 80px;">플러그인</span>
+                        <span>플러그인 번들 - 마켓플레이스 배포</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

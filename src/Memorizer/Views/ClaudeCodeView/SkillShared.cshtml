@@ -1,0 +1,209 @@
+@{
+    ViewData["Title"] = "Shared Skills - ClaudeCode";
+    Layout = "_Layout";
+    ViewBag.Controller = "ClaudeCodeView";
+}
+
+@section Styles {
+    <style>
+        .page-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            color: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 24px;
+        }
+
+        .skill-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            height: 100%;
+        }
+
+        .skill-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.12);
+        }
+
+        .skill-card h5 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .skill-card .meta {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .skill-card .date {
+            font-size: 0.8rem;
+            color: #999;
+        }
+
+        .skill-card .badge {
+            font-size: 0.75rem;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            margin-bottom: 16px;
+            opacity: 0.3;
+        }
+
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 24px;
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 40px;
+        }
+    </style>
+}
+
+<div class="container-fluid px-4">
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h3 class="mb-1"><i class="fas fa-share-alt me-2"></i>Shared Skills</h3>
+                <small class="opacity-75">공유된 Claude Code Skill 목록</small>
+            </div>
+            <a href="/ui/claudecode/skill" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-plus me-1"></i>새 Skill 만들기
+            </a>
+        </div>
+    </div>
+
+    <div id="loadingSpinner" class="loading-spinner">
+        <div class="spinner-border text-primary" role="status"></div>
+    </div>
+
+    <div id="skillGrid" class="row g-3" style="display: none;"></div>
+
+    <div id="emptyState" class="empty-state" style="display: none;">
+        <i class="fas fa-folder-open d-block"></i>
+        <h5>아직 공유된 스킬이 없습니다</h5>
+        <p>Skill을 만들고 공유해보세요!</p>
+        <a href="/ui/claudecode/skill" class="btn btn-primary mt-2">
+            <i class="fas fa-magic me-1"></i>Skill 만들기
+        </a>
+    </div>
+
+    <div id="paginationContainer" class="pagination-container" style="display: none;">
+        <nav>
+            <ul id="pagination" class="pagination"></ul>
+        </nav>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        let currentPage = 1;
+        const pageSize = 12;
+
+        document.addEventListener('DOMContentLoaded', () => loadSkills(1));
+
+        async function loadSkills(page) {
+            try {
+                document.getElementById('loadingSpinner').style.display = '';
+                document.getElementById('skillGrid').style.display = 'none';
+
+                const response = await fetch(`/api/claudecode/shares?page=${page}&pageSize=${pageSize}`);
+                const data = await response.json();
+
+                currentPage = page;
+
+                const grid = document.getElementById('skillGrid');
+                grid.innerHTML = '';
+
+                if (data.items.length === 0) {
+                    document.getElementById('loadingSpinner').style.display = 'none';
+                    document.getElementById('emptyState').style.display = '';
+                    return;
+                }
+
+                data.items.forEach(item => {
+                    const date = new Date(item.createdAt);
+                    const dateStr = date.toLocaleDateString('ko-KR');
+
+                    const col = document.createElement('div');
+                    col.className = 'col-md-4 col-lg-3';
+                    col.innerHTML = `
+                        <div class="skill-card" onclick="window.location.href='/ui/claudecode/share/${item.shortCode}'">
+                            <h5><i class="fas fa-file-code me-2" style="color:#667eea;"></i>${escapeHtml(item.title)}</h5>
+                            <div class="meta">
+                                ${item.jobCategory ? `<span class="badge bg-info">${escapeHtml(item.jobCategory)}</span>` : ''}
+                                ${item.skillName ? `<span class="badge bg-success">${escapeHtml(item.skillName)}</span>` : ''}
+                            </div>
+                            <div class="date"><i class="fas fa-calendar me-1"></i>${dateStr}</div>
+                        </div>
+                    `;
+                    grid.appendChild(col);
+                });
+
+                // Pagination
+                if (data.totalPages > 1) {
+                    renderPagination(data.totalPages);
+                    document.getElementById('paginationContainer').style.display = '';
+                } else {
+                    document.getElementById('paginationContainer').style.display = 'none';
+                }
+
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('skillGrid').style.display = '';
+                document.getElementById('emptyState').style.display = 'none';
+            } catch (error) {
+                console.error('Failed to load skills:', error);
+                document.getElementById('loadingSpinner').innerHTML =
+                    '<p class="text-danger">로딩 중 오류가 발생했습니다.</p>';
+            }
+        }
+
+        function renderPagination(totalPages) {
+            const ul = document.getElementById('pagination');
+            ul.innerHTML = '';
+
+            // Previous
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage <= 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" href="#" onclick="event.preventDefault(); loadSkills(${currentPage - 1});">&laquo;</a>`;
+            ul.appendChild(prevLi);
+
+            // Page numbers
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" href="#" onclick="event.preventDefault(); loadSkills(${i});">${i}</a>`;
+                ul.appendChild(li);
+            }
+
+            // Next
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage >= totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" href="#" onclick="event.preventDefault(); loadSkills(${currentPage + 1});">&raquo;</a>`;
+            ul.appendChild(nextLi);
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+}

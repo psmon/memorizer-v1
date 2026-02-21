@@ -288,6 +288,12 @@ AskBot LLM-EX upgrade - Full LLM-EX (extended model) support for AskBot, toggle 
 
 - [ASKBOT-LLM-UPGRADE](48-ASKBOT-LLM-UPGRADE.md)
 
+## Version 1.4.2
+
+ClaudeCode feature expansion and Skill Maker stabilization - Added ClaudeCode top-level menu and skill creation/share flow, strengthened Actor+SSE based agent conversation state handling, fixed duplicated role/category prompt flow and unhandled message path, resolved ActorContext async usage crash before skill generation, added automatic share title generation and practical skill usage/copy-path guidance display
+
+- [ClaudeCode-Guide](49-ClaudeCode-Guide.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

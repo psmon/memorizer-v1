@@ -7,13 +7,13 @@ using Xunit.Abstractions;
 
 namespace Memorizer.IntegrationTests.Services;
 
-public class MultiModalServiceTests
+public class MultiModalCustomServiceTests
 {
     private readonly MultiModalSettings _settings;
-    private readonly Mock<ILogger<MultiModalService>> _mockLogger;
+    private readonly Mock<ILogger<MultiModalCustomService>> _mockLogger;
     private readonly ITestOutputHelper _output;
 
-    public MultiModalServiceTests(ITestOutputHelper output)
+    public MultiModalCustomServiceTests(ITestOutputHelper output)
     {
         _output = output;
         _settings = new MultiModalSettings
@@ -25,7 +25,7 @@ public class MultiModalServiceTests
             Timeout = TimeSpan.FromMinutes(2)
         };
 
-        _mockLogger = new Mock<ILogger<MultiModalService>>();
+        _mockLogger = new Mock<ILogger<MultiModalCustomService>>();
     }
 
     [Fact]
@@ -33,7 +33,7 @@ public class MultiModalServiceTests
     {
         // Arrange
         var httpClient = new HttpClient();
-        var service = new MultiModalService(httpClient, _settings, _mockLogger.Object);
+        var service = new MultiModalCustomService(httpClient, _settings, _mockLogger.Object);
 
         // Create a simple triangle image
         var imageData = CreateTriangleImage();
@@ -49,7 +49,7 @@ public class MultiModalServiceTests
         Assert.NotNull(result);
         Assert.NotEmpty(result);
         
-        _output.WriteLine("Response from MultiModalService:");
+        _output.WriteLine("Response from MultiModalCustomService:");
         _output.WriteLine(result);
 
         // Check if the response mentions triangle in any form
@@ -67,7 +67,7 @@ public class MultiModalServiceTests
     {
         // Arrange
         var httpClient = new HttpClient();
-        var service = new MultiModalService(httpClient, _settings, _mockLogger.Object);
+        var service = new MultiModalCustomService(httpClient, _settings, _mockLogger.Object);
 
         // Act
         var result = await service.CheckHealthAsync();

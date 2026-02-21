@@ -274,6 +274,24 @@ ShapeUp 공유 페이지 개선 - 공유 뷰 페이지에서 Edit 버튼으로 �
 
 - [ShapeUp-Share-Improve](46-shapeup-share-improve.md)
 
+## Version 1.4.0
+
+ShapeUp 공유 UX 개선 - AI 생성이 없는 보드 공유시 LLM 제목/설명 자동 생성(POST /api/shapeup/generate-metadata), 공유 페이지 Pan 기본 활성화 및 손바닥 버튼 토글, 마우스 휠 줌, 브라우저 스크롤 간섭 방지 CSS 적용
+
+- [ShapeUp-Share-UX](47-shapeup-share-ux.md)
+
+## Version 1.4.1
+
+AskBot LLM-EX 업그레이드 - AskBot 전체 흐름에 LLM-EX(고급 모델) 지원 확장, UI 토글 스위치 제공, 메모리 저장 분석 시 LLM-EX 옵션 추가, SearchMemoryActor/DecisionActor를 포함한 추론 과정 전체에서 UseExtendedModel 전파
+
+- [ASKBOT-LLM-UPGRADE](48-ASKBOT-LLM-UPGRADE.md)
+
+## Version 1.4.2
+
+ClaudeCode 기능 확장 및 Skill Maker 안정화 - ClaudeCode 상위 메뉴 및 스킬 생성/공유 흐름 강화, Actor+SSE 기반 상태 처리 개선, 직군/카테고리 중복 질의 및 unhandled message 경로 수정, 스킬 생성 직전 ActorContext 비동기 오류 보완, 공유시 제목 자동 생성과 SKILL.md 복사 경로/활용 가이드 노출 개선
+
+- [ClaudeCode-Guide](49-ClaudeCode-Guide.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```
