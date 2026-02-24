@@ -62,6 +62,8 @@ public sealed record SkillMakerStreamingUpdate : IChatBotMessage
     public bool IsComplete { get; init; }
     public string? SkillContent { get; init; }
     public string? UsageGuide { get; init; }
+    public string? Insight { get; init; }   // 질문의 인사이트 (왜 이 질문을?)
+    public string? Example { get; init; }   // 답변 예시
     public string? NextMessageType { get; init; }
     public DateTime Timestamp { get; init; } = DateTime.UtcNow;
 }

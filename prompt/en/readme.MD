@@ -294,6 +294,12 @@ ClaudeCode feature expansion and Skill Maker stabilization - Added ClaudeCode to
 
 - [ClaudeCode-Guide](49-ClaudeCode-Guide.md)
 
+## Version 1.4.3
+
+SkillCreate follow-up question improvement - Applied 5 information gathering categories based on Planning & Design principles (use case definition, skill category identification, input/output and tools, success criteria, constraints and error handling), provide insight (why this question is asked) and answer examples for each question, JSON parsing with fallback handling, added insight/example fields to SSE streaming, UI display with blue insight box and purple example box
+
+- [ClaudeCode-Guide-PlanMode](50-ClaudeCode-Guide-PlanMode.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

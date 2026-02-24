@@ -135,5 +135,21 @@
 - src/Memorizer/migrations/021_add_claudecode_skill_share_links.sql - ClaudeCode 공유 스키마 마이그레이션
 
 
-마지막 자동수정일시분 : 2026-02-21 00:00:00
-마지막 버전 반영 : 49
+## SkillCreate 후속 질문 개선 (v50 추가)
+- Planning & Design 원칙 기반 5가지 정보 수집 카테고리 적용 (유즈케이스 정의, 스킬 카테고리 판별, 입출력 및 도구, 성공 기준, 제약사항)
+- 각 후속 질문에 인사이트(왜 이 질문을 하는지)와 답변 예시 제공
+- LLM 출력 형식을 JSON으로 변경: {"question":"...", "insight":"...", "example":"..."}
+- JSON 파싱 실패 시 폴백: 원본 텍스트를 질문으로, insight/example은 null
+- SSE 스트리밍에 insight/example 필드 추가
+- UI에 파란색 인사이트 박스(#2196F3)와 보라색 예시 박스(#9C27B0) 표시
+
+## 주요 파일 (v50 관련)
+- src/Memorizer/Actors/SkillMakerMessages.cs - SkillMakerStreamingUpdate에 Insight, Example nullable 필드 추가
+- src/Memorizer/Services/SkillMakerPrompts.cs - GetFollowUpQuestionPrompt() 전면 개편 (Planning & Design 원칙, JSON 출력)
+- src/Memorizer/Actors/SkillMakerActor.cs - HandleFollowUpQuestionResult() JSON 파싱 로직 추가
+- src/Memorizer/Controllers/ClaudeCodeController.cs - SSE 직렬화에 insight, example 필드 추가
+- src/Memorizer/Views/ClaudeCodeView/SkillCreate.cshtml - addQuestionMessage() 함수 및 CSS 추가
+- prompt/docs/04-ClaudeCode-PlanningAndDesign.md - 스킬 설계 원칙 참조 문서
+
+마지막 자동수정일시분 : 2026-02-24 00:00:00
+마지막 버전 반영 : 50

@@ -292,6 +292,12 @@ ClaudeCode 기능 확장 및 Skill Maker 안정화 - ClaudeCode 상위 메뉴 �
 
 - [ClaudeCode-Guide](49-ClaudeCode-Guide.md)
 
+## Version 1.4.3
+
+SkillCreate 후속 질문 개선 - Planning & Design 원칙 기반 5가지 정보 수집 카테고리(유즈케이스 정의, 스킬 카테고리 판별, 입출력 및 도구, 성공 기준, 제약사항) 적용, 각 질문에 인사이트(왜 이 질문을 하는지)와 답변 예시 제공, JSON 파싱 + 폴백 처리, SSE 스트리밍에 insight/example 필드 추가, UI에 파란색 인사이트/보라색 예시 박스 표시
+
+- [ClaudeCode-Guide-PlanMode](50-ClaudeCode-Guide-PlanMode.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

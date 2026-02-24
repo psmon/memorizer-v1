@@ -122,6 +122,8 @@ public class ClaudeCodeController : ControllerBase
                     isComplete = update.IsComplete,
                     skillContent = update.SkillContent,
                     usageGuide = update.UsageGuide,
+                    insight = update.Insight,
+                    example = update.Example,
                     updateType = eventType,
                     nextMessageType = update.NextMessageType,
                     timestamp = update.Timestamp

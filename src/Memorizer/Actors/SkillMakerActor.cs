@@ -382,17 +382,56 @@ public class SkillMakerActor : ReceiveActor, IWithTimers
         }
         else
         {
+            // Try to parse JSON response with question/insight/example
+            string question = trimmed;
+            string? insight = null;
+            string? example = null;
+
+            try
+            {
+                // Remove code fence if present (```json ... ```)
+                var jsonText = trimmed;
+                if (jsonText.StartsWith("```json")) jsonText = jsonText.Substring(7);
+                if (jsonText.StartsWith("```")) jsonText = jsonText.Substring(3);
+                if (jsonText.EndsWith("```")) jsonText = jsonText.Substring(0, jsonText.Length - 3);
+                jsonText = jsonText.Trim();
+
+                using var doc = JsonDocument.Parse(jsonText);
+                var root = doc.RootElement;
+
+                if (root.TryGetProperty("question", out var questionProp))
+                {
+                    question = questionProp.GetString() ?? trimmed;
+                }
+                if (root.TryGetProperty("insight", out var insightProp))
+                {
+                    insight = insightProp.GetString();
+                }
+                if (root.TryGetProperty("example", out var exampleProp))
+                {
+                    example = exampleProp.GetString();
+                }
+            }
+            catch (JsonException)
+            {
+                // Fallback: use raw text as question, insight/example remain null
+                _logger.Debug("Follow-up question response is not JSON for session {0}, using as plain text", _sessionId);
+            }
+
+            // Store only question text in conversation history (exclude insight/example to save tokens)
             _conversationEntries.Add(new SkillConversationEntry
             {
                 Role = "assistant",
-                Content = trimmed
+                Content = question
             });
 
             _sseBridge.Tell(new SkillMakerStreamingUpdate
             {
                 SessionId = _sessionId,
                 UpdateType = SkillMakerUpdateType.Question,
-                Content = trimmed
+                Content = question,
+                Insight = insight,
+                Example = example
             });
         }
     }
