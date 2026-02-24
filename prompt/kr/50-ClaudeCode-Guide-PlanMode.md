@@ -25,3 +25,25 @@ PostgreSQL를 이용한 검색및 벡터검색이 가능하고 Neo4j를 활용 �
 - 개발 db인 postgres는 로컬 docker를 통해 이미 구동되어 있어서 db조회및 파악가능합니다. - 런타임오류 발생및 기능오류 제보기 read로 이용가능
 - 정상적으로 구동되면 직접 테스트 예정으로 피드백대기합니다.
 
+## fix
+스킬 사용가이드가 다음과같이 표현됨
+```
+SKILL.md 사용 가이드
+아래 내용을 "복사하기" 후 다음 경로에 SKILL.md 파일로 저장하세요.
+
+프로젝트 스킬	your-project/.claude/skills/SKILL.md	팀원과 공유됨 (Git)
+개인 글로벌 스킬	~/.claude/skills/SKILL.md	모든 프로젝트에서 사용
+저장 후 Claude Code에서 /skill 명령으로 스킬을 호출할 수 있습니다.
+```
+아래와같이 스킬명 디렉토리에 배치해야 올바른 구조
+- your-project/.claude/skills/스킬명/SKILL.md
+- ~/.claude/skills/스킬명/SKILL.md
+스킬 사용 가이드를 수정해주세요
+
+---
+
+다음도 수정
+as is:
+-저장 후 Claude Code에서 /skill-스킬명 명령으로 스킬을 호출할 수 있습니다.
+to be:
+-저장 후 Claude Code에서 /스킬명 명령으로 스킬을 호출할 수 있습니다. -예시를 위한 한글을 영어로 변경해주세요
