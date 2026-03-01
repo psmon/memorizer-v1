@@ -117,7 +117,12 @@ public enum ResponseType
     /// <summary>
     /// Response based on web search results (fallback when no relevant memories found)
     /// </summary>
-    WebSearchBased
+    WebSearchBased,
+
+    /// <summary>
+    /// Hybrid response combining memory and web search results (partial topic coverage)
+    /// </summary>
+    HybridBased
 }
 
 /// <summary>

@@ -249,7 +249,7 @@ public class ChatBotActorTests : TestKit
         Assert.Equal(ResponseType.WebSearchBased, response.Type);
 
         mockWebSearchService.Verify(x => x.SearchAsync(
-            WebSearchProvider.Google,
+            WebSearchProvider.Naver,
             It.IsAny<string>(),
             5,
             WebSearchAccessMode.Headless,

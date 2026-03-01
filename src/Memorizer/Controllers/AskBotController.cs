@@ -1459,8 +1459,8 @@ public sealed class StreamingChatBotActor : ChatBotActor
                     sessionId = _sessionId,
                     type = response.Type.ToString(),
                     referencedMemoryIds = response.ReferencedMemoryIds ?? new List<Guid>(),
-                    hasMemorySearch = response.Type == ResponseType.MemoryBased,
-                    hasWebSearch = response.Type == ResponseType.WebSearchBased,
+                    hasMemorySearch = response.Type == ResponseType.MemoryBased || response.Type == ResponseType.HybridBased,
+                    hasWebSearch = response.Type == ResponseType.WebSearchBased || response.Type == ResponseType.HybridBased,
                     webSearchReferences = (response.WebSearchReferences ?? new List<Actors.WebSearchReference>())
                         .Select(r => new { title = r.Title, url = r.Url, snippet = r.Snippet }).ToList()
                 })

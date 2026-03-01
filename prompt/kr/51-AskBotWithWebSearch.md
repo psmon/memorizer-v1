@@ -29,3 +29,25 @@ PostgreSQL를 이용한 검색및 벡터검색이 가능하고 Neo4j를 활용 �
 
 - 네이버 파싱은 해결된듯하고.. 검색전략에의해 3가지 네이버,빙,구글 3개를 검색해 그중 가장 관련성있는 검색결과를 채택(판단)
  네이버처럼 파싱에 문제가 있을수 있으니 txt 로깅 기록남기고 3개가 잘되나 진행예정.. 그전에 검색 대상 3개를 종합 검색해 채택하는 로직으로 개선
+
+
+
+다음과 같이 두가지 토픽이 필요한경우.. 메모리에서 하나를 검색
+하지만 나머지 주제는 메모리없어서 웹검색이 필요한 상황일텐데.. 현재 두가지이상 토픽이 필요한경우
+복합 참조를 안함 플로우를 개선  
+```
+Processing your request...
+Analyzing user query...
+Analyzing query to determine search strategy...
+Query analysis: 2 topic(s) identified
+Reasoning: 사용자가 핵심 기술 결정과 바이브 코딩 회고 두 가지 주제를 언급하고, 이 둘에 대한 국내 커뮤니티 반응을 함께 해석해 분석하도록 요청했습니다.
+Using multi-topic search strategy for topics: 핵심 기술 결정 Core Technology Decision, 바이브 코딩 회고 Vibe Coding Retrospective
+Found 2 memories across 2 topics.
+Topic '핵심 기술 결정 Core Technology Decision': 1 memory/memories found
+Topic '바이브 코딩 회고 Vibe Coding Retrospective': 1 memory/memories found
+Evaluating relevance of multi-topic search results...
+Found 1 relevant memories.
+Decision reasoning: 결과 2는 Vibe Coding의 핵심 개념과 아키텍처를 다루고 있어 “핵심 기술 결정”과 “바이브 코딩 회고”에 대한 이해를 돕는 자료가 될 수 있습니다. 국내 커뮤니티 반응 분석은 포함되어 있지 않지만, Vibe Coding에 관한 기본 정보를 제공하므로 부분적으로 유용합니다.
+Generating response based on relevant memories...
+Successfully generated response using 3 memory/memories.
+```

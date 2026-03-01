@@ -72,6 +72,25 @@ Keep it concise (2-5 words).
 User question: {0}
 Search keywords:";
 
+    // Prompt for hybrid responses (memory + web search combined)
+    private const string HybridResponsePrompt = @"
+You are a helpful AI assistant named ASKBot with access to stored memories and web search results.
+
+{3}
+
+Current User Query: {0}
+
+Relevant Information from Memory:
+{1}
+
+Additional Information from Web Search:
+{2}
+
+Based on the conversation context, the memory information, and the web search results, provide a comprehensive and accurate answer.
+Clearly indicate which information comes from memory and which from web search when appropriate.
+Cite web sources where appropriate by mentioning the title or URL.
+Maintain conversation continuity and reference previous context when appropriate.";
+
     // Prompt for web search-based responses
     private const string WebSearchBasedResponsePrompt = @"
 You are a helpful AI assistant named ASKBot. You are having a conversation with a user.
@@ -346,19 +365,38 @@ Maintain conversation continuity and reference previous context when appropriate
                 AddReasoningStep($"Topic '{topicResult.Key}': {topicResult.Value.Count} memory/memories found");
             }
 
-            AddReasoningStep("Evaluating relevance of multi-topic search results...");
+            // Check per-topic coverage for hybrid search
+            var emptyTopics = multiSearchResponse.TopicResults
+                .Where(t => t.Value.Count == 0)
+                .Select(t => t.Key)
+                .ToList();
 
-            // Evaluate relevance of combined results
-            var evaluateRequest = new EvaluateRelevanceRequest
+            if (emptyTopics.Count > 0 && _webSearchService != null)
             {
-                SessionId = originalRequest.SessionId,
-                Query = originalRequest.Message,
-                Memories = multiSearchResponse.AllMemories,
-                UseExtendedModel = _useExtendedModelForCurrentRequest
-            };
+                // Hybrid: some topics have memory, others need web search
+                AddReasoningStep($"Partial coverage: {emptyTopics.Count} topic(s) missing from memory, searching web...");
+                foreach (var topic in emptyTopics)
+                {
+                    AddReasoningStep($"Web search needed for topic: {topic}");
+                }
+                GenerateHybridResponse(originalRequest, multiSearchResponse, emptyTopics, originalSender);
+            }
+            else
+            {
+                AddReasoningStep("Evaluating relevance of multi-topic search results...");
 
-            Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
-            _decisionActor.Tell(evaluateRequest, Self);
+                // All topics have memory results - evaluate relevance as before
+                var evaluateRequest = new EvaluateRelevanceRequest
+                {
+                    SessionId = originalRequest.SessionId,
+                    Query = originalRequest.Message,
+                    Memories = multiSearchResponse.AllMemories,
+                    UseExtendedModel = _useExtendedModelForCurrentRequest
+                };
+
+                Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
+                _decisionActor.Tell(evaluateRequest, Self);
+            }
         }
     }
 
@@ -766,6 +804,134 @@ Maintain conversation continuity and reference previous context when appropriate
         catch (Exception ex)
         {
             _logger.Error(ex, "Error generating general response for session {0}", request.SessionId);
+            throw;
+        }
+    }
+
+    private void GenerateHybridResponse(
+        UserChatRequest request,
+        MultiTopicSearchResponse multiSearchResponse,
+        List<string> emptyTopics,
+        IActorRef originalSender)
+    {
+        AddReasoningStep("Generating hybrid response (memory + web search)...");
+
+        var self = Self;
+        Task.Run(async () =>
+        {
+            try
+            {
+                var response = await GenerateHybridResponseAsync(request, multiSearchResponse, emptyTopics);
+                self.Tell(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Hybrid response failed for session {0}, falling back to memory-based", request.SessionId);
+                try
+                {
+                    // Fallback: try memory-based response with available memories
+                    var fallbackResponse = await GenerateMemoryBasedResponseAsync(request, multiSearchResponse.AllMemories, originalSender);
+                    self.Tell(fallbackResponse);
+                }
+                catch (Exception fallbackEx)
+                {
+                    self.Tell(new Status.Failure(fallbackEx));
+                }
+            }
+        });
+        SetupBaseHandlers();
+    }
+
+    private async Task<ChatBotResponse> GenerateHybridResponseAsync(
+        UserChatRequest request,
+        MultiTopicSearchResponse multiSearchResponse,
+        List<string> emptyTopics)
+    {
+        try
+        {
+            // 1. Web search for topics without memory results
+            var allWebReferences = new List<WebSearchReference>();
+            var webResultsBuilder = new StringBuilder();
+
+            foreach (var topic in emptyTopics)
+            {
+                AddReasoningStep($"Extracting search keywords for topic: {topic}");
+                var searchKeyword = await ExtractWebSearchKeyword(topic);
+                AddReasoningStep($"Searching web for: {searchKeyword}");
+
+                var searchResult = await _webSearchService!.SearchAsync(
+                    WebSearchProvider.Naver,
+                    searchKeyword,
+                    maxResults: 3,
+                    accessMode: WebSearchAccessMode.Headless);
+
+                if (searchResult.Items.Count > 0)
+                {
+                    AddReasoningStep($"Web search found {searchResult.Items.Count} results for topic: {topic}");
+                    foreach (var item in searchResult.Items)
+                    {
+                        allWebReferences.Add(new WebSearchReference
+                        {
+                            Title = item.Title,
+                            Url = item.Url,
+                            Snippet = item.Snippet
+                        });
+                    }
+                    webResultsBuilder.AppendLine($"--- Topic: {topic} ---");
+                    webResultsBuilder.Append(FormatWebSearchResults(searchResult.Items));
+                }
+                else
+                {
+                    AddReasoningStep($"No web search results for topic: {topic}");
+                }
+            }
+
+            // 2. Build hybrid prompt with memory + web search results
+            var memoriesText = FormatMemoriesForResponse(multiSearchResponse.AllMemories);
+            var webResultsText = webResultsBuilder.ToString();
+            var conversationContext = GenerateConversationContext();
+            var usedMemoryIds = multiSearchResponse.AllMemories.Select(m => m.Id).ToList();
+
+            string llmResponse;
+
+            if (allWebReferences.Count > 0)
+            {
+                // Hybrid: both memory and web results available
+                var prompt = string.Format(HybridResponsePrompt, request.Message, memoriesText, webResultsText, conversationContext);
+                llmResponse = await CompleteWithLlmAsync(prompt);
+                AddReasoningStep($"Generated hybrid response using {multiSearchResponse.AllMemories.Count} memories and {allWebReferences.Count} web references.");
+            }
+            else
+            {
+                // Web search returned nothing - use memory only
+                var prompt = string.Format(MemoryBasedResponsePrompt, request.Message, memoriesText, conversationContext);
+                llmResponse = await CompleteWithLlmAsync(prompt);
+                AddReasoningStep($"Web search returned no results, generated response using {multiSearchResponse.AllMemories.Count} memories only.");
+            }
+
+            // 3. Update conversation history
+            _conversationHistory.Add($"Assistant (hybrid): {llmResponse}");
+            await UpdateConversationEntries(request.Message, llmResponse, true, usedMemoryIds, request.ImageData, request.ImageFormat, allWebReferences.Count > 0 ? allWebReferences : null);
+
+            // 4. Return response with both memory IDs and web references
+            var responseType = allWebReferences.Count > 0 ? ResponseType.HybridBased : ResponseType.MemoryBased;
+            var response = new ChatBotResponse
+            {
+                SessionId = request.SessionId,
+                Message = llmResponse,
+                Type = responseType,
+                ReferencedMemoryIds = usedMemoryIds,
+                WebSearchReferences = allWebReferences.Count > 0 ? allWebReferences : null,
+                ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
+            };
+
+            _logger.Info("Generated hybrid response for session {0} using {1} memories and {2} web references",
+                request.SessionId, usedMemoryIds.Count, allWebReferences.Count);
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Error generating hybrid response for session {0}", request.SessionId);
             throw;
         }
     }

@@ -395,8 +395,8 @@
                     `;
                 }
 
-                // Check if this message has web search references
-                if (msg.role === 'assistant' && !memoryReferencesHtml) {
+                // Check if this message has web search references (also shown alongside memory refs for hybrid)
+                if (msg.role === 'assistant') {
                     let wsRefs = webSearchReferencesMap[index];
                     if (!wsRefs && msg.webSearchReferences && msg.webSearchReferences.length > 0) {
                         wsRefs = msg.webSearchReferences;
@@ -408,8 +408,8 @@
                             </button>`
                         ).join('');
 
-                        memoryReferencesHtml = `
-                            <div class="memory-references">
+                        memoryReferencesHtml += `
+                            <div class="memory-references${memoryReferencesHtml ? ' mt-2' : ''}">
                                 <small class="text-muted">
                                     <i class="fas fa-globe me-1"></i>
                                     <strong>웹 검색 참고:</strong>
