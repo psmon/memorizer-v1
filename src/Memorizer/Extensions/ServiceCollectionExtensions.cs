@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddLlmExServices();
         services.AddMultiModalServices();
         services.AddAskBotSettings();
+        services.AddWebSearchServices();
         services.AddActorSystem();
         services.AddStorage();
         services.AddServerSettings();
@@ -41,6 +42,27 @@ public static class ServiceCollectionExtensions
         if(initialize)
             services.AddHostedService<InitializationService>();
         services.AutoRegisterTypesInAssemblies(typeof(Storage).Assembly);
+        return services;
+    }
+
+    public static IServiceCollection AddWebSearchServices(
+        this IServiceCollection services)
+    {
+        services.AddSingleton<WebSearchSettings>(sp =>
+            sp.GetRequiredService<IConfiguration>().GetSection("WebSearch").Get<WebSearchSettings>() ??
+            new WebSearchSettings());
+
+        services.AddSingleton<IWebSearchService>(sp =>
+        {
+            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+            var httpClient = httpClientFactory.CreateClient();
+            var settings = sp.GetRequiredService<WebSearchSettings>();
+            var logger = sp.GetRequiredService<ILoggerFactory>().CreateLogger<WebSearchService>();
+            return new WebSearchService(httpClient, settings, logger);
+        });
+        
+        services.AddHostedService<WebSearchBrowserBootstrapService>();
+
         return services;
     }
 

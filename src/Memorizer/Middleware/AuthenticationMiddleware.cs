@@ -104,7 +104,8 @@ public class AuthenticationMiddleware
             path.StartsWith("/api/llm") || path.StartsWith("/api/architecture") || path.StartsWith("/ui/architecture") ||
             path.StartsWith("/api/prd") || path.StartsWith("/ui/prd") ||
             path.StartsWith("/api/shapeup") || path.StartsWith("/ui/shapeup") ||
-            path.StartsWith("/api/claudecode") || path.StartsWith("/ui/claudecode"))
+            path.StartsWith("/api/claudecode") || path.StartsWith("/ui/claudecode") ||
+            path.StartsWith("/api/websearch"))
         {
             _logger.LogDebug("Public API path (authentication optional): {Path}", path);
 
@@ -178,6 +179,7 @@ public class AuthenticationMiddleware
             "/ui/shapeup",  // Shape Up UI is public
             "/api/claudecode", // ClaudeCode API endpoints are public
             "/ui/claudecode",  // ClaudeCode UI is public
+            "/api/websearch", // WebSearch API endpoints are public
             "/healthz",
             "/sse-test",
             "/otel-test"
@@ -245,6 +247,12 @@ public class AuthenticationMiddleware
 
                 // For /api/claudecode/, all methods are public
                 if (path.StartsWith("/api/claudecode"))
+                {
+                    return false;
+                }
+
+                // For /api/websearch/, all methods are public
+                if (path.StartsWith("/api/websearch"))
                 {
                     return false;
                 }

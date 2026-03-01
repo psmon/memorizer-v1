@@ -104,16 +104,16 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "Memorizer LLM API",
+        Title = "Memorizer API",
         Version = "v1",
-        Description = "OpenAI-compatible LLM API endpoints"
+        Description = "OpenAI-compatible LLM endpoints and public WebSearch endpoints"
     });
 
-    // Only include LLMController endpoints in Swagger
+    // Include selected public API controllers in Swagger
     options.DocInclusionPredicate((docName, apiDesc) =>
     {
         var controllerName = apiDesc.ActionDescriptor.RouteValues["controller"];
-        return controllerName == "LLM";
+        return controllerName == "LLM" || controllerName == "WebSearch";
     });
 });
 

@@ -39,6 +39,7 @@ services:
       context: .
       dockerfile: src/Memorizer/Dockerfile
     container_name: memorizer-app
+    user: "0:0"
     ports:
       - "5012:8080"
     environment:
@@ -94,8 +95,16 @@ services:
       MEMORIZER_OAuth__Clients__0__AllowedScopes__0: "mcp:read"
       MEMORIZER_OAuth__Clients__0__AllowedScopes__1: "mcp:write"
       MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0: "https://chatgpt.com/aip/g-callback"
+      # WebSearch Headless (local docker verification profile)
+      MEMORIZER_WebSearch__AccessMode: Headless
+      MEMORIZER_WebSearch__Headless__Enabled: "true"
+      MEMORIZER_WebSearch__Headless__AutoInstallBrowserOnStartup: "true"
+      MEMORIZER_WebSearch__Headless__AutoInstallLinuxDependenciesOnStartup: "true"
+      MEMORIZER_WebSearch__Headless__ChromiumSandbox: "false"
+      MEMORIZER_WebSearch__Headless__BrowserInstallPath: /app/data/playwright-browsers
     volumes:
       - askbot_images:/app/data/askbot-images
+      - playwright_browsers:/app/data/playwright-browsers
     depends_on:
       - postgres
       - neo4j
@@ -106,3 +115,4 @@ volumes:
   neo4j_plugins:
   postgres_data:
   askbot_images:
+  playwright_browsers:
