@@ -51,3 +51,39 @@ Decision reasoning: 결과 2는 Vibe Coding의 핵심 개념과 아키텍처를 
 Generating response based on relevant memories...
 Successfully generated response using 3 memory/memories.
 ```
+
+다음은 진행 결과이고
+as is : 두가지 토픽중 하나는 메모리 참조
+to be : 두가지 토픽중 메모리참조도 하고, 메모리검색안된 나머지주제는 웹검색... 자료채택 flow를 개선(프롬프트및 채택 agent 개선)
+
+```
+리액티브 스트림 과 최근 기술동향을 비교해 활용사례
+Processing your request...
+Analyzing user query...
+Analyzing query to determine search strategy...
+Query analysis: 2 topic(s) identified
+Reasoning: 사용자가 리액티브 스트림과 최신 기술 동향을 서로 비교하고 활용 사례를 찾으려는 두 가지 주제를 요청했습니다.
+Using multi-topic search strategy for topics: 리액티브 스트림 Reactive Streams, 최근 기술동향 Recent Technology Trends
+Found 2 memories across 2 topics.
+Topic '리액티브 스트림 Reactive Streams': 1 memory/memories found
+Topic '최근 기술동향 Recent Technology Trends': 1 memory/memories found
+Evaluating relevance of multi-topic search results...
+Found 1 relevant memories.
+Decision reasoning: Result 1은 리액티브 스트림에 대한 정의와 핵심 개념을 제공하므로 사용자의 질문과 직접적으로 관련이 있습니다.
+Generating response based on relevant memories...
+Successfully generated response using 3 memory/memories.
+```
+
+머메이드를 만들때 다음과 같이 오류빈도가 높은데
+메머이드 작성시 실수안하도록 프롬프트개선
+```
+Parse error on line 3:
+...bscriber -->|request(n)| PublisherPubli
+-----------------------^
+Expecting 'SQE', 'DOUBLECIRCLEEND', 'PE', '-)', 'STADIUMEND', 'SUBROUTINEEND', 'PIPE', 'CYLINDEREND', 'DIAMOND_STOP', 'TAGEND', 'TRAPEND', 'INVTRAPEND', 'UNICODE_TEXT', 'TEXT', 'TAGSTART', got 'PS'
+
+graph LR
+  Publisher -->|data| Subscriber
+  Subscriber -->|request(n)| Publisher
+  Publisher --(backpressure)--> Subscriber
+```

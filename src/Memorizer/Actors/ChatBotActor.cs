@@ -40,6 +40,23 @@ public class ChatBotActor : ReceiveActor, IWithTimers
     // Current request state for UseExtendedModel tracking
     protected bool _useExtendedModelForCurrentRequest = false;
 
+    // Multi-topic context: preserved across DecisionActor evaluation for hybrid search
+    private MultiTopicSearchResponse? _pendingMultiTopicContext = null;
+
+    // Shared Mermaid syntax guidelines to prevent parse errors
+    private const string MermaidSyntaxGuidelines = @"
+
+[IMPORTANT: Mermaid Diagram Syntax Rules]
+When including Mermaid diagrams in your response, you MUST follow these rules strictly:
+- Use square brackets [] for labels, NEVER parentheses (). Example: A[Server] not A(Server)
+- Edge labels must use pipe syntax: A -->|label text| B. NEVER use --(text)--> or --text--> syntax.
+- Node names and labels should be in English (Korean explanations should be outside the diagram).
+- No special characters inside node names or labels (no parentheses, quotes, or angle brackets).
+- Valid edge examples: A --> B, A -->|data flow| B, A -.->|optional| B, A ==>|important| B
+- Invalid edge examples: A --(text)--> B, A -->|request(n)| B (parentheses inside label cause errors)
+- If you need parentheses in label text, replace them with square brackets: request[n] instead of request(n)
+- Always wrap diagram in ```mermaid code block.";
+
     // Prompt for general responses with context
     private const string GeneralResponsePrompt = @"
 You are a helpful AI assistant named ASKBot. You are having a conversation with a user.
@@ -48,7 +65,7 @@ You are a helpful AI assistant named ASKBot. You are having a conversation with 
 
 Current User Query: {0}
 
-Provide a helpful and concise response that takes the conversation context into account. Be conversational and maintain continuity with previous exchanges.";
+Provide a helpful and concise response that takes the conversation context into account. Be conversational and maintain continuity with previous exchanges." + MermaidSyntaxGuidelines;
 
     // Prompt for memory-based responses with context
     private const string MemoryBasedResponsePrompt = @"
@@ -62,7 +79,7 @@ Relevant Information from Memory:
 {1}
 
 Based on the conversation context and the relevant information, provide a comprehensive and accurate answer to the user's query.
-Maintain conversation continuity and reference previous context when appropriate.";
+Maintain conversation continuity and reference previous context when appropriate." + MermaidSyntaxGuidelines;
 
     // Prompt for extracting optimal web search keywords from user message
     private const string WebSearchKeywordPrompt = @"Extract the best web search keywords from the following user question.
@@ -89,7 +106,7 @@ Additional Information from Web Search:
 Based on the conversation context, the memory information, and the web search results, provide a comprehensive and accurate answer.
 Clearly indicate which information comes from memory and which from web search when appropriate.
 Cite web sources where appropriate by mentioning the title or URL.
-Maintain conversation continuity and reference previous context when appropriate.";
+Maintain conversation continuity and reference previous context when appropriate." + MermaidSyntaxGuidelines;
 
     // Prompt for web search-based responses
     private const string WebSearchBasedResponsePrompt = @"
@@ -105,7 +122,7 @@ Web Search Results:
 
 Based on the conversation context and the web search results, provide a comprehensive and accurate answer.
 Cite sources where appropriate by mentioning the title or URL.
-Maintain conversation continuity and reference previous context when appropriate.";
+Maintain conversation continuity and reference previous context when appropriate." + MermaidSyntaxGuidelines;
 
     public ITimerScheduler Timers { get; set; } = null!;
 
@@ -365,38 +382,22 @@ Maintain conversation continuity and reference previous context when appropriate
                 AddReasoningStep($"Topic '{topicResult.Key}': {topicResult.Value.Count} memory/memories found");
             }
 
-            // Check per-topic coverage for hybrid search
-            var emptyTopics = multiSearchResponse.TopicResults
-                .Where(t => t.Value.Count == 0)
-                .Select(t => t.Key)
-                .ToList();
+            // Save multi-topic context for post-evaluation hybrid check
+            _pendingMultiTopicContext = multiSearchResponse;
 
-            if (emptyTopics.Count > 0 && _webSearchService != null)
+            AddReasoningStep("Evaluating relevance of multi-topic search results...");
+
+            // Evaluate relevance of all memory results via DecisionActor
+            var evaluateRequest = new EvaluateRelevanceRequest
             {
-                // Hybrid: some topics have memory, others need web search
-                AddReasoningStep($"Partial coverage: {emptyTopics.Count} topic(s) missing from memory, searching web...");
-                foreach (var topic in emptyTopics)
-                {
-                    AddReasoningStep($"Web search needed for topic: {topic}");
-                }
-                GenerateHybridResponse(originalRequest, multiSearchResponse, emptyTopics, originalSender);
-            }
-            else
-            {
-                AddReasoningStep("Evaluating relevance of multi-topic search results...");
+                SessionId = originalRequest.SessionId,
+                Query = originalRequest.Message,
+                Memories = multiSearchResponse.AllMemories,
+                UseExtendedModel = _useExtendedModelForCurrentRequest
+            };
 
-                // All topics have memory results - evaluate relevance as before
-                var evaluateRequest = new EvaluateRelevanceRequest
-                {
-                    SessionId = originalRequest.SessionId,
-                    Query = originalRequest.Message,
-                    Memories = multiSearchResponse.AllMemories,
-                    UseExtendedModel = _useExtendedModelForCurrentRequest
-                };
-
-                Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
-                _decisionActor.Tell(evaluateRequest, Self);
-            }
+            Context.Become(WaitingForEvaluationResponse(originalRequest, originalSender));
+            _decisionActor.Tell(evaluateRequest, Self);
         }
     }
 
@@ -522,11 +523,54 @@ Maintain conversation continuity and reference previous context when appropriate
         UserChatRequest originalRequest,
         IActorRef originalSender)
     {
+        var multiTopicContext = _pendingMultiTopicContext;
+        _pendingMultiTopicContext = null; // Clear after use
+
         if (evalResponse.HasRelevantMemories && evalResponse.RelevantMemories != null)
         {
             AddReasoningStep($"Found {evalResponse.RelevantMemories.Count} relevant memories.");
             AddReasoningStep($"Decision reasoning: {evalResponse.Reasoning}");
-            // Generate memory-based response
+
+            // Check if multi-topic context exists and some topics lost coverage after evaluation
+            if (multiTopicContext != null && _webSearchService != null)
+            {
+                var relevantMemoryIds = new HashSet<Guid>(evalResponse.RelevantMemories.Select(m => m.Id));
+                var uncoveredTopics = new List<string>();
+
+                foreach (var topicResult in multiTopicContext.TopicResults)
+                {
+                    // A topic is uncovered if it had no memories OR all its memories were rejected
+                    var topicHasRelevant = topicResult.Value.Any(m => relevantMemoryIds.Contains(m.Id));
+                    if (!topicHasRelevant)
+                    {
+                        uncoveredTopics.Add(topicResult.Key);
+                    }
+                }
+
+                if (uncoveredTopics.Count > 0)
+                {
+                    AddReasoningStep($"Post-evaluation: {uncoveredTopics.Count} topic(s) have no relevant memories, supplementing with web search...");
+                    foreach (var topic in uncoveredTopics)
+                    {
+                        AddReasoningStep($"Web search needed for uncovered topic: {topic}");
+                    }
+
+                    // Build a synthetic MultiTopicSearchResponse with only relevant memories
+                    var relevantOnlyResponse = new MultiTopicSearchResponse
+                    {
+                        SessionId = multiTopicContext.SessionId,
+                        OriginalQuery = multiTopicContext.OriginalQuery,
+                        TopicResults = multiTopicContext.TopicResults,
+                        AllMemories = evalResponse.RelevantMemories,
+                        TopicsSearched = multiTopicContext.TopicsSearched
+                    };
+                    GenerateHybridResponse(originalRequest, relevantOnlyResponse, uncoveredTopics, originalSender);
+                    SetupBaseHandlers();
+                    return;
+                }
+            }
+
+            // All topics covered by relevant memories - generate memory-based response
             GenerateMemoryBasedResponse(originalRequest, evalResponse.RelevantMemories, originalSender);
         }
         else
