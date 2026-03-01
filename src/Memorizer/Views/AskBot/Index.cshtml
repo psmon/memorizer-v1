@@ -541,6 +541,7 @@
         let currentMessageContent = '';
         let messageCounter = 0;
         let referencedMemoryIds = [];
+        let webSearchReferences = []; // Store web search references for current message
         let processedReasoningSteps = new Set(); // Track already shown reasoning steps to prevent duplicates
         let hasMemorySearch = false; // Track if memory search is happening
         let selectedImage = null; // Store selected image file
@@ -660,6 +661,11 @@
                 // Check if we have memory references
                 if (data.referencedMemoryIds && data.referencedMemoryIds.length > 0) {
                     referencedMemoryIds = data.referencedMemoryIds;
+                }
+
+                // Check if we have web search references
+                if (data.webSearchReferences && data.webSearchReferences.length > 0) {
+                    webSearchReferences = data.webSearchReferences;
                 }
 
                 // Use the hasMemorySearch flag from server
@@ -811,6 +817,7 @@
             currentAssistantMessage = null;
             currentMessageContent = '';
             referencedMemoryIds = [];
+            webSearchReferences = []; // Reset web search references
             processedReasoningSteps.clear(); // Clear processed steps for new message
             hasMemorySearch = false; // Reset memory search flag
 
@@ -1163,11 +1170,52 @@
                             ` + contentHtml;
                         }
 
+                        // Add reference links for conversation history
+                        let historyRefHtml = '';
+                        if (msg.referencedMemoryIds && msg.referencedMemoryIds.length > 0) {
+                            historyRefHtml = `
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <small class="text-muted">
+                                            <i class="fas fa-book me-1"></i>
+                                            <strong>참고 문서:</strong>
+                                        </small>
+                                    </div>
+                                    <div class="mt-2">
+                                        ${msg.referencedMemoryIds.map((id, idx) =>
+                                            `<button class="btn btn-sm btn-outline-info me-2 mb-2" onclick="viewMemory('${id}')">
+                                                <i class="fas fa-eye me-1"></i>참고 문서 ${idx + 1} 보기
+                                            </button>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        } else if (msg.webSearchReferences && msg.webSearchReferences.length > 0) {
+                            historyRefHtml = `
+                                <div class="mt-3 pt-3 border-top">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <small class="text-muted">
+                                            <i class="fas fa-globe me-1"></i>
+                                            <strong>웹 검색 참고:</strong>
+                                        </small>
+                                    </div>
+                                    <div class="mt-2">
+                                        ${msg.webSearchReferences.map((ref, idx) =>
+                                            `<button class="btn btn-sm btn-outline-success me-2 mb-2" onclick="window.open('${ref.url}', '_blank')" title="${ref.snippet || ref.url}">
+                                                <i class="fas fa-external-link-alt me-1"></i>${ref.title || '웹 참고 ' + (idx + 1)}
+                                            </button>`
+                                        ).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
                         messageDiv.innerHTML = `
                             <div>
                                 <div class="message-label">AskBot</div>
                                 <div class="message-content">
                                     ${contentHtml}
+                                    ${historyRefHtml}
                                 </div>
                             </div>
                         `;
@@ -1279,6 +1327,23 @@
                         ${referencedMemoryIds.map((id, index) =>
                             `<button class="btn btn-sm btn-outline-info me-2 mb-2" onclick="viewMemory('${id}')">
                                 <i class="fas fa-eye me-1"></i>참고 문서 ${index + 1} 보기
+                            </button>`
+                        ).join('')}
+                    </div>
+                `;
+            } else if (webSearchReferences && webSearchReferences.length > 0) {
+                // Has web search references
+                referenceSection.innerHTML = `
+                    <div class="d-flex align-items-center justify-content-between">
+                        <small class="text-muted">
+                            <i class="fas fa-globe me-1"></i>
+                            <strong>웹 검색 참고:</strong>
+                        </small>
+                    </div>
+                    <div class="mt-2">
+                        ${webSearchReferences.map((ref, index) =>
+                            `<button class="btn btn-sm btn-outline-success me-2 mb-2" onclick="window.open('${ref.url}', '_blank')" title="${ref.snippet || ref.url}">
+                                <i class="fas fa-external-link-alt me-1"></i>${ref.title || '웹 참고 ' + (index + 1)}
                             </button>`
                         ).join('')}
                     </div>

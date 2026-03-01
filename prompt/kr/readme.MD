@@ -298,6 +298,12 @@ SkillCreate 후속 질문 개선 - Planning & Design 원칙 기반 5가지 정�
 
 - [ClaudeCode-Guide-PlanMode](50-ClaudeCode-Guide-PlanMode.md)
 
+## Version 1.4.4
+
+AskBot 웹검색 폴백 기능 구현 - 연관 메모리 없을 시 Headless 웹검색(Naver)으로 폴백, LLM 기반 검색 키워드 최적화, Naver Playwright DOM 쿼리 파싱(해시화된 CSS 클래스 대응), 웹검색 참조 URL 버튼 표시(AskBot 페이지 및 공유 페이지), DB 마이그레이션(askbot_share_links에 web_search_references JSONB 컬럼 추가)
+
+- [AskBotWithWebSearch](51-AskBotWithWebSearch.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

@@ -300,6 +300,12 @@ SkillCreate follow-up question improvement - Applied 5 information gathering cat
 
 - [ClaudeCode-Guide-PlanMode](50-ClaudeCode-Guide-PlanMode.md)
 
+## Version 1.4.4
+
+AskBot web search fallback feature implementation - Fallback to headless web search (Naver) when no related memory found, LLM-based search keyword optimization, Naver Playwright DOM query parsing (handling hashed CSS classes), web search reference URL button display (AskBot page and share page), DB migration (web_search_references JSONB column added to askbot_share_links)
+
+- [AskBotWithWebSearch](51-AskBotWithWebSearch.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

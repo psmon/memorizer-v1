@@ -79,6 +79,11 @@ public sealed record ChatBotResponse : IChatBotMessage
     public List<Guid>? ReferencedMemoryIds { get; init; }
 
     /// <summary>
+    /// Referenced web search results if response is based on web search
+    /// </summary>
+    public List<WebSearchReference>? WebSearchReferences { get; init; }
+
+    /// <summary>
     /// Reasoning steps taken to generate the response
     /// </summary>
     public List<string>? ReasoningSteps { get; init; }
@@ -107,7 +112,22 @@ public enum ResponseType
     /// <summary>
     /// Error response
     /// </summary>
-    Error
+    Error,
+
+    /// <summary>
+    /// Response based on web search results (fallback when no relevant memories found)
+    /// </summary>
+    WebSearchBased
+}
+
+/// <summary>
+/// Web search reference with title and URL
+/// </summary>
+public sealed record WebSearchReference
+{
+    public required string Title { get; init; }
+    public required string Url { get; init; }
+    public string? Snippet { get; init; }
 }
 
 /// <summary>
@@ -357,6 +377,11 @@ public sealed record ConversationEntry
     /// List of referenced memory IDs used in this response
     /// </summary>
     public List<Guid>? ReferencedMemoryIds { get; init; }
+
+    /// <summary>
+    /// Referenced web search results used in this response
+    /// </summary>
+    public List<WebSearchReference>? WebSearchReferences { get; init; }
 
     /// <summary>
     /// Image data from user's message (if multi-modal request)

@@ -151,5 +151,43 @@
 - src/Memorizer/Views/ClaudeCodeView/SkillCreate.cshtml - addQuestionMessage() 함수 및 CSS 추가
 - prompt/docs/04-ClaudeCode-PlanningAndDesign.md - 스킬 설계 원칙 참조 문서
 
-마지막 자동수정일시분 : 2026-02-24 00:00:00
-마지막 버전 반영 : 50
+## 웹수집기 모듈 (5c278dc 추가)
+- 외부 웹 검색 모듈 신규 추가 (Agent 적용 및 ASKBOT 활용은 2차 개발로 분리 예정)
+- 검색 프로바이더: Google, Bing, Naver 지원
+- 3가지 접근 모드: API (검색엔진 API 키 기반), Fetch (HTML 직접 스크래핑), Headless (Playwright/Chromium 기반)
+- IWebSearchService 인터페이스: SearchAsync (검색), ReadPageAsync (페이지 열람), SearchAndReadTopResultAsync (검색+상위결과 열람)
+- WebSearchBrowserBootstrapService: 앱 시작 시 Chromium 자동 설치 (Headless 모드용, OS별 윈도우/리눅스 자동 감지)
+- WebSearchController API 엔드포인트:
+    - POST /api/websearch/search - 웹 검색
+    - POST /api/websearch/preview - 검색 후 상위 결과 페이지 열람
+    - POST /api/websearch/read-page - 특정 URL 페이지 열람
+    - GET /api/websearch/capabilities - 지원 프로바이더/모드 조회
+- 설계 문서: prompt/docs/05-WebSearchModule.md, 05-WebSearchModule-Resarch.md, 05-WebSearchModule-TestResult.md
+
+## 주요 파일 (5c278dc 관련)
+- src/Memorizer/Services/IWebSearchService.cs - 웹 검색 서비스 인터페이스 (WebSearchProvider, WebSearchItem, PageReadResponse 등 DTO 포함)
+- src/Memorizer/Services/WebSearchService.cs - 웹 검색 서비스 구현체 (API/Fetch/Headless 모드, HTML 파싱, 프로바이더별 검색)
+- src/Memorizer/Services/WebSearchBrowserBootstrapService.cs - Playwright Chromium 자동 설치 BackgroundService
+- src/Memorizer/Controllers/WebSearchController.cs - 웹 검색 API 컨트롤러 (AllowAnonymous)
+- src/Memorizer/Settings/WebSearchSettings.cs - 웹 검색 설정 (AccessMode, Timeout, Headless, Google/Bing/Naver 개별 설정)
+- src/Memorizer/Extensions/ServiceCollectionExtensions.cs - WebSearchService DI 등록 추가
+- src/Memorizer.IntegrationTests/Services/WebSearchServiceTests.cs - 웹 검색 서비스 단위 테스트
+- src/Memorizer.IntegrationTests/Services/WebSearchServiceLiveTests.cs - 웹 검색 서비스 라이브 통합 테스트
+
+## AskBot 웹검색 폴백 (v51 추가)
+- 연관 메모리 없을 시 Headless 웹검색으로 폴백 (DecisionActor 판단 후 트리거)
+- LLM 기반 검색 키워드 최적화: 사용자 메시지에서 웹검색에 최적화된 키워드 추출 후 검색
+- Naver Playwright DOM 쿼리: `a[data-heatmap-target=".link"]` 선택자로 안정적 파싱 (해시화된 CSS 클래스 대응)
+- 웹검색 참조 URL 표시: AskBot 페이지 및 공유 페이지에서 참고한 웹페이지 URL 버튼 표시
+- DB 마이그레이션: askbot_share_links 테이블에 web_search_references JSONB 컬럼 추가
+
+## 주요 파일 (v51 관련)
+- src/Memorizer/Services/WebSearchService.cs - ParseNaverWithPlaywrightAsync() DOM 쿼리 파싱
+- src/Memorizer/Actors/ChatBotActor.cs - ExtractWebSearchKeyword(), GenerateWebSearchBasedResponseAsync()
+- src/Memorizer/Controllers/AskBotController.cs - SSE/메시지에 웹검색 참조 직렬화
+- src/Memorizer/Views/AskBot/Index.cshtml - 웹검색 참조 버튼 렌더링
+- src/Memorizer/Views/AskBot/Share.cshtml - 공유 페이지 웹검색 참조 표시
+- src/Memorizer/migrations/022_add_web_search_references_to_share_links.sql - DB 마이그레이션
+
+마지막 자동수정일시분 : 2026-03-01 22:00:00
+마지막 반영 커밋 : c794072

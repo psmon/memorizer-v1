@@ -1,6 +1,7 @@
 using Akka.Actor;
 using Akka.Event;
 using Memorizer.Services;
+using Memorizer.Settings;
 using System.Text;
 using System.Linq;
 
@@ -17,6 +18,7 @@ public class ChatBotActor : ReceiveActor, IWithTimers
     private readonly ILlmService _llmService;
     private readonly ILlmExService? _llmExService;
     private readonly IMultiModalService? _multiModalService;
+    private readonly IWebSearchService? _webSearchService;
     private readonly ILoggingAdapter _logger;
 
     // Timer for session timeout
@@ -62,6 +64,30 @@ Relevant Information from Memory:
 Based on the conversation context and the relevant information, provide a comprehensive and accurate answer to the user's query.
 Maintain conversation continuity and reference previous context when appropriate.";
 
+    // Prompt for extracting optimal web search keywords from user message
+    private const string WebSearchKeywordPrompt = @"Extract the best web search keywords from the following user question.
+Return ONLY the search keywords (no explanation, no quotes, no prefix).
+Keep it concise (2-5 words).
+
+User question: {0}
+Search keywords:";
+
+    // Prompt for web search-based responses
+    private const string WebSearchBasedResponsePrompt = @"
+You are a helpful AI assistant named ASKBot. You are having a conversation with a user.
+You found relevant information from web search results to help answer the question.
+
+{2}
+
+Current User Query: {0}
+
+Web Search Results:
+{1}
+
+Based on the conversation context and the web search results, provide a comprehensive and accurate answer.
+Cite sources where appropriate by mentioning the title or URL.
+Maintain conversation continuity and reference previous context when appropriate.";
+
     public ITimerScheduler Timers { get; set; } = null!;
 
     public ChatBotActor(
@@ -70,7 +96,8 @@ Maintain conversation continuity and reference previous context when appropriate
         IActorRef decisionActor,
         ILlmService llmService,
         ILlmExService? llmExService = null,
-        IMultiModalService? multiModalService = null)
+        IMultiModalService? multiModalService = null,
+        IWebSearchService? webSearchService = null)
     {
         _sessionId = sessionId;
         _searchMemoryActor = searchMemoryActor;
@@ -78,6 +105,7 @@ Maintain conversation continuity and reference previous context when appropriate
         _llmService = llmService;
         _llmExService = llmExService;
         _multiModalService = multiModalService;
+        _webSearchService = webSearchService;
         _logger = Context.GetLogger();
 
         // Set up message handlers
@@ -298,7 +326,14 @@ Maintain conversation continuity and reference previous context when appropriate
         if (multiSearchResponse.AllMemories.Count == 0)
         {
             AddReasoningStep($"No memories found across {multiSearchResponse.TopicsSearched} topics.");
-            GenerateGeneralResponse(originalRequest, originalSender);
+            if (_webSearchService != null)
+            {
+                GenerateWebSearchBasedResponse(originalRequest, originalSender);
+            }
+            else
+            {
+                GenerateGeneralResponse(originalRequest, originalSender);
+            }
             SetupBaseHandlers();
         }
         else
@@ -385,9 +420,14 @@ Maintain conversation continuity and reference previous context when appropriate
         else if (searchResponse.Memories.Count == 0)
         {
             AddReasoningStep($"No relevant memories found after {searchResponse.RetryAttempts} attempts.");
-            // Generate general response
-            GenerateGeneralResponse(originalRequest, originalSender);
-            // Return to base handlers since we're not waiting for evaluation
+            if (_webSearchService != null)
+            {
+                GenerateWebSearchBasedResponse(originalRequest, originalSender);
+            }
+            else
+            {
+                GenerateGeneralResponse(originalRequest, originalSender);
+            }
             SetupBaseHandlers();
         }
         else
@@ -455,8 +495,14 @@ Maintain conversation continuity and reference previous context when appropriate
         {
             AddReasoningStep("No relevant memories found for this query.");
             AddReasoningStep($"Decision reasoning: {evalResponse.Reasoning}");
-            // Generate general response
-            GenerateGeneralResponse(originalRequest, originalSender);
+            if (_webSearchService != null)
+            {
+                GenerateWebSearchBasedResponse(originalRequest, originalSender);
+            }
+            else
+            {
+                GenerateGeneralResponse(originalRequest, originalSender);
+            }
         }
         // Return to base handlers after starting response generation
         SetupBaseHandlers();
@@ -724,6 +770,116 @@ Maintain conversation continuity and reference previous context when appropriate
         }
     }
 
+    private void GenerateWebSearchBasedResponse(UserChatRequest request, IActorRef originalSender)
+    {
+        AddReasoningStep("Searching the web for relevant information...");
+
+        var self = Self;
+        Task.Run(async () =>
+        {
+            try
+            {
+                var response = await GenerateWebSearchBasedResponseAsync(request);
+                self.Tell(response);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Web search failed for session {0}, falling back to general response", request.SessionId);
+                try
+                {
+                    var fallbackResponse = await GenerateGeneralResponseAsync(request);
+                    self.Tell(fallbackResponse);
+                }
+                catch (Exception fallbackEx)
+                {
+                    self.Tell(new Status.Failure(fallbackEx));
+                }
+            }
+        });
+    }
+
+    private async Task<string> ExtractWebSearchKeyword(string userMessage)
+    {
+        try
+        {
+            var prompt = string.Format(WebSearchKeywordPrompt, userMessage);
+            var keyword = await CompleteWithLlmAsync(prompt);
+            return string.IsNullOrWhiteSpace(keyword) ? userMessage : keyword.Trim();
+        }
+        catch (Exception ex)
+        {
+            _logger.Warning("Error extracting web search keyword: {0}. Using original message.", ex.Message);
+            return userMessage;
+        }
+    }
+
+    private async Task<ChatBotResponse> GenerateWebSearchBasedResponseAsync(UserChatRequest request)
+    {
+        AddReasoningStep("Extracting optimal search keywords...");
+        var searchKeyword = await ExtractWebSearchKeyword(request.Message);
+        AddReasoningStep($"Search keyword: {searchKeyword}");
+
+        AddReasoningStep("Performing web search (Headless mode)...");
+
+        var searchResult = await _webSearchService!.SearchAsync(
+            WebSearchProvider.Naver,
+            searchKeyword,
+            maxResults: 5,
+            accessMode: WebSearchAccessMode.Headless);
+
+        if (searchResult.Items.Count == 0)
+        {
+            AddReasoningStep("Web search returned no results, falling back to general response.");
+            return await GenerateGeneralResponseAsync(request);
+        }
+
+        AddReasoningStep($"Web search found {searchResult.Items.Count} results.");
+
+        var webReferences = searchResult.Items.Select(item => new WebSearchReference
+        {
+            Title = item.Title,
+            Url = item.Url,
+            Snippet = item.Snippet
+        }).ToList();
+
+        var webResultsText = FormatWebSearchResults(searchResult.Items);
+        var conversationContext = GenerateConversationContext();
+        var prompt = string.Format(WebSearchBasedResponsePrompt, request.Message, webResultsText, conversationContext);
+
+        var llmResponse = await CompleteWithLlmAsync(prompt);
+
+        _conversationHistory.Add($"Assistant (web-search-based): {llmResponse}");
+
+        await UpdateConversationEntries(request.Message, llmResponse, false, null, request.ImageData, request.ImageFormat, webReferences);
+
+        var response = new ChatBotResponse
+        {
+            SessionId = request.SessionId,
+            Message = llmResponse,
+            Type = ResponseType.WebSearchBased,
+            WebSearchReferences = webReferences,
+            ReasoningSteps = _reasoningSteps.Select(r => r.Content).ToList()
+        };
+
+        _logger.Info("Generated web-search-based response for session {0} with {1} web references", request.SessionId, webReferences.Count);
+        return response;
+    }
+
+    private static string FormatWebSearchResults(IReadOnlyList<WebSearchItem> items)
+    {
+        var sb = new StringBuilder();
+        for (int i = 0; i < items.Count; i++)
+        {
+            var item = items[i];
+            sb.AppendLine($"--- Web Result {i + 1} ---");
+            sb.AppendLine($"Title: {item.Title}");
+            sb.AppendLine($"URL: {item.Url}");
+            sb.AppendLine($"Snippet: {item.Snippet}");
+            sb.AppendLine();
+        }
+        return sb.ToString();
+    }
+
     private string FormatMemoriesForResponse(List<Models.Memory> memories)
     {
         var sb = new StringBuilder();
@@ -972,7 +1128,7 @@ Maintain conversation continuity and reference previous context when appropriate
         return sb.ToString();
     }
 
-    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch, List<Guid>? referencedMemoryIds = null, byte[]? imageData = null, string? imageFormat = null)
+    private async Task UpdateConversationEntries(string userMessage, string botResponse, bool usedMemorySearch, List<Guid>? referencedMemoryIds = null, byte[]? imageData = null, string? imageFormat = null, List<WebSearchReference>? webSearchReferences = null)
     {
         // Create new entry
         var newEntry = new ConversationEntry
@@ -981,6 +1137,7 @@ Maintain conversation continuity and reference previous context when appropriate
             BotResponse = botResponse,
             UsedMemorySearch = usedMemorySearch,
             ReferencedMemoryIds = referencedMemoryIds,
+            WebSearchReferences = webSearchReferences,
             ImageData = imageData,
             ImageFormat = imageFormat
         };
@@ -1111,9 +1268,10 @@ Extract only the most important information:";
         IActorRef decisionActor,
         ILlmService llmService,
         ILlmExService? llmExService = null,
-        IMultiModalService? multiModalService = null)
+        IMultiModalService? multiModalService = null,
+        IWebSearchService? webSearchService = null)
     {
         return Akka.Actor.Props.Create(() =>
-            new ChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, llmExService, multiModalService));
+            new ChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, llmExService, multiModalService, webSearchService));
     }
 }

@@ -24,6 +24,7 @@ public class AskBotController : ControllerBase
     private readonly ILlmService _llmService;
     private readonly ILlmExService? _llmExService;
     private readonly IMultiModalService? _multiModalService;
+    private readonly IWebSearchService? _webSearchService;
     private readonly ILogger<AskBotController> _logger;
     private readonly Npgsql.NpgsqlDataSource _dataSource;
     private readonly IStorage _storage;
@@ -45,7 +46,8 @@ public class AskBotController : ControllerBase
         IStorage storage,
         AskBotSettings askBotSettings,
         ILlmExService? llmExService = null,
-        IMultiModalService? multiModalService = null)
+        IMultiModalService? multiModalService = null,
+        IWebSearchService? webSearchService = null)
     {
         _actorSystem = actorSystem;
         _searchMemoryActor = searchMemoryActor.ActorRef;
@@ -53,6 +55,7 @@ public class AskBotController : ControllerBase
         _llmService = llmService;
         _llmExService = llmExService;
         _multiModalService = multiModalService;
+        _webSearchService = webSearchService;
         _logger = logger;
         _dataSource = dataSource;
         _storage = storage;
@@ -378,7 +381,9 @@ public class AskBotController : ControllerBase
                         content = entry.BotResponse,
                         timestamp = entry.Timestamp,
                         usedMemorySearch = entry.UsedMemorySearch,
-                        referencedMemoryIds = entry.ReferencedMemoryIds ?? new List<Guid>()
+                        referencedMemoryIds = entry.ReferencedMemoryIds ?? new List<Guid>(),
+                        webSearchReferences = (entry.WebSearchReferences ?? new List<Actors.WebSearchReference>())
+                            .Select(r => new { title = r.Title, url = r.Url, snippet = r.Snippet }).ToList()
                     });
                 }
             }
@@ -474,6 +479,30 @@ public class AskBotController : ControllerBase
                 ? System.Text.Json.JsonSerializer.Serialize(referencedMemories)
                 : null;
 
+            // Extract web search references from messages
+            var webSearchRefs = new List<object>();
+            int webMsgIndex = 0;
+            foreach (dynamic msg in messages)
+            {
+                if (msg.GetType().GetProperty("webSearchReferences") != null)
+                {
+                    var refs = msg.webSearchReferences as List<Actors.WebSearchReference>;
+                    if (refs != null && refs.Count > 0)
+                    {
+                        webSearchRefs.Add(new
+                        {
+                            messageIndex = webMsgIndex,
+                            references = refs.Select(r => new { title = r.Title, url = r.Url, snippet = r.Snippet })
+                        });
+                    }
+                }
+                webMsgIndex++;
+            }
+
+            var webSearchRefsJson = webSearchRefs.Count > 0
+                ? System.Text.Json.JsonSerializer.Serialize(webSearchRefs)
+                : null;
+
             // Save images to disk and create image paths mapping
             var imagePaths = new Dictionary<int, string>();
             if (historyResponse != null)
@@ -516,6 +545,7 @@ public class AskBotController : ControllerBase
                     UPDATE askbot_share_links
                     SET content = @content::jsonb,
                         referenced_memories = @referencedMemories::jsonb,
+                        web_search_references = @webSearchRefs::jsonb,
                         image_paths = @imagePaths::jsonb,
                         updated_at = @updatedAt
                     WHERE short_code = @shortCode";
@@ -525,6 +555,8 @@ public class AskBotController : ControllerBase
                 cmd.Parameters.AddWithValue("content", contentJson);
                 cmd.Parameters.AddWithValue("referencedMemories",
                     referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
+                cmd.Parameters.AddWithValue("webSearchRefs",
+                    webSearchRefsJson != null ? (object)webSearchRefsJson : DBNull.Value);
                 cmd.Parameters.AddWithValue("imagePaths",
                     imagePathsJson != null ? (object)imagePathsJson : DBNull.Value);
                 cmd.Parameters.AddWithValue("updatedAt", DateTime.UtcNow);
@@ -538,8 +570,8 @@ public class AskBotController : ControllerBase
             {
                 // Insert new share
                 var insertQuery = @"
-                    INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, image_paths, created_at)
-                    VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @imagePaths::jsonb, @createdAt)";
+                    INSERT INTO askbot_share_links (short_code, session_id, content, referenced_memories, web_search_references, image_paths, created_at)
+                    VALUES (@shortCode, @sessionId, @content::jsonb, @referencedMemories::jsonb, @webSearchRefs::jsonb, @imagePaths::jsonb, @createdAt)";
 
                 await using var cmd = new Npgsql.NpgsqlCommand(insertQuery, conn);
                 cmd.Parameters.AddWithValue("shortCode", shortCode);
@@ -547,6 +579,8 @@ public class AskBotController : ControllerBase
                 cmd.Parameters.AddWithValue("content", contentJson);
                 cmd.Parameters.AddWithValue("referencedMemories",
                     referencedMemoriesJson != null ? (object)referencedMemoriesJson : DBNull.Value);
+                cmd.Parameters.AddWithValue("webSearchRefs",
+                    webSearchRefsJson != null ? (object)webSearchRefsJson : DBNull.Value);
                 cmd.Parameters.AddWithValue("imagePaths",
                     imagePathsJson != null ? (object)imagePathsJson : DBNull.Value);
                 cmd.Parameters.AddWithValue("createdAt", DateTime.UtcNow);
@@ -578,7 +612,7 @@ public class AskBotController : ControllerBase
             await using var conn = await _dataSource.OpenConnectionAsync();
 
             var query = @"
-                SELECT session_id, created_at, content, referenced_memories, image_paths
+                SELECT session_id, created_at, content, referenced_memories, image_paths, web_search_references
                 FROM askbot_share_links
                 WHERE short_code = @shortCode
                 LIMIT 1";
@@ -595,6 +629,7 @@ public class AskBotController : ControllerBase
                 var contentJson = reader.IsDBNull(2) ? null : reader.GetString(2);
                 var referencedMemoriesJson = reader.IsDBNull(3) ? null : reader.GetString(3);
                 var imagePathsJson = reader.IsDBNull(4) ? null : reader.GetString(4);
+                var webSearchRefsJson = reader.IsDBNull(5) ? null : reader.GetString(5);
 
                 _logger.LogInformation("Retrieved session {SessionId} for share code {ShortCode}",
                     sessionId, shortCode);
@@ -617,7 +652,13 @@ public class AskBotController : ControllerBase
                     imagePaths = System.Text.Json.JsonSerializer.Deserialize<object>(imagePathsJson);
                 }
 
-                return Ok(new { sessionId, createdAt, shortCode, content, referencedMemories, imagePaths });
+                object? webSearchReferences = null;
+                if (!string.IsNullOrEmpty(webSearchRefsJson))
+                {
+                    webSearchReferences = System.Text.Json.JsonSerializer.Deserialize<object>(webSearchRefsJson);
+                }
+
+                return Ok(new { sessionId, createdAt, shortCode, content, referencedMemories, imagePaths, webSearchReferences });
             }
 
             return NotFound(new { error = "Share link not found" });
@@ -1215,8 +1256,8 @@ Return ONLY valid JSON, no markdown formatting:
             });
             var sseBridgeActor = _actorSystem.ActorOf(sseBridgeProps, $"sse-bridge-{sid}");
 
-            // Create ChatBotActor with SSE bridge, LLM-EX and MultiModalService
-            var props = StreamingChatBotActor.Props(sid, _searchMemoryActor, _decisionActor, _llmService, sseBridgeActor, _llmExService, _multiModalService);
+            // Create ChatBotActor with SSE bridge, LLM-EX, MultiModalService and WebSearchService
+            var props = StreamingChatBotActor.Props(sid, _searchMemoryActor, _decisionActor, _llmService, sseBridgeActor, _llmExService, _multiModalService, _webSearchService);
             var actorName = $"askbot-{sid}";
             var actor = _actorSystem.ActorOf(props, actorName);
 
@@ -1351,8 +1392,9 @@ public sealed class StreamingChatBotActor : ChatBotActor
         ILlmService llmService,
         IActorRef sseBridge,
         ILlmExService? llmExService = null,
-        IMultiModalService? multiModalService = null)
-        : base(sessionId, searchMemoryActor, decisionActor, llmService, llmExService, multiModalService)
+        IMultiModalService? multiModalService = null,
+        IWebSearchService? webSearchService = null)
+        : base(sessionId, searchMemoryActor, decisionActor, llmService, llmExService, multiModalService, webSearchService)
     {
         _sessionId = sessionId;
         _sseBridge = sseBridge;
@@ -1417,7 +1459,10 @@ public sealed class StreamingChatBotActor : ChatBotActor
                     sessionId = _sessionId,
                     type = response.Type.ToString(),
                     referencedMemoryIds = response.ReferencedMemoryIds ?? new List<Guid>(),
-                    hasMemorySearch = response.Type == ResponseType.MemoryBased // Include memory search flag
+                    hasMemorySearch = response.Type == ResponseType.MemoryBased,
+                    hasWebSearch = response.Type == ResponseType.WebSearchBased,
+                    webSearchReferences = (response.WebSearchReferences ?? new List<Actors.WebSearchReference>())
+                        .Select(r => new { title = r.Title, url = r.Url, snippet = r.Snippet }).ToList()
                 })
             });
         }
@@ -1463,9 +1508,10 @@ public sealed class StreamingChatBotActor : ChatBotActor
         ILlmService llmService,
         IActorRef sseBridge,
         ILlmExService? llmExService = null,
-        IMultiModalService? multiModalService = null)
+        IMultiModalService? multiModalService = null,
+        IWebSearchService? webSearchService = null)
     {
         return Akka.Actor.Props.Create(() =>
-            new StreamingChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, sseBridge, llmExService, multiModalService));
+            new StreamingChatBotActor(sessionId, searchMemoryActor, decisionActor, llmService, sseBridge, llmExService, multiModalService, webSearchService));
     }
 }

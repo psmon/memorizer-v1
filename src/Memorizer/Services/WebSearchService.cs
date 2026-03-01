@@ -27,7 +27,7 @@ public sealed class WebSearchService : IWebSearchService
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private static readonly Regex NaverResultRegex = new(
-        """<a[^>]*class="[^"]*(?:title_link|link_tit)[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)</a>(?:[\s\S]*?<div[^>]*class="[^"]*(?:dsc_area|total_dsc_wrap)[^"]*"[^>]*>([\s\S]*?)</div>)?""",
+        """<a[^>]*class="[^"]*(?:title_link|link_tit|total_tit|api_txt_lines[^"]*total_tit|fds-comps-right-image-text-title)[^"]*"[^>]*href="([^"]+)"[^>]*>([\s\S]*?)</a>(?:[\s\S]*?<(?:div|a)[^>]*class="[^"]*(?:dsc_area|total_dsc_wrap|api_txt_lines[^"]*dsc_txt|fds-comps-right-image-text-description)[^"]*"[^>]*>([\s\S]*?)</(?:div|a)>)?""",
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly HttpClient _httpClient;
@@ -158,6 +158,9 @@ public sealed class WebSearchService : IWebSearchService
 
     private async Task<WebSearchResponse> SearchWithHeadlessAsync(WebSearchProvider provider, string query, int maxResults, CancellationToken cancellationToken)
     {
+        if (!_settings.Headless.Enabled)
+            throw new InvalidOperationException("Headless mode is disabled. Set WebSearch:Headless:Enabled=true.");
+
         var encodedQuery = UrlEncoder.Default.Encode(query);
         var searchUrl = provider switch
         {
@@ -167,9 +170,86 @@ public sealed class WebSearchService : IWebSearchService
             _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported provider")
         };
 
-        var html = await FetchHtmlWithHeadlessAsync(searchUrl, cancellationToken);
-        var items = ParseSearchResults(provider, html, maxResults);
+        _logger.LogInformation("Headless search URL: {SearchUrl}", searchUrl);
+
+        WebSearchBrowserBootstrapService.ApplyBrowserPathEnvironment(_settings.Headless.BrowserInstallPath, _logger);
+
+        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(_settings.Headless.Timeout);
+
+        using var playwright = await Playwright.CreateAsync();
+        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
+        {
+            Headless = true,
+            ChromiumSandbox = _settings.Headless.ChromiumSandbox
+        });
+
+        var page = await browser.NewPageAsync(new BrowserNewPageOptions
+        {
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        });
+
+        await page.GotoAsync(searchUrl, new PageGotoOptions
+        {
+            WaitUntil = WaitUntilState.NetworkIdle,
+            Timeout = (float)_settings.Headless.Timeout.TotalMilliseconds
+        });
+
+        timeoutCts.Token.ThrowIfCancellationRequested();
+
+        IReadOnlyList<WebSearchItem> items;
+        if (provider == WebSearchProvider.Naver)
+        {
+            items = await ParseNaverWithPlaywrightAsync(page, maxResults);
+        }
+        else
+        {
+            var html = await page.ContentAsync();
+            _logger.LogInformation("Headless search returned HTML length: {HtmlLength} chars for provider {Provider}", html.Length, provider);
+            items = ParseSearchResults(provider, html, maxResults);
+        }
+
+        _logger.LogInformation("Headless search parsed {ItemCount} results from {Provider}", items.Count, provider);
         return new WebSearchResponse(provider, query, items);
+    }
+
+    private async Task<IReadOnlyList<WebSearchItem>> ParseNaverWithPlaywrightAsync(IPage page, int maxResults)
+    {
+        var items = new List<WebSearchItem>();
+        var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Naver uses data-heatmap-target=".link" for search result links
+        var linkElements = await page.QuerySelectorAllAsync("a[data-heatmap-target=\".link\"]");
+        _logger.LogInformation("Naver DOM query found {Count} link elements", linkElements.Count);
+
+        foreach (var element in linkElements)
+        {
+            if (items.Count >= maxResults)
+                break;
+
+            var href = await element.GetAttributeAsync("href");
+            if (string.IsNullOrWhiteSpace(href))
+                continue;
+
+            // Filter out internal Naver links
+            if (href.Contains("naver.com") || href.Contains("pstatic.net"))
+                continue;
+
+            if (!Uri.TryCreate(href, UriKind.Absolute, out var uri))
+                continue;
+
+            // Deduplicate
+            if (!seenUrls.Add(uri.AbsoluteUri))
+                continue;
+
+            var title = (await element.InnerTextAsync())?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(title))
+                title = uri.Host;
+
+            items.Add(new WebSearchItem(title, uri.AbsoluteUri, string.Empty, WebSearchProvider.Naver));
+        }
+
+        return items;
     }
 
     private async Task<string> FetchHtmlAsync(string url, CancellationToken cancellationToken)
@@ -205,12 +285,12 @@ public sealed class WebSearchService : IWebSearchService
 
         var page = await browser.NewPageAsync(new BrowserNewPageOptions
         {
-            UserAgent = "Memorizer/1.0"
+            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
         });
 
         await page.GotoAsync(url, new PageGotoOptions
         {
-            WaitUntil = WaitUntilState.DOMContentLoaded,
+            WaitUntil = WaitUntilState.NetworkIdle,
             Timeout = (float)_settings.Headless.Timeout.TotalMilliseconds
         });
 

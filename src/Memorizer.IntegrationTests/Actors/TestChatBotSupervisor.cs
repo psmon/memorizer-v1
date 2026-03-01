@@ -17,13 +17,15 @@ public class TestChatBotSupervisor : ReceiveActor
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
         ILlmService llmService,
-        IActorRef testActor)
+        IActorRef testActor,
+        IWebSearchService? webSearchService = null)
     {
         _testActor = testActor;
 
         // Create ChatBotActor as child
         _chatBotActor = Context.ActorOf(
-            ChatBotActor.Props(sessionId, searchMemoryActor, decisionActor, llmService),
+            ChatBotActor.Props(sessionId, searchMemoryActor, decisionActor, llmService,
+                webSearchService: webSearchService),
             $"chatbot-{sessionId}");
 
         // Forward UserChatRequest to ChatBotActor
@@ -48,13 +50,15 @@ public class TestChatBotSupervisor : ReceiveActor
         IActorRef searchMemoryActor,
         IActorRef decisionActor,
         ILlmService llmService,
-        IActorRef testActor)
+        IActorRef testActor,
+        IWebSearchService? webSearchService = null)
     {
         return Akka.Actor.Props.Create(() => new TestChatBotSupervisor(
             sessionId,
             searchMemoryActor,
             decisionActor,
             llmService,
-            testActor));
+            testActor,
+            webSearchService));
     }
 }

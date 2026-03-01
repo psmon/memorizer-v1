@@ -3,6 +3,7 @@ using Akka.TestKit.Xunit2;
 using Memorizer.Actors;
 using Memorizer.Models;
 using Memorizer.Services;
+using Memorizer.Settings;
 using Moq;
 using Xunit;
 
@@ -187,6 +188,124 @@ public class ChatBotActorTests : TestKit
 
         // Assert - Test passed if no exceptions
         Assert.True(true, "Session timeout handled successfully");
+    }
+
+    [Fact]
+    public void ChatBotActor_Should_Fallback_To_WebSearch_When_No_Memories_Found()
+    {
+        // Arrange
+        var sessionId = "test-session-websearch";
+        var mockWebSearchService = new Mock<IWebSearchService>();
+
+        _mockLlmService.Setup(x => x.CompleteAsync(It.IsAny<string>(), default))
+            .ReturnsAsync((string prompt, CancellationToken ct) =>
+            {
+                if (prompt.Contains("memory search is needed"))
+                    return "YES";
+                if (prompt.Contains("Transform"))
+                    return "latest tech news 2024";
+                if (prompt.Contains("Extract"))
+                    return "tech, news, latest";
+                return "Based on web search results, here is the answer about tech news.";
+            });
+
+        _mockStorage.Setup(x => x.Search(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<double>(), null, default))
+            .ReturnsAsync(new List<Memory>());
+
+        mockWebSearchService.Setup(x => x.SearchAsync(
+                It.IsAny<WebSearchProvider>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<WebSearchAccessMode?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new WebSearchResponse(
+                WebSearchProvider.Google,
+                "latest tech news 2024",
+                new List<WebSearchItem>
+                {
+                    new WebSearchItem("Tech News 2024", "https://example.com/tech",
+                        "Latest technology news and updates", WebSearchProvider.Google)
+                }));
+
+        var searchMemoryActor = Sys.ActorOf(SearchMemoryActor.Props(_mockStorage.Object, _mockLlmService.Object));
+        var decisionActor = Sys.ActorOf(DecisionActor.Props(_mockLlmService.Object));
+        var supervisor = Sys.ActorOf(TestChatBotSupervisor.Props(
+            sessionId, searchMemoryActor, decisionActor, _mockLlmService.Object, TestActor,
+            mockWebSearchService.Object));
+
+        // Act
+        var request = new UserChatRequest
+        {
+            SessionId = sessionId,
+            Message = "What are the latest tech news?",
+            UserId = "test-user"
+        };
+        supervisor.Tell(request);
+
+        // Assert
+        var response = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(10));
+        Assert.NotNull(response);
+        Assert.Equal(sessionId, response.SessionId);
+        Assert.Equal(ResponseType.WebSearchBased, response.Type);
+
+        mockWebSearchService.Verify(x => x.SearchAsync(
+            WebSearchProvider.Google,
+            It.IsAny<string>(),
+            5,
+            WebSearchAccessMode.Headless,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public void ChatBotActor_Should_Fallback_To_GeneralResponse_When_WebSearch_Fails()
+    {
+        // Arrange
+        var sessionId = "test-session-websearch-fail";
+        var mockWebSearchService = new Mock<IWebSearchService>();
+
+        _mockLlmService.Setup(x => x.CompleteAsync(It.IsAny<string>(), default))
+            .ReturnsAsync((string prompt, CancellationToken ct) =>
+            {
+                if (prompt.Contains("memory search is needed"))
+                    return "YES";
+                if (prompt.Contains("Transform"))
+                    return "something";
+                if (prompt.Contains("Extract"))
+                    return "something";
+                return "This is a general fallback response.";
+            });
+
+        _mockStorage.Setup(x => x.Search(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<double>(), null, default))
+            .ReturnsAsync(new List<Memory>());
+
+        mockWebSearchService.Setup(x => x.SearchAsync(
+                It.IsAny<WebSearchProvider>(),
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<WebSearchAccessMode?>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("Network error"));
+
+        var searchMemoryActor = Sys.ActorOf(SearchMemoryActor.Props(_mockStorage.Object, _mockLlmService.Object));
+        var decisionActor = Sys.ActorOf(DecisionActor.Props(_mockLlmService.Object));
+        var supervisor = Sys.ActorOf(TestChatBotSupervisor.Props(
+            sessionId, searchMemoryActor, decisionActor, _mockLlmService.Object, TestActor,
+            mockWebSearchService.Object));
+
+        // Act
+        var request = new UserChatRequest
+        {
+            SessionId = sessionId,
+            Message = "What is the weather?",
+            UserId = "test-user"
+        };
+        supervisor.Tell(request);
+
+        // Assert - should get General response (fallback from failed web search)
+        var response = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(10));
+        Assert.NotNull(response);
+        Assert.Equal(sessionId, response.SessionId);
+        Assert.Equal(ResponseType.General, response.Type);
     }
 
     protected override void AfterAll()
