@@ -56,8 +56,11 @@ public class SkillMakerActorTests : TestKit
         _mockLlmExService.Setup(x => x.CompleteAsync(It.IsAny<string>(), default))
             .ReturnsAsync((string prompt, CancellationToken ct) =>
             {
-                if (prompt.Contains("추천"))
+                if (prompt.Contains("직군에서 유용한 Claude Code 스킬 5개를 추천"))
                     return @"[{""name"":""커밋 메시지 생성"",""description"":""Git 커밋 메시지 자동 생성""}]";
+                if (prompt.Contains(@"이미 충분한 정보가 수집되었다면 정확히 ""READY"""))
+                    return @"{""question"":""이 스킬의 주요 입력 파일은 무엇인가요?"",""insight"":""입력 컨텍스트가 명확해야 재현 가능한 워크플로우를 설계할 수 있습니다."",""example"":""예: src/**/*.cs 파일과 최근 Git diff를 입력으로 사용""}";
+
                 return "READY";
             });
 
@@ -87,14 +90,13 @@ public class SkillMakerActorTests : TestKit
             MessageType = SkillMakerMessageType.SubSkill
         });
 
-        // Assert - should receive either a question or ready -> generation
+        // Assert - follow-up should now support JSON(question/insight/example) format
         var update = sseBridge.ExpectMsg<SkillMakerStreamingUpdate>(TimeSpan.FromSeconds(10));
         Assert.NotNull(update);
-        // Could be Phase (generating) or Question, both are valid
-        Assert.True(update.UpdateType == SkillMakerUpdateType.Phase
-            || update.UpdateType == SkillMakerUpdateType.Question
-            || update.UpdateType == SkillMakerUpdateType.Chunk
-            || update.UpdateType == SkillMakerUpdateType.Complete);
+        Assert.Equal(SkillMakerUpdateType.Question, update.UpdateType);
+        Assert.False(string.IsNullOrWhiteSpace(update.Content));
+        Assert.False(string.IsNullOrWhiteSpace(update.Insight));
+        Assert.False(string.IsNullOrWhiteSpace(update.Example));
     }
 
     [Fact]

@@ -1,362 +1,292 @@
 using Akka.Actor;
+using Akka.TestKit;
 using Akka.TestKit.Xunit2;
 using Memorizer.Actors;
 using Memorizer.Models;
 using Memorizer.Services;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+using Moq;
 using Xunit;
-using Xunit.Abstractions;
-using Memorizer.Settings;
-using System.Text;
-using Npgsql;
 
 namespace Memorizer.IntegrationTests.Actors;
 
 /// <summary>
-/// Integration tests for last response tracking feature
+/// Deterministic actor tests for last-response context behavior.
+/// External DB/LLM dependencies are intentionally removed.
 /// </summary>
-public class LastResponseTests : TestKit, IAsyncLifetime
+public class LastResponseTests : TestKit
 {
-    private readonly ITestOutputHelper _output;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly IConfiguration _configuration;
-    private IStorage? _storage;
-    private ILlmService? _llmService;
-    private IActorRef? _searchMemoryActor;
-    private IActorRef? _decisionActor;
+    private readonly Mock<ILlmService> _mockLlmService = new();
+    private readonly List<string> _capturedPrompts = new();
 
-    public LastResponseTests(ITestOutputHelper output)
+    public LastResponseTests()
     {
-        _output = output;
-
-        // Build configuration from appsettings.json
-        _configuration = new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
-            .Build();
-
-        // Build service provider with manual configuration
-        var services = new ServiceCollection();
-        services.AddSingleton<IConfiguration>(_configuration);
-        services.AddLogging(builder =>
-        {
-            builder.AddConsole();
-            builder.SetMinimumLevel(LogLevel.Debug);
-        });
-
-        // Add HTTP client
-        services.AddHttpClient();
-
-        // Configure Storage
-        services.AddSingleton(sp =>
-        {
-            string connectionString = _configuration.GetConnectionString("Storage")
-                ?? throw new ArgumentNullException("Storage Connection String");
-            var sourceBuilder = new NpgsqlDataSourceBuilder(connectionString);
-            sourceBuilder.UseVector();
-            return sourceBuilder.Build();
-        });
-        services.AddSingleton<IStorage, Storage>();
-
-        // Configure Embedding settings and service
-        services.AddSingleton<EmbeddingSettings>(sp =>
-        {
-            var settings = _configuration.GetSection("Embeddings").Get<EmbeddingSettings>()
-                ?? throw new ArgumentNullException("Embeddings Settings");
-            return settings;
-        });
-
-        services.AddSingleton<IEmbeddingService>(sp =>
-        {
-            var settings = sp.GetRequiredService<EmbeddingSettings>();
-            var logger = sp.GetRequiredService<ILoggerFactory>();
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-
-            string apiType = settings.Type.ToLower();
-
-            if (apiType.Equals("custom"))
+        _mockLlmService
+            .Setup(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string prompt, CancellationToken _) =>
             {
-                var httpClient = httpClientFactory.CreateClient();
-                httpClient.BaseAddress = settings.ApiUrl;
-                httpClient.Timeout = settings.Timeout;
-                return new CustomEmbeddingService(httpClient, settings, logger.CreateLogger<CustomEmbeddingService>());
-            }
-            else
-            {
-                // Default to Ollama
-                var httpClient = httpClientFactory.CreateClient();
-                httpClient.BaseAddress = settings.ApiUrl;
-                httpClient.Timeout = settings.Timeout;
-                return new OllamaEmbeddingService(httpClient, settings, logger.CreateLogger<OllamaEmbeddingService>());
-            }
-        });
-
-        // Configure LLM settings and service
-        services.AddSingleton<LlmSettings>(sp =>
-        {
-            var settings = _configuration.GetSection("Llm").Get<LlmSettings>()
-                ?? throw new ArgumentNullException("LLM Settings");
-            return settings;
-        });
-
-        services.AddSingleton<ILlmService>(sp =>
-        {
-            var settings = sp.GetRequiredService<LlmSettings>();
-            var logger = sp.GetRequiredService<ILoggerFactory>();
-            var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-
-            string apiType = settings.Type.ToLower();
-
-            if (apiType.Equals("ollama"))
-            {
-                var httpClient = httpClientFactory.CreateClient();
-                httpClient.BaseAddress = settings.ApiUrl;
-                httpClient.Timeout = settings.Timeout;
-                return new OllamaLlmService(httpClient, settings, logger.CreateLogger<OllamaLlmService>());
-            }
-            else
-            {
-                // Default to Custom
-                var httpClient = httpClientFactory.CreateClient();
-                httpClient.BaseAddress = settings.ApiUrl;
-                httpClient.Timeout = settings.Timeout;
-                return new CustomLlmService(httpClient, settings, logger.CreateLogger<CustomLlmService>());
-            }
-        });
-
-        _serviceProvider = services.BuildServiceProvider();
+                _capturedPrompts.Add(prompt);
+                return ResolveLlmResponse(prompt);
+            });
     }
 
-    public async Task InitializeAsync()
+    [Fact]
+    public void ChatBotActor_Should_Store_And_Reference_Last_Important_Response()
     {
-        _output.WriteLine("Initializing LastResponseTests");
-        _storage = _serviceProvider.GetRequiredService<IStorage>();
-        _llmService = _serviceProvider.GetRequiredService<ILlmService>();
+        var sessionId = Guid.NewGuid().ToString();
+        var searchMemoryActor = CreateTestProbe();
+        var decisionActor = CreateTestProbe();
+        var supervisor = CreateSupervisor(sessionId, searchMemoryActor.Ref, decisionActor.Ref);
 
-        // Create SearchMemoryActor
-        _searchMemoryActor = Sys.ActorOf(SearchMemoryActor.Props(_storage, _llmService), "search-memory-actor");
+        var solidMemory = CreateMemory(
+            "SOLID Principles",
+            "SOLID includes SRP, OCP, LSP, ISP, and DIP. Dependency Inversion Principle says high-level modules should depend on abstractions.");
 
-        // Create DecisionActor
-        _decisionActor = Sys.ActorOf(DecisionActor.Props(_llmService), "decision-actor");
+        SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "What are the SOLID principles in software engineering?",
+            new List<Memory> { solidMemory },
+            searchPerformed: true,
+            hasRelevantMemories: true);
 
-        // Add test memories
-        await AddTestMemories();
+        SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "Let's talk about something else. What time is it?",
+            new List<Memory>(),
+            searchPerformed: false,
+            hasRelevantMemories: false);
+
+        var response3 = SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "Going back to the principles we discussed, which one deals with dependency?",
+            new List<Memory>(),
+            searchPerformed: false,
+            hasRelevantMemories: false);
+
+        Assert.Contains("Dependency Inversion", response3.Message, StringComparison.OrdinalIgnoreCase);
+
+        var thirdPrompt = _capturedPrompts.Last(p => p.Contains("Current User Query: Going back to the principles we discussed, which one deals with dependency?"));
+        Assert.Contains("Previous Response Context:", thirdPrompt);
+        Assert.Contains("Dependency Inversion", thirdPrompt, StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task AddTestMemories()
+    [Fact]
+    public void ChatBotActor_Should_Selectively_Include_Last_Response()
     {
-        var memory = new Memory
+        var sessionId = Guid.NewGuid().ToString();
+        var searchMemoryActor = CreateTestProbe();
+        var decisionActor = CreateTestProbe();
+        var supervisor = CreateSupervisor(sessionId, searchMemoryActor.Ref, decisionActor.Ref);
+
+        SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "Hi there!",
+            new List<Memory>(),
+            searchPerformed: false,
+            hasRelevantMemories: false);
+
+        SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "Explain dependency injection in detail",
+            new List<Memory>(),
+            searchPerformed: false,
+            hasRelevantMemories: false);
+
+        var response3 = SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "How does that relate to the SOLID principles?",
+            new List<Memory>(),
+            searchPerformed: false,
+            hasRelevantMemories: false);
+
+        Assert.Contains("SOLID", response3.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("dependency injection", response3.Message, StringComparison.OrdinalIgnoreCase);
+
+        var prompt = _capturedPrompts.Last(p => p.Contains("Current User Query: How does that relate to the SOLID principles?"));
+        Assert.Contains("Previous Response Context:", prompt);
+        Assert.Contains("dependency injection", prompt, StringComparison.OrdinalIgnoreCase);
+
+        // Greeting can remain in recent conversation, but should not become the "important response" context.
+        var importantSection = prompt.Split("Previous Response Context:").Last();
+        var recentConversationIndex = importantSection.IndexOf("Recent Conversation:", StringComparison.Ordinal);
+        if (recentConversationIndex >= 0)
+        {
+            importantSection = importantSection.Substring(0, recentConversationIndex);
+        }
+        Assert.DoesNotContain("Hi there!", importantSection, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void ChatBotActor_Should_Handle_Memory_Based_Response_Storage()
+    {
+        var sessionId = Guid.NewGuid().ToString();
+        var searchMemoryActor = CreateTestProbe();
+        var decisionActor = CreateTestProbe();
+        var supervisor = CreateSupervisor(sessionId, searchMemoryActor.Ref, decisionActor.Ref);
+
+        var solidMemory = CreateMemory(
+            "SOLID Principles",
+            "Dependency Inversion Principle (DIP) says high-level modules should not depend on low-level modules.");
+
+        var response1 = SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "Tell me about SOLID principles",
+            new List<Memory> { solidMemory },
+            searchPerformed: true,
+            hasRelevantMemories: true);
+
+        Assert.Equal(ResponseType.MemoryBased, response1.Type);
+
+        var response2 = SendAndResolve(supervisor, searchMemoryActor, decisionActor, sessionId,
+            "Which principle is about dependencies?",
+            new List<Memory>(),
+            searchPerformed: false,
+            hasRelevantMemories: false);
+
+        Assert.Contains("Dependency Inversion", response2.Message, StringComparison.OrdinalIgnoreCase);
+
+        var prompt = _capturedPrompts.Last(p => p.Contains("Current User Query: Which principle is about dependencies?"));
+        Assert.Contains("Previous Response Context:", prompt);
+        Assert.Contains("DIP", prompt, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private IActorRef CreateSupervisor(string sessionId, IActorRef searchMemoryActor, IActorRef decisionActor)
+    {
+        var supervisorProps = TestChatBotSupervisor.Props(
+            sessionId,
+            searchMemoryActor,
+            decisionActor,
+            _mockLlmService.Object,
+            TestActor);
+        return Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
+    }
+
+    private ChatBotResponse SendAndResolve(
+        IActorRef supervisor,
+        TestProbe searchProbe,
+        TestProbe decisionProbe,
+        string sessionId,
+        string message,
+        List<Memory> memories,
+        bool searchPerformed,
+        bool hasRelevantMemories)
+    {
+        supervisor.Tell(new UserChatRequest
+        {
+            SessionId = sessionId,
+            Message = message,
+            UserId = "test-user"
+        }, TestActor);
+
+        var analyze = searchProbe.ExpectMsg<AnalyzeQueryTypeRequest>(TimeSpan.FromSeconds(3));
+        Assert.Equal(sessionId, analyze.SessionId);
+        Assert.Equal(message, analyze.Query);
+
+        searchProbe.Reply(new AnalyzeQueryTypeResponse
+        {
+            SessionId = sessionId,
+            DocumentTypesNeeded = 1,
+            Topics = new List<string> { "single-topic" },
+            Reasoning = "single topic"
+        });
+
+        var searchRequest = searchProbe.ExpectMsg<SearchMemoryRequest>(TimeSpan.FromSeconds(3));
+        Assert.Equal(sessionId, searchRequest.SessionId);
+        Assert.Equal(message, searchRequest.Query);
+
+        searchProbe.Reply(new SearchMemoryResponse
+        {
+            SessionId = sessionId,
+            OriginalQuery = message,
+            Memories = memories,
+            SearchPerformed = searchPerformed,
+            RetryAttempts = 0
+        });
+
+        if (searchPerformed && memories.Count > 0)
+        {
+            var eval = decisionProbe.ExpectMsg<EvaluateRelevanceRequest>(TimeSpan.FromSeconds(3));
+            Assert.Equal(sessionId, eval.SessionId);
+            Assert.Equal(message, eval.Query);
+
+            decisionProbe.Reply(new EvaluateRelevanceResponse
+            {
+                SessionId = sessionId,
+                HasRelevantMemories = hasRelevantMemories,
+                RelevantMemories = hasRelevantMemories ? memories : new List<Memory>(),
+                Reasoning = hasRelevantMemories ? "relevant" : "not relevant"
+            });
+        }
+
+        return ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(5));
+    }
+
+    private static Memory CreateMemory(string title, string text)
+    {
+        return new Memory
         {
             Id = Guid.NewGuid(),
+            Title = title,
+            Text = text,
             Type = "reference",
-            Source = "test",
-            Title = "SOLID Principles",
-            Text = "SOLID is an acronym for five design principles: Single Responsibility (SRP), Open-Closed (OCP), Liskov Substitution (LSP), Interface Segregation (ISP), and Dependency Inversion (DIP). The Dependency Inversion Principle states that high-level modules should not depend on low-level modules; both should depend on abstractions.",
-            Tags = new[] { "SOLID", "principles", "software", "design", "DIP" },
-            Confidence = 1.0,
-            CreatedAt = DateTime.UtcNow
+            Tags = new[] { "test" }
         };
-
-        try
-        {
-            await _storage!.StoreMemory(
-                memory.Type,
-                memory.Text!,
-                memory.Source,
-                memory.Tags,
-                memory.Confidence,
-                memory.Title);
-            _output.WriteLine("Test memory added successfully");
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"Failed to add test memory: {ex.Message}");
-        }
     }
 
-    [Fact]
-    public async Task ChatBotActor_Should_Store_And_Reference_Last_Important_Response()
+    private static string ResolveLlmResponse(string prompt)
     {
-        // Arrange
-        var sessionId = Guid.NewGuid().ToString();
-
-        // Use TestChatBotSupervisor to capture responses
-        var supervisorProps = TestChatBotSupervisor.Props(
-            sessionId,
-            _searchMemoryActor!,
-            _decisionActor!,
-            _llmService!,
-            TestActor);
-        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
-
-        // Act - First message with detailed response
-        var request1 = new UserChatRequest
+        if (prompt.Contains("Extract the key information from this assistant response", StringComparison.Ordinal))
         {
-            SessionId = sessionId,
-            Message = "What are the SOLID principles in software engineering?",
-            UserId = "test-user"
-        };
+            if (prompt.Contains("SOLID", StringComparison.OrdinalIgnoreCase) || prompt.Contains("DIP", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Dependency Inversion (DIP): high-level modules should depend on abstractions.";
+            }
 
-        supervisor.Tell(request1, TestActor);
-        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response1);
-        _output.WriteLine($"First response (length: {response1.Message.Length}): {response1.Message}");
+            if (prompt.Contains("dependency injection", StringComparison.OrdinalIgnoreCase))
+            {
+                return "Dependency injection decouples object construction from behavior via abstraction.";
+            }
 
-        // Wait a bit for last response to be updated
-        await Task.Delay(1000);
-
-        // Second message - unrelated topic
-        var request2 = new UserChatRequest
-        {
-            SessionId = sessionId,
-            Message = "Let's talk about something else. What time is it?",
-            UserId = "test-user"
-        };
-
-        supervisor.Tell(request2, TestActor);
-        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response2);
-        _output.WriteLine($"Second response: {response2.Message}");
-
-        // Third message - reference back to SOLID principles
-        var request3 = new UserChatRequest
-        {
-            SessionId = sessionId,
-            Message = "Going back to the principles we discussed, which one deals with dependency?",
-            UserId = "test-user"
-        };
-
-        supervisor.Tell(request3, TestActor);
-        var response3 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response3);
-        _output.WriteLine($"Third response: {response3.Message}");
-
-        // Assert - Should reference DIP (Dependency Inversion Principle)
-        Assert.Contains(new[] { "Dependency", "DIP", "Inversion", "dependency", "의존" },
-            keyword => response3.Message.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public async Task ChatBotActor_Should_Selectively_Include_Last_Response()
-    {
-        // Arrange
-        var sessionId = Guid.NewGuid().ToString();
-
-        // Use TestChatBotSupervisor to capture responses
-        var supervisorProps = TestChatBotSupervisor.Props(
-            sessionId,
-            _searchMemoryActor!,
-            _decisionActor!,
-            _llmService!,
-            TestActor);
-        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
-
-        // Act - Send a short greeting (should not be stored as important)
-        var request1 = new UserChatRequest
-        {
-            SessionId = sessionId,
-            Message = "Hi there!",
-            UserId = "test-user"
-        };
-
-        supervisor.Tell(request1, TestActor);
-        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response1);
-        _output.WriteLine($"Greeting response (length: {response1.Message.Length}): {response1.Message}");
-
-        // Send a detailed technical question
-        var request2 = new UserChatRequest
-        {
-            SessionId = sessionId,
-            Message = "Explain the concept of dependency injection in detail",
-            UserId = "test-user"
-        };
-
-        supervisor.Tell(request2, TestActor);
-        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response2);
-        _output.WriteLine($"Technical response (length: {response2.Message.Length}): {response2.Message}");
-
-        // Wait for processing
-        await Task.Delay(1000);
-
-        // Follow-up question that could reference the technical response
-        var request3 = new UserChatRequest
-        {
-            SessionId = sessionId,
-            Message = "How does that relate to the SOLID principles?",
-            UserId = "test-user"
-        };
-
-        supervisor.Tell(request3, TestActor);
-        var response3 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response3);
-        _output.WriteLine($"Follow-up response: {response3.Message}");
-
-        // Should show understanding of the context
-        Assert.Contains(new[] { "dependency", "injection", "SOLID", "principle", "의존", "주입" },
-            keyword => response3.Message.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-    }
-
-    [Fact]
-    public async Task ChatBotActor_Should_Handle_Memory_Based_Response_Storage()
-    {
-        // Arrange
-        var sessionId = Guid.NewGuid().ToString();
-
-        // Use TestChatBotSupervisor to capture responses
-        var supervisorProps = TestChatBotSupervisor.Props(
-            sessionId,
-            _searchMemoryActor!,
-            _decisionActor!,
-            _llmService!,
-            TestActor);
-        var supervisor = Sys.ActorOf(supervisorProps, $"supervisor-{sessionId}");
-
-        // Act - Query that should trigger memory search
-        var request1 = new UserChatRequest
-        {
-            SessionId = sessionId,
-            Message = "Tell me about SOLID principles",
-            UserId = "test-user"
-        };
-
-        supervisor.Tell(request1, TestActor);
-        var response1 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response1);
-        _output.WriteLine($"Memory-based response type: {response1.Type}");
-        _output.WriteLine($"Response: {response1.Message}");
-
-        // Memory-based responses should be prioritized for storage
-        if (response1.Type == ResponseType.MemoryBased)
-        {
-            _output.WriteLine("Response was memory-based, should be stored as important");
+            return "Important context summary.";
         }
 
-        // Follow-up question
-        var request2 = new UserChatRequest
+        if (prompt.Contains("Extract the most important information from the following conversation exchange", StringComparison.Ordinal))
         {
-            SessionId = sessionId,
-            Message = "Which principle is about dependencies?",
-            UserId = "test-user"
-        };
+            return "Short-term memory summary.";
+        }
 
-        supervisor.Tell(request2, TestActor);
-        var response2 = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(30));
-        Assert.NotNull(response2);
-        _output.WriteLine($"Follow-up response: {response2.Message}");
+        if (prompt.Contains("Current User Query: What are the SOLID principles in software engineering?", StringComparison.Ordinal))
+        {
+            return "SOLID includes SRP, OCP, LSP, ISP, and Dependency Inversion Principle (DIP).";
+        }
 
-        // Should reference DIP from stored context
-        Assert.Contains(new[] { "Dependency", "DIP", "Inversion" },
-            keyword => response2.Message.Contains(keyword, StringComparison.OrdinalIgnoreCase));
+        if (prompt.Contains("Current User Query: Tell me about SOLID principles", StringComparison.Ordinal))
+        {
+            return "SOLID principles include DIP, which addresses dependency direction between modules.";
+        }
 
-        await Task.CompletedTask;
-    }
+        if (prompt.Contains("Current User Query: Going back to the principles we discussed, which one deals with dependency?", StringComparison.Ordinal))
+        {
+            return "That is Dependency Inversion Principle (DIP).";
+        }
 
-    public Task DisposeAsync()
-    {
-        return Task.CompletedTask;
+        if (prompt.Contains("Current User Query: Which principle is about dependencies?", StringComparison.Ordinal))
+        {
+            return "The principle is Dependency Inversion Principle (DIP).";
+        }
+
+        if (prompt.Contains("Current User Query: Explain dependency injection in detail", StringComparison.Ordinal))
+        {
+            return "Dependency injection is a design pattern that supplies dependencies from the outside, improving testability and modularity in large systems.";
+        }
+
+        if (prompt.Contains("Current User Query: How does that relate to the SOLID principles?", StringComparison.Ordinal))
+        {
+            return "Dependency injection supports SOLID, especially DIP, by making dependencies rely on abstractions.";
+        }
+
+        if (prompt.Contains("Current User Query: Hi there!", StringComparison.Ordinal))
+        {
+            return "Hi! How can I help you today?";
+        }
+
+        if (prompt.Contains("Current User Query: Let's talk about something else. What time is it?", StringComparison.Ordinal))
+        {
+            return "I cannot read system clock here, but I can help with timezone conversion.";
+        }
+
+        return "General assistant response.";
     }
 }

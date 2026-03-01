@@ -29,7 +29,6 @@ public class AskBotActorTests : TestKit
     {
         // Arrange
         var sessionId = Guid.NewGuid().ToString();
-        var receivedUpdates = new List<StreamingUpdate>();
 
         // Create mock search and decision actors
         var searchMemoryActor = CreateTestProbe();
@@ -39,13 +38,14 @@ public class AskBotActorTests : TestKit
         _mockLlmService.Setup(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync("This is a test response from the LLM.");
 
-        // Create ChatBotActor as child of TestActor so it sends responses to TestActor (parent)
-        var chatBotProps = ChatBotActor.Props(
+        // Use supervisor to capture ChatBotResponse from child actor's parent channel
+        var supervisorProps = TestChatBotSupervisor.Props(
             sessionId,
             searchMemoryActor.Ref,
             decisionActor.Ref,
-            _mockLlmService.Object);
-        var chatBot = Sys.ActorOf(chatBotProps);
+            _mockLlmService.Object,
+            TestActor);
+        var supervisor = Sys.ActorOf(supervisorProps);
 
         // Act
         var request = new UserChatRequest
@@ -55,9 +55,21 @@ public class AskBotActorTests : TestKit
             UserId = "test-user"
         };
 
-        chatBot.Tell(request, TestActor);
+        supervisor.Tell(request, TestActor);
 
-        // Simulate search response with no results (triggers general response)
+        // New flow: AnalyzeQueryTypeRequest -> SearchMemoryRequest
+        var analyzeRequest = searchMemoryActor.ExpectMsg<AnalyzeQueryTypeRequest>();
+        Assert.Equal(sessionId, analyzeRequest.SessionId);
+        Assert.Equal("Test question", analyzeRequest.Query);
+
+        searchMemoryActor.Reply(new AnalyzeQueryTypeResponse
+        {
+            SessionId = sessionId,
+            DocumentTypesNeeded = 1,
+            Topics = new List<string> { "general" },
+            Reasoning = "Single-topic query"
+        });
+
         searchMemoryActor.ExpectMsg<SearchMemoryRequest>();
         searchMemoryActor.Reply(new SearchMemoryResponse
         {
@@ -68,14 +80,13 @@ public class AskBotActorTests : TestKit
             RetryAttempts = 0
         });
 
-        // Assert - ChatBotActor sends response to parent (which is /user, not TestActor)
-        // We need to wait a bit for async processing
-        await Task.Delay(200);
+        // Assert
+        var response = ExpectMsg<ChatBotResponse>(TimeSpan.FromSeconds(5));
+        Assert.Equal(ResponseType.General, response.Type);
+        Assert.Contains("test response", response.Message, StringComparison.OrdinalIgnoreCase);
 
-        // The response won't come to TestActor because ChatBotActor sends to Context.Parent
-        // This test needs to be restructured to use a supervisor pattern
-        // For now, we verify the LLM service was called correctly
         _mockLlmService.Verify(x => x.CompleteAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.AtLeast(1));
+        await Task.CompletedTask;
     }
 
     [Fact]
@@ -108,7 +119,19 @@ public class AskBotActorTests : TestKit
 
         supervisor.Tell(request, TestActor);
 
-        // Simulate search response with memories
+        // New flow: AnalyzeQueryTypeRequest -> SearchMemoryRequest
+        var analyzeRequest = searchMemoryActor.ExpectMsg<AnalyzeQueryTypeRequest>();
+        Assert.Equal(sessionId, analyzeRequest.SessionId);
+        Assert.Equal("Tell me about Docker", analyzeRequest.Query);
+
+        searchMemoryActor.Reply(new AnalyzeQueryTypeResponse
+        {
+            SessionId = sessionId,
+            DocumentTypesNeeded = 1,
+            Topics = new List<string> { "docker" },
+            Reasoning = "Single-topic query"
+        });
+
         searchMemoryActor.ExpectMsg<SearchMemoryRequest>();
         var testMemories = new List<Memory>
         {
@@ -205,7 +228,19 @@ public class AskBotActorTests : TestKit
 
         supervisor.Tell(request, TestActor);
 
-        // Simulate search response
+        // New flow: AnalyzeQueryTypeRequest -> SearchMemoryRequest
+        var analyzeRequest = searchMemoryActor.ExpectMsg<AnalyzeQueryTypeRequest>();
+        Assert.Equal(sessionId, analyzeRequest.SessionId);
+        Assert.Equal("Test question", analyzeRequest.Query);
+
+        searchMemoryActor.Reply(new AnalyzeQueryTypeResponse
+        {
+            SessionId = sessionId,
+            DocumentTypesNeeded = 1,
+            Topics = new List<string> { "general" },
+            Reasoning = "Single-topic query"
+        });
+
         searchMemoryActor.ExpectMsg<SearchMemoryRequest>();
         searchMemoryActor.Reply(new SearchMemoryResponse
         {
