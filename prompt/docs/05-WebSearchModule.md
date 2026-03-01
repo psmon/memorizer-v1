@@ -35,11 +35,15 @@
 
 ## test
 
-- 도커 구동을 통한 테슽트 검즘 (크로미움자동설치 확인을위해 필요, 호출가능한 헤드리스 모드를 검증)
+- 도커 구동을 통한 테스트 검즘 (크로미움자동설치 확인을위해 필요, 호출가능한 헤드리스 모드를 검증)
   - docker-compose.local-psmon.yml 이 파일에 적용하고
   - postgres,noo4j 는 이미 구동중이여서 내리거나 지우지말고 app만 업데이트
   - 도커로 구동후(리눅스 wsl내 작동됨)... 헤드리스모드로 검색결과 획득가능한지 API 테스트
 
+진행요원 : codex
+
+
+tip: 잘구성한 로컬 db안 내리게하려면.. 어플리케이션만 빌드하고 재구동하라고 강력하게 어필해야함
 ```
 • Ran docker compose -f docker-compose.local-psmon.yml up -d --build --no-deps memorizer
   └ #0 building with "default" instance using docker driver
@@ -58,5 +62,3 @@
 • Ran sleep 8; docker logs --tail 200 memorizer-app
   └ [2026-03-01 05:59:09.197] info: Startup-Debug[0]
 ```
-
-진행요원 : codex
