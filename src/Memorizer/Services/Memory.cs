@@ -116,6 +116,14 @@ public interface IStorage
         CancellationToken cancellationToken = default
     );
     
+    // News keyword-based OR search
+    Task<(List<Memorizer.Models.Memory> Memories, int TotalCount)> GetNewsArticlesByKeywords(
+        string[]? keywords = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default
+    );
+
     // Optimized blog filtering methods
     Task<(List<Memorizer.Models.Memory> Memories, int TotalCount)> GetBlogMemoriesPaginated(
         int page = 1,
@@ -1265,6 +1273,74 @@ public class Storage : IStorage
         }
     }
     
+    // News keyword-based OR search implementation
+    public async Task<(List<Memory> Memories, int TotalCount)> GetNewsArticlesByKeywords(
+        string[]? keywords = null,
+        int page = 1,
+        int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        await using var connection = await _dataSource.OpenConnectionAsync(cancellationToken);
+
+        var whereClause = "";
+        var parameters = new Dictionary<string, object>();
+
+        if (keywords != null && keywords.Length > 0)
+        {
+            var conditions = new List<string>();
+            for (int i = 0; i < keywords.Length; i++)
+            {
+                conditions.Add($"(title ILIKE @kw{i} OR text ILIKE @kw{i})");
+                parameters[$"kw{i}"] = $"%{keywords[i]}%";
+            }
+            whereClause = "WHERE " + string.Join(" OR ", conditions);
+        }
+
+        // Count query
+        string countSql = $"SELECT COUNT(*) FROM memories {whereClause}";
+        await using var countCmd = new NpgsqlCommand(countSql, connection);
+        foreach (var param in parameters)
+            countCmd.Parameters.AddWithValue(param.Key, param.Value);
+        var totalCount = Convert.ToInt32(await countCmd.ExecuteScalarAsync(cancellationToken));
+
+        // Data query
+        string dataSql = $@"
+            SELECT id, type, content, text, source, embedding, embedding_metadata, tags, confidence, created_at, updated_at, title
+            FROM memories
+            {whereClause}
+            ORDER BY created_at DESC
+            LIMIT @limit OFFSET @offset";
+
+        await using var dataCmd = new NpgsqlCommand(dataSql, connection);
+        foreach (var param in parameters)
+            dataCmd.Parameters.AddWithValue(param.Key, param.Value);
+        dataCmd.Parameters.AddWithValue("limit", pageSize);
+        dataCmd.Parameters.AddWithValue("offset", (page - 1) * pageSize);
+
+        var memories = new List<Memory>();
+        await using var reader = await dataCmd.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            memories.Add(new Memory
+            {
+                Id = reader.GetGuid(0),
+                Type = reader.GetString(1),
+                Content = reader.GetFieldValue<JsonDocument>(2),
+                Text = reader.GetString(3),
+                Source = reader.GetString(4),
+                Embedding = reader.IsDBNull(5) ? new Vector(new float[_embeddingService.GetEmbeddingDimensions()]) : reader.GetFieldValue<Vector>(5),
+                EmbeddingMetadata = reader.IsDBNull(6) ? null : reader.GetFieldValue<Vector?>(6),
+                Tags = reader.GetFieldValue<string[]>(7),
+                Confidence = reader.GetDouble(8),
+                CreatedAt = reader.GetDateTime(9),
+                UpdatedAt = reader.GetDateTime(10),
+                Title = reader.IsDBNull(11) ? null : reader.GetString(11)
+            });
+        }
+
+        return (memories, totalCount);
+    }
+
     // Optimized blog filtering implementations
     public async Task<(List<Memory> Memories, int TotalCount)> GetBlogMemoriesPaginated(
         int page = 1,

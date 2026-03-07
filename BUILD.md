@@ -23,8 +23,8 @@ docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:latest
 docker push psmon/mcp-memorizer:latest
 
 // Common ver
-docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.4
-docker push psmon/mcp-memorizer:v1.4.4
+docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.5
+docker push psmon/mcp-memorizer:v1.4.5
 
 ```
 

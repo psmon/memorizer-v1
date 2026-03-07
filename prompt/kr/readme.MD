@@ -304,6 +304,12 @@ AskBot 웹검색 폴백 기능 구현 - 연관 메모리 없을 시 Headless 웹
 
 - [AskBotWithWebSearch](51-AskBotWithWebSearch.md)
 
+## Version 1.4.5
+
+AI Tech Now 뉴스 페이지 구현 - Pencil 디자인 기반 뉴스 레이아웃, 카테고리별 키워드 필터링, 헤드라인/Top Stories/Most Popular/Editor's Pick 섹션, 메모리 기반 콘텐츠 연동, 본문 상세 페이지 및 연관 기사 표시, 반응형 비로그인 접근, 키워드 검색 기능
+
+- [AiTechNowWithPencil](52-AiTechNowWithPencil.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

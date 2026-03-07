@@ -306,6 +306,12 @@ AskBot web search fallback feature implementation - Fallback to headless web sea
 
 - [AskBotWithWebSearch](51-AskBotWithWebSearch.md)
 
+## Version 1.4.5
+
+AI Tech Now news page implementation - Pencil design-based news layout, keyword filtering by category, Headline/Top Stories/Most Popular/Editor's Pick sections, memory-based content integration, article detail page with related articles display, responsive non-login access, keyword search functionality
+
+- [AiTechNowWithPencil](52-AiTechNowWithPencil.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

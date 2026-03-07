@@ -189,5 +189,22 @@
 - src/Memorizer/Views/AskBot/Share.cshtml - 공유 페이지 웹검색 참조 표시
 - src/Memorizer/migrations/022_add_web_search_references_to_share_links.sql - DB 마이그레이션
 
-마지막 자동수정일시분 : 2026-03-01 22:00:00
-마지막 반영 커밋 : c794072
+## AI Tech Now 뉴스 페이지 (v52 추가)
+- Pencil 디자인 기반 뉴스 레이아웃 (news/ai-tech-now)
+- 카테고리별 키워드 필터링 (Vibe, Claude Code 등)
+- 헤드라인, Top Stories, Most Popular, Editor's Pick 섹션
+- 메모리 기반 콘텐츠 연동 (ui/blog Search 기능 참조)
+- 본문 상세 페이지(Article DetailPage) 및 연관 기사(Related Articles) 표시
+- 반응형 비로그인 접근, 키워드 검색 기능
+
+## 주요 파일 (v52 관련)
+- src/Memorizer/Controllers/NewsController.cs - 뉴스 페이지 API/뷰 컨트롤러
+- src/Memorizer/Views/News/Index.cshtml - AI Tech Now 메인 뉴스 페이지 뷰
+- src/Memorizer/Views/News/Article.cshtml - 기사 상세 페이지 뷰
+- Pencil/news.pen - 뉴스 페이지 Pencil 디자인 파일
+
+## PageUrl (추가):
+    - news/ai-tech-now - AI Tech Now 뉴스 페이지
+
+마지막 자동수정일시분 : 2026-03-07 12:00:00
+마지막 반영 지침번호 : 52

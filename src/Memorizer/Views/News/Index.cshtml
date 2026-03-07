@@ -1,0 +1,960 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Tech Now - The Future of AI, Delivered Daily</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Nanum Myeongjo', 'Inter', serif;
+            background: #F0EADB;
+            color: #2C2A24;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .news-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            background: #F0EADB;
+            background-image:
+                radial-gradient(ellipse at center, rgba(139,125,93,0.06) 0%, transparent 70%),
+                linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.04) 12%, transparent 28%, rgba(0,0,0,0.02) 52%, transparent 65%, rgba(255,255,255,0.03) 78%, transparent 100%);
+            position: relative;
+        }
+
+        /* Utility Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 64px;
+        }
+        .top-left { display: flex; align-items: center; gap: 24px; }
+        .top-left .search-trigger {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            padding: 4px 0;
+        }
+        .top-left .search-trigger svg { width: 16px; height: 16px; }
+        .top-left .search-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+            color: #2C2A24;
+        }
+
+        /* Search Overlay */
+        .search-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(44,42,36,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: flex-start;
+            padding-top: 80px;
+        }
+        .search-overlay.active { display: flex; }
+        .search-panel {
+            background: #F0EADB;
+            width: 100%;
+            max-width: 720px;
+            border-radius: 4px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .search-input-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 24px;
+            border-bottom: 2px solid #2C2A24;
+        }
+        .search-input-row svg { width: 20px; height: 20px; color: #999; flex-shrink: 0; }
+        .search-input-row input {
+            flex: 1;
+            border: none;
+            background: transparent;
+            font-family: 'Nanum Myeongjo', serif;
+            font-size: 18px;
+            color: #2C2A24;
+            outline: none;
+        }
+        .search-input-row input::placeholder { color: #999; }
+        .search-input-row .search-close {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 600;
+            color: #999;
+            letter-spacing: 0.5px;
+        }
+        .search-input-row .search-close:hover { color: #2C2A24; }
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .search-result-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding: 16px 24px;
+            border-bottom: 1px solid #D5CFBF;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .search-result-item:hover { background: #E5DDC8; }
+        .search-result-item h4 {
+            font-size: 16px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .search-result-item .result-preview {
+            font-size: 13px;
+            color: #777;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .search-result-item .result-meta {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #999;
+        }
+        .search-status {
+            padding: 24px;
+            text-align: center;
+            font-size: 14px;
+            color: #999;
+        }
+        .search-active-banner {
+            display: none;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            padding: 8px 64px;
+            background: #2C2A24;
+            color: #F0EADB;
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .search-active-banner.active { display: flex; }
+        .search-active-banner .clear-search-btn {
+            border: 1px solid #F0EADB;
+            background: none;
+            color: #F0EADB;
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            padding: 2px 10px;
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .search-active-banner .clear-search-btn:hover { background: rgba(240,234,219,0.15); }
+        .top-center {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #777;
+        }
+
+        /* Dividers */
+        .divider { width: 100%; height: 1px; background: #D5CFBF; }
+        .divider-thick { width: 100%; height: 2px; background: #2C2A24; }
+
+        /* Masthead */
+        .masthead {
+            text-align: center;
+            padding: 20px 64px;
+        }
+        .masthead h1 {
+            font-family: 'Playfair Display', serif;
+            font-size: 52px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #2C2A24;
+            margin-bottom: 12px;
+        }
+        .masthead .tagline {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #999;
+        }
+
+        /* Navigation */
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            padding: 12px 64px;
+        }
+        .nav-item {
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: #2C2A24;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            background: none;
+            padding: 4px 8px;
+            border-radius: 2px;
+            transition: background 0.2s;
+        }
+        .nav-item:hover { background: rgba(44,42,36,0.08); }
+        .nav-item.active {
+            background: #2C2A24;
+            color: #F0EADB;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            display: flex;
+            gap: 48px;
+            padding: 32px 64px;
+        }
+        .hero-main { flex: 1; display: flex; flex-direction: column; gap: 20px; }
+        .hero-caption {
+            font-size: 12px;
+            color: #999;
+        }
+        .hero-headline {
+            font-size: 36px;
+            font-weight: 700;
+            line-height: 1.2;
+            cursor: pointer;
+        }
+        .hero-headline:hover { text-decoration: underline; }
+        .hero-summary {
+            font-size: 15px;
+            color: #777;
+            line-height: 1.6;
+        }
+        .hero-byline {
+            font-size: 12px;
+            font-weight: 500;
+            color: #999;
+        }
+        .hero-sidebar {
+            width: 340px;
+            min-width: 340px;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar-story {
+            padding: 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            cursor: pointer;
+        }
+        .sidebar-story:hover h3 { text-decoration: underline; }
+        .sidebar-story h3 {
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .sidebar-story .byline {
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* Section Headers */
+        .section-label {
+            font-family: 'Playfair Display', serif;
+            font-size: 22px;
+            font-style: italic;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #2C2A24;
+        }
+
+        /* More Top Stories */
+        .top-stories {
+            padding: 32px 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .stories-grid {
+            display: flex;
+            gap: 32px;
+        }
+        .story-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .story-card {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .story-card:hover h3 { text-decoration: underline; }
+        .story-card h3 {
+            font-size: 20px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .story-card .preview {
+            font-size: 14px;
+            color: #555;
+            line-height: 1.5;
+            display: -webkit-box;
+            -webkit-line-clamp: 5;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .story-card .meta {
+            font-size: 11px;
+            color: #999;
+        }
+        .vert-divider {
+            width: 1px;
+            background: #D5CFBF;
+            align-self: stretch;
+        }
+
+        /* Opinion Section */
+        .opinion-section {
+            padding: 32px 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .opinion-grid {
+            display: flex;
+            gap: 32px;
+        }
+        .opinion-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .opinion-tag {
+            font-family: 'Inter', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #999;
+        }
+        .opinion-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .opinion-card .author {
+            font-size: 12px;
+            color: #999;
+        }
+
+        /* Trending Section */
+        .trending-section {
+            display: flex;
+            gap: 48px;
+            padding: 32px 64px;
+        }
+        .most-popular {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .trend-item {
+            display: flex;
+            gap: 16px;
+            padding: 16px 0;
+            align-items: flex-start;
+            cursor: pointer;
+        }
+        .trend-item:hover .trend-title { text-decoration: underline; }
+        .trend-num {
+            font-family: 'Inter', sans-serif;
+            font-size: 28px;
+            font-weight: 600;
+            color: #E5E2DC;
+            min-width: 32px;
+        }
+        .trend-title {
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+
+        /* Featured / Editor's Pick */
+        .featured-right {
+            width: 420px;
+            min-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .feat-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #999;
+        }
+        .featured-right h2 {
+            font-size: 22px;
+            font-weight: 700;
+            line-height: 1.3;
+            cursor: pointer;
+        }
+        .featured-right h2:hover { text-decoration: underline; }
+        .featured-right .preview {
+            font-size: 14px;
+            color: #777;
+            line-height: 1.5;
+        }
+        .featured-right .meta {
+            font-size: 11px;
+            font-weight: 500;
+            color: #999;
+        }
+
+        /* Footer */
+        .footer {
+            background: #EFE9D9;
+            padding: 48px 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        .footer-top {
+            display: flex;
+            justify-content: space-between;
+        }
+        .footer-brand h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        .footer-brand .tagline {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+        .footer-nav {
+            display: flex;
+            gap: 64px;
+        }
+        .footer-nav-col {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .footer-nav-col .col-title {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #999;
+        }
+        .footer-nav-col a {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: #2C2A24;
+            text-decoration: none;
+        }
+        .footer-nav-col a:hover { text-decoration: underline; }
+        .copyright-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .copyright-bar span,
+        .copyright-bar a {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #999;
+            text-decoration: none;
+        }
+        .legal-links { display: flex; gap: 24px; }
+
+        /* Loading / placeholder */
+        .skeleton {
+            background: linear-gradient(90deg, #E5DFD0 25%, #EBE5D5 50%, #E5DFD0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @@keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton-text { height: 16px; margin-bottom: 8px; }
+        .skeleton-title { height: 28px; margin-bottom: 12px; width: 80%; }
+
+        /* Responsive */
+        @@media (max-width: 1024px) {
+            .hero-section { flex-direction: column; padding: 24px 32px; }
+            .hero-sidebar { width: 100%; min-width: auto; }
+            .stories-grid { flex-direction: column; }
+            .vert-divider { display: none; }
+            .trending-section { flex-direction: column; padding: 24px 32px; }
+            .featured-right { width: 100%; min-width: auto; }
+            .opinion-grid { flex-direction: column; }
+            .top-bar, .masthead, .nav-bar, .top-stories, .opinion-section, .footer { padding-left: 32px; padding-right: 32px; }
+            .footer-nav { gap: 32px; flex-wrap: wrap; }
+        }
+        @@media (max-width: 640px) {
+            .masthead h1 { font-size: 32px; }
+            .hero-headline { font-size: 26px; }
+            .nav-bar { gap: 16px; flex-wrap: wrap; }
+            .top-bar, .masthead, .nav-bar, .hero-section,
+            .top-stories, .opinion-section, .trending-section, .footer { padding-left: 16px; padding-right: 16px; }
+            .footer-top { flex-direction: column; gap: 24px; }
+            .footer-nav { gap: 24px; }
+            .copyright-bar { flex-direction: column; gap: 12px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="news-container" id="newsApp">
+    <!-- Search Overlay -->
+    <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
+        <div class="search-panel">
+            <div class="search-input-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input type="text" id="searchInput" placeholder="Search articles by title or content..." autocomplete="off" />
+                <button class="search-close" onclick="closeSearch()">ESC</button>
+            </div>
+            <div class="search-results" id="searchResults">
+                <div class="search-status">Type to search across all articles...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Utility Bar -->
+    <div class="top-bar">
+        <div class="top-left">
+            <button class="search-trigger" onclick="openSearch()">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#2C2A24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <span class="search-label">SEARCH</span>
+            </button>
+        </div>
+        <div class="top-center" id="dateText"></div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- Search Active Banner -->
+    <div class="search-active-banner" id="searchBanner">
+        <span>Showing results for: "<strong id="searchBannerQuery"></strong>"</span>
+        <button class="clear-search-btn" onclick="clearSearchAndReload()">Clear Search</button>
+    </div>
+
+    <!-- Masthead -->
+    <div class="masthead">
+        <h1>AI Tech Now</h1>
+        <div class="tagline">The Future of AI, Delivered Daily</div>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- Navigation / Category -->
+    <div class="nav-bar" id="navBar">
+        <button class="nav-item active" data-category="all" onclick="selectCategory('all')">All</button>
+        <button class="nav-item" data-category="vibe" onclick="selectCategory('vibe')">Vibe</button>
+        <button class="nav-item" data-category="claude-code" onclick="selectCategory('claude-code')">Claude-code</button>
+        <button class="nav-item" data-category="openai" onclick="selectCategory('openai')">OpenAI</button>
+        <button class="nav-item" data-category="architecture" onclick="selectCategory('architecture')">Architecture</button>
+        <button class="nav-item" data-category="agentic" onclick="selectCategory('agentic')">Agentic</button>
+    </div>
+    <div class="divider"></div>
+
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="hero-main" id="heroMain">
+            <div class="skeleton skeleton-text" style="width:60%"></div>
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text" style="width:90%"></div>
+            <div class="skeleton skeleton-text" style="width:70%"></div>
+        </div>
+        <div class="hero-sidebar" id="heroSidebar">
+            <div class="skeleton skeleton-text" style="width:80%;margin-bottom:24px"></div>
+            <div class="skeleton skeleton-text" style="width:80%;margin-bottom:24px"></div>
+            <div class="skeleton skeleton-text" style="width:80%;margin-bottom:24px"></div>
+        </div>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- More Top Stories -->
+    <div class="top-stories">
+        <span class="section-label">More Top Stories</span>
+        <div class="stories-grid" id="topStoriesGrid">
+            <div class="story-col"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-text" style="width:90%"></div></div>
+            <div class="vert-divider"></div>
+            <div class="story-col"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-text" style="width:90%"></div></div>
+            <div class="vert-divider"></div>
+            <div class="story-col"><div class="skeleton skeleton-title"></div><div class="skeleton skeleton-text" style="width:90%"></div></div>
+        </div>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- Opinion Section (static) -->
+    <div class="opinion-section">
+        <span class="section-label">Opinion</span>
+        <div class="opinion-grid">
+            <div class="opinion-card">
+                <span class="opinion-tag">SILICON VALLEY</span>
+                <h3>빅테크의 AI 군비경쟁이 스타트업 생태계에 미치는 영향</h3>
+                <span class="author">마이클 첸, 테크 칼럼니스트</span>
+            </div>
+            <div class="vert-divider"></div>
+            <div class="opinion-card">
+                <span class="opinion-tag">SENIOR FELLOW</span>
+                <h3>슬로우 AI 무브먼트: 왜 일부 기업들은 의도적으로 AI 도입을 늦추는가</h3>
+                <span class="author">사라 오코너, 미래전략 연구소</span>
+            </div>
+            <div class="vert-divider"></div>
+            <div class="opinion-card">
+                <span class="opinion-tag">WEEK</span>
+                <h3>코드 리뷰의 미래: AI 에이전트가 변호사, 의사, 회계사를 대체할 때</h3>
+                <span class="author">데이비드 박, 기술 윤리학 교수</span>
+            </div>
+            <div class="vert-divider"></div>
+            <div class="opinion-card">
+                <span class="opinion-tag">TRENDS</span>
+                <h3>AI로 코딩하는 시대, 프로그래머는 사라지는가 진화하는가</h3>
+                <span class="author">최윤서, AI 트렌드 분석가</span>
+            </div>
+        </div>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- Trending Section: Most Popular + Editor's Pick -->
+    <div class="trending-section">
+        <div class="most-popular" id="mostPopular">
+            <span class="section-label" style="margin-bottom:8px">Most Popular</span>
+            <div class="skeleton skeleton-text" style="width:80%;margin-top:16px"></div>
+            <div class="skeleton skeleton-text" style="width:80%;margin-top:16px"></div>
+            <div class="skeleton skeleton-text" style="width:80%;margin-top:16px"></div>
+        </div>
+        <div class="vert-divider"></div>
+        <div class="featured-right" id="editorsPick">
+            <span class="feat-label">EDITOR'S PICK</span>
+            <div class="skeleton skeleton-title"></div>
+            <div class="skeleton skeleton-text" style="width:90%"></div>
+        </div>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <h2>AI Tech Now</h2>
+                <div class="tagline">Covering the AI revolution, daily.</div>
+            </div>
+            <div class="footer-nav">
+                <div class="footer-nav-col">
+                    <span class="col-title">SECTIONS</span>
+                    <a href="javascript:void(0)" onclick="selectCategory('vibe')">Vibe</a>
+                    <a href="javascript:void(0)" onclick="selectCategory('claude-code')">Claude-code</a>
+                    <a href="javascript:void(0)" onclick="selectCategory('openai')">OpenAI</a>
+                </div>
+                <div class="footer-nav-col">
+                    <span class="col-title">MORE</span>
+                    <a href="javascript:void(0)" onclick="selectCategory('architecture')">Architecture</a>
+                    <a href="javascript:void(0)" onclick="selectCategory('agentic')">Agentic</a>
+                </div>
+                <div class="footer-nav-col">
+                    <span class="col-title">ABOUT</span>
+                    <a href="#">About Us</a>
+                    <a href="#">Contact</a>
+                </div>
+                <div class="footer-nav-col">
+                    <span class="col-title">FOLLOW</span>
+                    <a href="#">GitHub</a>
+                    <a href="#">RSS Feed</a>
+                </div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="copyright-bar">
+            <span>&copy; 2026 AI Tech Now. All rights reserved.</span>
+            <div class="legal-links">
+                <a href="#">Terms of Service</a>
+                <a href="#">Privacy Policy</a>
+                <a href="#">Contact Us</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const BASE_URL = '/news/ai-tech-now';
+    let currentCategory = 'all';
+    let activeSearchQuery = '';
+    let allArticles = [];
+    let searchDebounceTimer = null;
+
+    // Set today's date
+    document.getElementById('dateText').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    async function loadArticles(category, searchQuery) {
+        try {
+            let url = `${BASE_URL}/api/articles?count=20`;
+            if (searchQuery) {
+                url += `&searchQuery=${encodeURIComponent(searchQuery)}`;
+            } else {
+                url += `&category=${encodeURIComponent(category)}`;
+            }
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('Failed to load');
+            const data = await resp.json();
+            allArticles = data.articles || [];
+            renderAll();
+        } catch (err) {
+            console.error('Error loading articles:', err);
+        }
+    }
+
+    function selectCategory(cat) {
+        currentCategory = cat;
+        activeSearchQuery = '';
+        document.querySelectorAll('.nav-item').forEach(el => {
+            el.classList.toggle('active', el.dataset.category === cat);
+        });
+        document.getElementById('searchBanner').classList.remove('active');
+        loadArticles(cat);
+    }
+
+    // Search overlay
+    function openSearch() {
+        const overlay = document.getElementById('searchOverlay');
+        overlay.classList.add('active');
+        const input = document.getElementById('searchInput');
+        input.value = '';
+        input.focus();
+        document.getElementById('searchResults').innerHTML = '<div class="search-status">Type to search across all articles...</div>';
+    }
+
+    function closeSearch() {
+        document.getElementById('searchOverlay').classList.remove('active');
+    }
+
+    function applySearch(query) {
+        activeSearchQuery = query;
+        closeSearch();
+        // Show banner
+        document.getElementById('searchBannerQuery').textContent = query;
+        document.getElementById('searchBanner').classList.add('active');
+        // Deselect category nav
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        loadArticles(currentCategory, query);
+    }
+
+    function clearSearchAndReload() {
+        activeSearchQuery = '';
+        document.getElementById('searchBanner').classList.remove('active');
+        selectCategory(currentCategory || 'all');
+    }
+
+    // Live search in overlay
+    async function performLiveSearch(query) {
+        const resultsEl = document.getElementById('searchResults');
+        if (!query || query.trim().length < 2) {
+            resultsEl.innerHTML = '<div class="search-status">Type at least 2 characters to search...</div>';
+            return;
+        }
+        resultsEl.innerHTML = '<div class="search-status">Searching...</div>';
+        try {
+            const resp = await fetch(`${BASE_URL}/api/articles?searchQuery=${encodeURIComponent(query.trim())}&count=10`);
+            if (!resp.ok) throw new Error('Search failed');
+            const data = await resp.json();
+            const articles = data.articles || [];
+            if (articles.length === 0) {
+                resultsEl.innerHTML = '<div class="search-status">No articles found.</div>';
+                return;
+            }
+            resultsEl.innerHTML = articles.map(a => `
+                <div class="search-result-item" onclick="goToArticle('${a.id}')">
+                    <h4>${escapeHtml(a.title)}</h4>
+                    <p class="result-preview">${escapeHtml(a.preview)}</p>
+                    <span class="result-meta">${escapeHtml(a.source || '')} &middot; ${formatDate(a.createdAt)}</span>
+                </div>
+            `).join('');
+        } catch (err) {
+            resultsEl.innerHTML = '<div class="search-status">Search error. Please try again.</div>';
+        }
+    }
+
+    // Search input events
+    document.getElementById('searchInput').addEventListener('input', function(e) {
+        clearTimeout(searchDebounceTimer);
+        searchDebounceTimer = setTimeout(() => performLiveSearch(e.target.value), 300);
+    });
+    document.getElementById('searchInput').addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSearch();
+        if (e.key === 'Enter' && this.value.trim().length >= 2) applySearch(this.value.trim());
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeSearch();
+    });
+
+    function goToArticle(id) {
+        window.location.href = `${BASE_URL}/article/${id}`;
+    }
+
+    function formatDate(dateStr) {
+        return new Date(dateStr).toLocaleDateString('ko-KR', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+    }
+
+    function getReadTime(text) {
+        if (!text) return '1';
+        const words = text.split(/\s+/).length;
+        return Math.max(1, Math.ceil(words / 200));
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function renderAll() {
+        renderHero();
+        renderTopStories();
+        renderMostPopular();
+        renderEditorsPick();
+    }
+
+    function renderHero() {
+        const heroMain = document.getElementById('heroMain');
+        const heroSidebar = document.getElementById('heroSidebar');
+
+        if (allArticles.length === 0) {
+            heroMain.innerHTML = '<p style="color:#999">No articles found for this category.</p>';
+            heroSidebar.innerHTML = '';
+            return;
+        }
+
+        // Headline: latest 1 article
+        const headline = allArticles[0];
+        heroMain.innerHTML = `
+            <div class="hero-caption">${escapeHtml(headline.type || '')} &middot; ${formatDate(headline.createdAt)}</div>
+            <h2 class="hero-headline" onclick="goToArticle('${headline.id}')">${escapeHtml(headline.title)}</h2>
+            <p class="hero-summary">${escapeHtml(headline.preview)}</p>
+            <span class="hero-byline">${escapeHtml(headline.source || '')} &middot; ${getReadTime(headline.text)}min</span>
+        `;
+
+        // Sidebar: random 5 titles
+        const sidebarItems = getRandomItems(allArticles.slice(1), 5);
+        heroSidebar.innerHTML = sidebarItems.map((item, i) => `
+            <div class="divider"></div>
+            <div class="sidebar-story" onclick="goToArticle('${item.id}')">
+                <h3>${escapeHtml(item.title)}</h3>
+                <span class="byline">${escapeHtml(item.source || '')} &middot; ${formatDate(item.createdAt)}</span>
+            </div>
+        `).join('');
+        if (sidebarItems.length > 0) {
+            heroSidebar.innerHTML += '<div class="divider"></div>';
+        }
+    }
+
+    function renderTopStories() {
+        const grid = document.getElementById('topStoriesGrid');
+        // Articles 2,3,4 (index 1,2,3) - preview mode (max 5 lines)
+        const stories = allArticles.slice(1, 4);
+
+        if (stories.length === 0) {
+            grid.innerHTML = '<p style="color:#999">No stories available.</p>';
+            return;
+        }
+
+        grid.innerHTML = stories.map((story, i) => {
+            const col = `
+                <div class="story-col">
+                    <div class="story-card" onclick="goToArticle('${story.id}')">
+                        <h3>${escapeHtml(story.title)}</h3>
+                        <p class="preview">${escapeHtml(story.preview)}</p>
+                        <span class="meta">${escapeHtml(story.source || '')} &middot; ${getReadTime(story.text)}min &middot; ${formatDate(story.createdAt)}</span>
+                    </div>
+                </div>
+            `;
+            return i < stories.length - 1 ? col + '<div class="vert-divider"></div>' : col;
+        }).join('');
+    }
+
+    function renderMostPopular() {
+        const container = document.getElementById('mostPopular');
+        // Articles 5-14 (index 4-13), titles only, max 10
+        const items = allArticles.slice(4, 14);
+
+        let html = '<span class="section-label" style="margin-bottom:8px">Most Popular</span>';
+        items.forEach((item, i) => {
+            html += `
+                <div class="trend-item" onclick="goToArticle('${item.id}')">
+                    <span class="trend-num">${i + 1}</span>
+                    <span class="trend-title">${escapeHtml(item.title)}</span>
+                </div>
+            `;
+            if (i < items.length - 1) {
+                html += '<div class="divider"></div>';
+            }
+        });
+
+        if (items.length === 0) {
+            html += '<p style="color:#999;padding:16px 0">No trending articles.</p>';
+        }
+        container.innerHTML = html;
+    }
+
+    function renderEditorsPick() {
+        const container = document.getElementById('editorsPick');
+        // Article 11 (index 10) as preview
+        const pick = allArticles.length > 10 ? allArticles[10] : null;
+
+        if (!pick) {
+            container.innerHTML = `
+                <span class="feat-label">EDITOR'S PICK</span>
+                <p style="color:#999">No editor's pick available.</p>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <span class="feat-label">EDITOR'S PICK</span>
+            <h2 onclick="goToArticle('${pick.id}')">${escapeHtml(pick.title)}</h2>
+            <p class="preview">${escapeHtml(pick.preview)}</p>
+            <span class="meta">${escapeHtml(pick.source || '')} &middot; ${getReadTime(pick.text)}min</span>
+        `;
+    }
+
+    function getRandomItems(arr, count) {
+        if (arr.length <= count) return arr;
+        const shuffled = [...arr].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, count);
+    }
+
+    // Initial load
+    loadArticles('all', null);
+</script>
+</body>
+</html>

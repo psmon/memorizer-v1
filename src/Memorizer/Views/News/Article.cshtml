@@ -1,0 +1,502 @@
+@{
+    Layout = null;
+    var articleId = ViewBag.ArticleId;
+}
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AI Tech Now - Article</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Nanum Myeongjo', 'Inter', serif;
+            background: #F0EADB;
+            color: #2C2A24;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .article-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            background: #F0EADB;
+            background-image:
+                radial-gradient(ellipse at center, rgba(139,125,93,0.06) 0%, transparent 70%),
+                linear-gradient(135deg, transparent 0%, rgba(255,255,255,0.04) 12%, transparent 28%, rgba(0,0,0,0.02) 52%, transparent 65%, rgba(255,255,255,0.03) 78%, transparent 100%);
+        }
+
+        /* Top Bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 64px;
+        }
+        .back-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            color: #2C2A24;
+        }
+        .back-link span {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+        .top-center {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #8A8478;
+        }
+        .top-right { display: flex; gap: 20px; }
+
+        .divider { width: 100%; height: 1px; background: #D5CFBF; }
+        .divider-thick { width: 100%; height: 2px; background: #2C2A24; }
+
+        /* Masthead */
+        .masthead {
+            text-align: center;
+            padding: 14px 64px;
+        }
+        .masthead a {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #2C2A24;
+            text-decoration: none;
+        }
+
+        /* Breadcrumb */
+        .breadcrumb-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 64px;
+        }
+        .breadcrumb-bar span {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            font-weight: 500;
+            color: #8A8478;
+        }
+        .breadcrumb-bar .sep { color: #D5CFBF; font-weight: 400; }
+
+        /* Article Header */
+        .article-header {
+            text-align: center;
+            padding: 48px 20% 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .article-header h1 {
+            font-size: 42px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .article-header .subtitle {
+            font-size: 18px;
+            color: #6B6458;
+            line-height: 1.6;
+        }
+        .meta-row {
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            padding-top: 16px;
+            font-size: 13px;
+        }
+        .meta-row .author { font-weight: 500; color: #2C2A24; }
+        .meta-row .sep { color: #D5CFBF; }
+        .meta-row .date, .meta-row .read-time { color: #8A8478; }
+
+        /* Article Body */
+        .article-body {
+            padding: 32px 24%;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        .article-body p {
+            font-size: 17px;
+            line-height: 1.8;
+        }
+        .article-body h2 {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.3;
+            margin-top: 8px;
+        }
+        .article-body .drop-cap-row {
+            display: flex;
+            gap: 12px;
+        }
+        .article-body .drop-cap {
+            font-size: 72px;
+            font-weight: 700;
+            line-height: 0.85;
+            float: left;
+        }
+
+        /* Pull Quote */
+        .pull-quote {
+            text-align: center;
+            padding: 32px 48px;
+            border-top: 3px solid #2C2A24;
+            border-bottom: 3px solid #2C2A24;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .pull-quote .quote-text {
+            font-size: 24px;
+            font-style: italic;
+            line-height: 1.5;
+        }
+        .pull-quote .quote-attr {
+            font-size: 13px;
+            font-weight: 500;
+            color: #8A8478;
+        }
+
+        /* Tags */
+        .tags-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-top: 24px;
+            flex-wrap: wrap;
+        }
+        .tags-row .tag-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #8A8478;
+        }
+        .tag-pill {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #2C2A24;
+            background: #E5DDC8;
+            padding: 4px 12px;
+            border-radius: 2px;
+        }
+
+        /* Related Articles */
+        .related-section {
+            padding: 48px 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        .related-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .related-header h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 28px;
+            font-weight: 700;
+        }
+        .related-grid {
+            display: flex;
+            gap: 32px;
+        }
+        .related-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            cursor: pointer;
+        }
+        .related-card:hover h3 { text-decoration: underline; }
+        .related-card .card-type {
+            font-family: 'Inter', sans-serif;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: #999;
+        }
+        .related-card h3 {
+            font-size: 18px;
+            font-weight: 700;
+            line-height: 1.3;
+        }
+        .related-card .card-preview {
+            font-size: 14px;
+            color: #777;
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .footer {
+            background: #EFE9D9;
+            padding: 48px 64px;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+        .footer-top { display: flex; justify-content: space-between; }
+        .footer-brand h2 {
+            font-family: 'Playfair Display', serif;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+        .footer-brand .tagline {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            color: #999;
+            margin-top: 8px;
+        }
+        .copyright-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .copyright-bar span {
+            font-family: 'Inter', sans-serif;
+            font-size: 11px;
+            color: #999;
+        }
+
+        /* Markdown content rendering */
+        .article-content { display: flex; flex-direction: column; gap: 24px; }
+        .article-content p { font-size: 17px; line-height: 1.8; }
+        .article-content h1 { font-size: 28px; font-weight: 700; margin-top: 16px; }
+        .article-content h2 { font-size: 24px; font-weight: 700; margin-top: 12px; }
+        .article-content h3 { font-size: 20px; font-weight: 700; margin-top: 8px; }
+        .article-content ul, .article-content ol { padding-left: 24px; font-size: 17px; line-height: 1.8; }
+        .article-content pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 16px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .article-content code {
+            background: #E5DDC8;
+            padding: 2px 6px;
+            border-radius: 2px;
+            font-size: 15px;
+        }
+        .article-content pre code { background: none; padding: 0; }
+        .article-content blockquote {
+            border-left: 3px solid #2C2A24;
+            padding: 16px 24px;
+            font-style: italic;
+            color: #6B6458;
+        }
+        .article-content a { color: #2C2A24; text-decoration: underline; }
+        .article-content img { max-width: 100%; height: auto; border-radius: 4px; }
+
+        /* Loading */
+        .skeleton {
+            background: linear-gradient(90deg, #E5DFD0 25%, #EBE5D5 50%, #E5DFD0 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @@keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Responsive */
+        @@media (max-width: 1024px) {
+            .article-header { padding: 32px 10% 24px; }
+            .article-body { padding: 24px 10%; }
+            .related-grid { flex-direction: column; }
+            .top-bar, .masthead, .breadcrumb-bar, .related-section, .footer { padding-left: 32px; padding-right: 32px; }
+        }
+        @@media (max-width: 640px) {
+            .article-header { padding: 24px 16px; }
+            .article-header h1 { font-size: 28px; }
+            .article-body { padding: 16px; }
+            .top-bar, .masthead, .breadcrumb-bar, .related-section, .footer { padding-left: 16px; padding-right: 16px; }
+            .meta-row { flex-wrap: wrap; gap: 12px; }
+            .footer-top { flex-direction: column; gap: 24px; }
+        }
+    </style>
+</head>
+<body>
+<div class="article-container">
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <a class="back-link" href="/news/ai-tech-now">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2C2A24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+            <span>BACK</span>
+        </a>
+        <span class="top-center" id="dateText"></span>
+        <div class="top-right"></div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- Masthead -->
+    <div class="masthead">
+        <a href="/news/ai-tech-now">AI Tech Now</a>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-bar" id="breadcrumb">
+        <span>Article</span>
+    </div>
+    <div class="divider"></div>
+
+    <!-- Article Header -->
+    <div class="article-header" id="articleHeader">
+        <div class="skeleton" style="width:80%;height:42px"></div>
+        <div class="skeleton" style="width:60%;height:20px"></div>
+    </div>
+    <div class="divider"></div>
+
+    <!-- Article Body -->
+    <div class="article-body" id="articleBody">
+        <div class="skeleton" style="width:100%;height:200px"></div>
+    </div>
+    <div class="divider-thick"></div>
+
+    <!-- Related Articles -->
+    <div class="related-section" id="relatedSection" style="display:none">
+        <div class="related-header">
+            <h2>Related Articles</h2>
+        </div>
+        <div class="related-grid" id="relatedGrid"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="divider-thick"></div>
+    <div class="footer">
+        <div class="footer-top">
+            <div class="footer-brand">
+                <h2>AI Tech Now</h2>
+                <div class="tagline">Covering the AI revolution, daily.</div>
+            </div>
+        </div>
+        <div class="divider"></div>
+        <div class="copyright-bar">
+            <span>&copy; 2026 AI Tech Now. All rights reserved.</span>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+    const BASE_URL = '/news/ai-tech-now';
+    const ARTICLE_ID = '@articleId';
+
+    document.getElementById('dateText').textContent = new Date().toLocaleDateString('en-US', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    function formatDate(dateStr) {
+        return new Date(dateStr).toLocaleDateString('ko-KR', {
+            year: 'numeric', month: 'long', day: 'numeric'
+        });
+    }
+
+    function getReadTime(text) {
+        if (!text) return '1';
+        return Math.max(1, Math.ceil(text.split(/\s+/).length / 200));
+    }
+
+    async function loadArticle() {
+        try {
+            const resp = await fetch(`${BASE_URL}/api/article/${ARTICLE_ID}`);
+            if (!resp.ok) throw new Error('Article not found');
+            const article = await resp.json();
+
+            document.title = `${article.title} - AI Tech Now`;
+
+            // Breadcrumb
+            const bc = document.getElementById('breadcrumb');
+            const tags = article.tags && article.tags.length > 0 ? article.tags : [article.type];
+            bc.innerHTML = tags.map((t, i) =>
+                `<span>${escapeHtml(t)}</span>${i < tags.length - 1 ? '<span class="sep">/</span>' : ''}`
+            ).join('');
+
+            // Header
+            const header = document.getElementById('articleHeader');
+            header.innerHTML = `
+                <h1>${escapeHtml(article.title)}</h1>
+                <div class="meta-row">
+                    <span class="author">${escapeHtml(article.source || '')}</span>
+                    <span class="sep">&middot;</span>
+                    <span class="date">${formatDate(article.createdAt)}</span>
+                    <span class="sep">&middot;</span>
+                    <span class="read-time">${getReadTime(article.text)}min</span>
+                </div>
+            `;
+
+            // Body - render markdown
+            const body = document.getElementById('articleBody');
+            const rendered = marked.parse(article.text || '');
+            body.innerHTML = `
+                <div class="article-content">${rendered}</div>
+                ${article.tags && article.tags.length > 0 ? `
+                <div class="tags-row">
+                    <span class="tag-label">TAGS</span>
+                    ${article.tags.map(t => `<span class="tag-pill">${escapeHtml(t)}</span>`).join('')}
+                </div>
+                ` : ''}
+            `;
+
+            // Load related articles
+            loadRelated();
+        } catch (err) {
+            console.error('Error loading article:', err);
+            document.getElementById('articleHeader').innerHTML = '<h1>Article not found</h1>';
+            document.getElementById('articleBody').innerHTML = '<p style="color:#999">The requested article could not be found.</p>';
+        }
+    }
+
+    async function loadRelated() {
+        try {
+            const resp = await fetch(`${BASE_URL}/api/article/${ARTICLE_ID}/related`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            const articles = data.articles || [];
+
+            if (articles.length === 0) return;
+
+            const section = document.getElementById('relatedSection');
+            const grid = document.getElementById('relatedGrid');
+            section.style.display = '';
+
+            grid.innerHTML = articles.slice(0, 3).map(a => `
+                <div class="related-card" onclick="window.location.href='${BASE_URL}/article/${a.id}'">
+                    <span class="card-type">${escapeHtml(a.type || '').toUpperCase()}</span>
+                    <h3>${escapeHtml(a.title)}</h3>
+                    <p class="card-preview">${escapeHtml(a.preview || '')}</p>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error('Error loading related articles:', err);
+        }
+    }
+
+    loadArticle();
+</script>
+</body>
+</html>
