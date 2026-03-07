@@ -8,13 +8,20 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Tech Now - Article</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    <link href="https://hangeul.pstatic.net/hangeul_static/css/NanumMyeongjoYetHangul.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+        :root {
+            --font-headline: 'Playfair Display', Georgia, 'Times New Roman', Times, serif;
+            --font-body: 'NanumMyeongjoYetHangul', Georgia, 'Times New Roman', Times, serif;
+            --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
         body {
-            font-family: 'Nanum Myeongjo', 'Inter', serif;
+            font-family: var(--font-body);
             background: #F0EADB;
             color: #2C2A24;
             line-height: 1.6;
@@ -46,13 +53,13 @@
             color: #2C2A24;
         }
         .back-link span {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 1px;
         }
         .top-center {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             color: #8A8478;
         }
@@ -67,7 +74,7 @@
             padding: 14px 64px;
         }
         .masthead a {
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-headline);
             font-size: 28px;
             font-weight: 700;
             letter-spacing: 2px;
@@ -83,7 +90,7 @@
             padding: 12px 64px;
         }
         .breadcrumb-bar span {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             font-weight: 500;
             color: #8A8478;
@@ -179,14 +186,14 @@
             flex-wrap: wrap;
         }
         .tags-row .tag-label {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 10px;
             font-weight: 700;
             letter-spacing: 1px;
             color: #8A8478;
         }
         .tag-pill {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             color: #2C2A24;
             background: #E5DDC8;
@@ -207,7 +214,7 @@
             align-items: center;
         }
         .related-header h2 {
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-headline);
             font-size: 28px;
             font-weight: 700;
         }
@@ -224,7 +231,7 @@
         }
         .related-card:hover h3 { text-decoration: underline; }
         .related-card .card-type {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 1px;
@@ -251,13 +258,13 @@
         }
         .footer-top { display: flex; justify-content: space-between; }
         .footer-brand h2 {
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-headline);
             font-size: 24px;
             font-weight: 700;
             letter-spacing: 2px;
         }
         .footer-brand .tagline {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 12px;
             color: #999;
             margin-top: 8px;
@@ -268,7 +275,7 @@
             align-items: center;
         }
         .copyright-bar span {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             color: #999;
         }

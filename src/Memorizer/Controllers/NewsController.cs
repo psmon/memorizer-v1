@@ -1,3 +1,4 @@
+using System.Xml.Linq;
 using Memorizer.Models;
 using Memorizer.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -14,10 +15,12 @@ public class NewsController : Controller
     {
         ["all"] = Array.Empty<string>(),
         ["vibe"] = new[] { "vibe", "vibes", "바이브", "viving", "vibecoding" },
+        ["skill"] = new[] { "skill", "스킬" },
         ["claude-code"] = new[] { "claude code", "claude-code", "클로드", "claude", "anthropic" },
         ["openai"] = new[] { "openai", "gpt", "chatgpt", "o1", "o3", "o4" },
         ["architecture"] = new[] { "architecture", "아키텍처", "설계", "design pattern", "시스템 설계" },
-        ["agentic"] = new[] { "agent", "agentic", "에이전트", "ai agent", "mcp" }
+        ["agentic"] = new[] { "agent", "agentic", "에이전트", "ai agent" },
+        ["mcp"] = new[] { "mcp", "model context protocol" }
     };
 
     public NewsController(IStorage storage, ILogger<NewsController> logger)
@@ -159,6 +162,39 @@ public class NewsController : Controller
         return Ok(categories);
     }
 
+    [HttpGet("api/rss-opinions")]
+    public async Task<ActionResult> GetRssOpinions(int count = 4)
+    {
+        try
+        {
+            const string rssUrl = "https://news.google.com/rss/search?q=OR+%22generative+AI%22+OR+LLM&hl=ko&gl=KR&ceid=KR:ko";
+            using var httpClient = new HttpClient();
+            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            httpClient.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0");
+            var xml = await httpClient.GetStringAsync(rssUrl);
+            var doc = XDocument.Parse(xml);
+
+            var items = doc.Descendants("item")
+                .Take(count)
+                .Select(item => new
+                {
+                    title = item.Element("title")?.Value ?? "",
+                    link = item.Element("link")?.Value ?? "",
+                    source = item.Element("source")?.Value ?? "",
+                    sourceUrl = item.Element("source")?.Attribute("url")?.Value ?? "",
+                    pubDate = item.Element("pubDate")?.Value ?? ""
+                })
+                .ToList();
+
+            return Ok(new { items });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching RSS opinions");
+            return StatusCode(500, new { error = "Failed to load RSS feed" });
+        }
+    }
+
     private static string[] GetCategoryKeywords(string category)
     {
         if (CategoryKeywords.TryGetValue(category.ToLowerInvariant(), out var keywords))
@@ -182,10 +218,12 @@ public class NewsController : Controller
     {
         "all" => "All",
         "vibe" => "Vibe",
+        "skill" => "Skill",
         "claude-code" => "Claude-code",
         "openai" => "OpenAI",
         "architecture" => "Architecture",
         "agentic" => "Agentic",
+        "mcp" => "MCP",
         _ => key
     };
 }

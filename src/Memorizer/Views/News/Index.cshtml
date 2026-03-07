@@ -7,12 +7,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Tech Now - The Future of AI, Delivered Daily</title>
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Inter:wght@400;500;600;700&family=Nanum+Myeongjo:wght@400;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+    <link href="https://hangeul.pstatic.net/hangeul_static/css/NanumMyeongjoYetHangul.css" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+        :root {
+            --font-headline: 'Playfair Display', Georgia, 'Times New Roman', Times, serif;
+            --font-body: 'NanumMyeongjoYetHangul', Georgia, 'Times New Roman', Times, serif;
+            --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
         body {
-            font-family: 'Nanum Myeongjo', 'Inter', serif;
+            font-family: var(--font-body);
             background: #F0EADB;
             color: #2C2A24;
             line-height: 1.6;
@@ -48,7 +55,7 @@
         }
         .top-left .search-trigger svg { width: 16px; height: 16px; }
         .top-left .search-label {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 1px;
@@ -87,7 +94,7 @@
             flex: 1;
             border: none;
             background: transparent;
-            font-family: 'Nanum Myeongjo', serif;
+            font-family: var(--font-body);
             font-size: 18px;
             color: #2C2A24;
             outline: none;
@@ -97,7 +104,7 @@
             border: none;
             background: none;
             cursor: pointer;
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             font-weight: 600;
             color: #999;
@@ -133,7 +140,7 @@
             overflow: hidden;
         }
         .search-result-item .result-meta {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             color: #999;
         }
@@ -151,7 +158,7 @@
             padding: 8px 64px;
             background: #2C2A24;
             color: #F0EADB;
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 12px;
             font-weight: 500;
         }
@@ -160,7 +167,7 @@
             border: 1px solid #F0EADB;
             background: none;
             color: #F0EADB;
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             padding: 2px 10px;
             border-radius: 2px;
@@ -168,7 +175,7 @@
         }
         .search-active-banner .clear-search-btn:hover { background: rgba(240,234,219,0.15); }
         .top-center {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             color: #777;
         }
@@ -183,7 +190,7 @@
             padding: 20px 64px;
         }
         .masthead h1 {
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-headline);
             font-size: 52px;
             font-weight: 700;
             letter-spacing: 2px;
@@ -191,7 +198,7 @@
             margin-bottom: 12px;
         }
         .masthead .tagline {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             letter-spacing: 1px;
             color: #999;
@@ -205,7 +212,7 @@
             padding: 12px 64px;
         }
         .nav-item {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 13px;
             font-weight: 500;
             color: #2C2A24;
@@ -277,7 +284,7 @@
 
         /* Section Headers */
         .section-label {
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-headline);
             font-size: 22px;
             font-style: italic;
             font-weight: 600;
@@ -351,7 +358,7 @@
             gap: 8px;
         }
         .opinion-tag {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 1px;
@@ -365,6 +372,14 @@
         .opinion-card .author {
             font-size: 12px;
             color: #999;
+        }
+        .opinion-card a {
+            text-decoration: none;
+            color: #2C2A24;
+            transition: color 0.2s;
+        }
+        .opinion-card a:hover {
+            color: #8B0000;
         }
 
         /* Trending Section */
@@ -387,7 +402,7 @@
         }
         .trend-item:hover .trend-title { text-decoration: underline; }
         .trend-num {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 28px;
             font-weight: 600;
             color: #E5E2DC;
@@ -408,7 +423,7 @@
             gap: 16px;
         }
         .feat-label {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 9px;
             font-weight: 700;
             letter-spacing: 1px;
@@ -445,13 +460,13 @@
             justify-content: space-between;
         }
         .footer-brand h2 {
-            font-family: 'Playfair Display', serif;
+            font-family: var(--font-headline);
             font-size: 24px;
             font-weight: 700;
             letter-spacing: 2px;
         }
         .footer-brand .tagline {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 12px;
             color: #999;
             margin-top: 8px;
@@ -466,14 +481,14 @@
             gap: 10px;
         }
         .footer-nav-col .col-title {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 10px;
             font-weight: 700;
             letter-spacing: 1px;
             color: #999;
         }
         .footer-nav-col a {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 12px;
             color: #2C2A24;
             text-decoration: none;
@@ -486,7 +501,7 @@
         }
         .copyright-bar span,
         .copyright-bar a {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-ui);
             font-size: 11px;
             color: #999;
             text-decoration: none;
@@ -576,10 +591,12 @@
     <div class="nav-bar" id="navBar">
         <button class="nav-item active" data-category="all" onclick="selectCategory('all')">All</button>
         <button class="nav-item" data-category="vibe" onclick="selectCategory('vibe')">Vibe</button>
+        <button class="nav-item" data-category="skill" onclick="selectCategory('skill')">Skill</button>
         <button class="nav-item" data-category="claude-code" onclick="selectCategory('claude-code')">Claude-code</button>
         <button class="nav-item" data-category="openai" onclick="selectCategory('openai')">OpenAI</button>
         <button class="nav-item" data-category="architecture" onclick="selectCategory('architecture')">Architecture</button>
         <button class="nav-item" data-category="agentic" onclick="selectCategory('agentic')">Agentic</button>
+        <button class="nav-item" data-category="mcp" onclick="selectCategory('mcp')">MCP</button>
     </div>
     <div class="divider"></div>
 
@@ -612,33 +629,11 @@
     </div>
     <div class="divider-thick"></div>
 
-    <!-- Opinion Section (static) -->
+    <!-- Opinion Section (RSS Feed) -->
     <div class="opinion-section">
-        <span class="section-label">Opinion</span>
-        <div class="opinion-grid">
-            <div class="opinion-card">
-                <span class="opinion-tag">SILICON VALLEY</span>
-                <h3>빅테크의 AI 군비경쟁이 스타트업 생태계에 미치는 영향</h3>
-                <span class="author">마이클 첸, 테크 칼럼니스트</span>
-            </div>
-            <div class="vert-divider"></div>
-            <div class="opinion-card">
-                <span class="opinion-tag">SENIOR FELLOW</span>
-                <h3>슬로우 AI 무브먼트: 왜 일부 기업들은 의도적으로 AI 도입을 늦추는가</h3>
-                <span class="author">사라 오코너, 미래전략 연구소</span>
-            </div>
-            <div class="vert-divider"></div>
-            <div class="opinion-card">
-                <span class="opinion-tag">WEEK</span>
-                <h3>코드 리뷰의 미래: AI 에이전트가 변호사, 의사, 회계사를 대체할 때</h3>
-                <span class="author">데이비드 박, 기술 윤리학 교수</span>
-            </div>
-            <div class="vert-divider"></div>
-            <div class="opinion-card">
-                <span class="opinion-tag">TRENDS</span>
-                <h3>AI로 코딩하는 시대, 프로그래머는 사라지는가 진화하는가</h3>
-                <span class="author">최윤서, AI 트렌드 분석가</span>
-            </div>
+        <span class="section-label">Opinion — AI/LLM News</span>
+        <div class="opinion-grid" id="opinionGrid">
+            <div style="color:#999; font-size:14px;">Loading latest news...</div>
         </div>
     </div>
     <div class="divider-thick"></div>
@@ -671,6 +666,7 @@
                 <div class="footer-nav-col">
                     <span class="col-title">SECTIONS</span>
                     <a href="javascript:void(0)" onclick="selectCategory('vibe')">Vibe</a>
+                    <a href="javascript:void(0)" onclick="selectCategory('skill')">Skill</a>
                     <a href="javascript:void(0)" onclick="selectCategory('claude-code')">Claude-code</a>
                     <a href="javascript:void(0)" onclick="selectCategory('openai')">OpenAI</a>
                 </div>
@@ -678,6 +674,7 @@
                     <span class="col-title">MORE</span>
                     <a href="javascript:void(0)" onclick="selectCategory('architecture')">Architecture</a>
                     <a href="javascript:void(0)" onclick="selectCategory('agentic')">Agentic</a>
+                    <a href="javascript:void(0)" onclick="selectCategory('mcp')">MCP</a>
                 </div>
                 <div class="footer-nav-col">
                     <span class="col-title">ABOUT</span>
@@ -953,8 +950,33 @@
         return shuffled.slice(0, count);
     }
 
+    async function loadRssOpinions() {
+        const grid = document.getElementById('opinionGrid');
+        try {
+            const resp = await fetch('/news/ai-tech-now/api/rss-opinions?count=4');
+            if (!resp.ok) throw new Error('RSS fetch failed');
+            const data = await resp.json();
+            if (!data.items || data.items.length === 0) {
+                grid.innerHTML = '<div style="color:#999; font-size:14px;">No news available</div>';
+                return;
+            }
+            grid.innerHTML = data.items.map((item, i) => {
+                const pubDate = item.pubDate ? new Date(item.pubDate).toLocaleDateString('ko-KR') : '';
+                const divider = i < data.items.length - 1 ? '<div class="vert-divider"></div>' : '';
+                return `<div class="opinion-card">
+                    <span class="opinion-tag">${item.source || 'NEWS'}</span>
+                    <h3><a href="${item.link}" target="_blank" rel="noopener noreferrer">${item.title}</a></h3>
+                    <span class="author">${pubDate}</span>
+                </div>${divider}`;
+            }).join('');
+        } catch (e) {
+            grid.innerHTML = '<div style="color:#999; font-size:14px;">Failed to load news feed</div>';
+        }
+    }
+
     // Initial load
     loadArticles('all', null);
+    loadRssOpinions();
 </script>
 </body>
 </html>

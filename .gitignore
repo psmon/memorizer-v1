@@ -418,3 +418,4 @@ src/Memorizer.IntegrationTests/test_output.txt
 /src/Memorizer/AskBotImages
 src/MemorizerProxy/.env
 /Pencil/images
+.claude/settings.local.json
