@@ -18,30 +18,35 @@
             --font-headline: 'Playfair Display', Georgia, 'Times New Roman', Times, serif;
             --font-body: 'NanumMyeongjoYetHangul', Georgia, 'Times New Roman', Times, serif;
             --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --paper-1: #e7e0d2;
+            --paper-2: #ddd5c6;
+            --ink: #1f1b17;
         }
 
         body {
             font-family: var(--font-body);
-            background: #e8e0cc;
-            color: #2C2A24;
+            background: #d4cdbf;
+            color: rgba(25,22,18,.92);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
         }
-
-        .paper-grain { position: fixed; width: 0; height: 0; }
 
         .article-container {
             max-width: 1440px;
             margin: 24px auto;
             position: relative;
-            background-color: #F3EDDD;
-            background-image:
-                radial-gradient(ellipse at 18% 12%, rgba(248,241,221,0.8) 0%, transparent 38%),
-                radial-gradient(ellipse at 72% 25%, rgba(213,205,183,0.45) 0%, transparent 32%),
-                radial-gradient(ellipse at 35% 55%, rgba(248,241,221,0.6) 0%, transparent 42%),
-                radial-gradient(ellipse at 82% 72%, rgba(213,205,183,0.35) 0%, transparent 28%),
-                radial-gradient(ellipse at 55% 40%, rgba(240,234,219,0.3) 0%, transparent 50%),
-                linear-gradient(142deg, transparent 0%, rgba(255,255,255,0.07) 12%, transparent 26%, rgba(0,0,0,0.025) 48%, transparent 62%, rgba(255,255,255,0.05) 76%, transparent 100%);
+            isolation: isolate;
+            color: var(--ink);
+
+            background:
+                radial-gradient(1100px 700px at 14% 12%, rgba(255,255,255,.20), transparent 60%),
+                radial-gradient(900px 520px at 84% 72%, rgba(73,56,30,.07), transparent 55%),
+                linear-gradient(180deg, var(--paper-1) 0%, var(--paper-2) 100%);
+
+            box-shadow:
+                inset 0 0 120px rgba(58,44,24,.06),
+                inset 0 0 24px rgba(255,255,255,.08);
+
             clip-path: polygon(
                 0% 0.3%, 2% 0%, 4% 0.2%, 6% 0%, 8% 0.1%, 12% 0%, 15% 0.2%, 18% 0%,
                 22% 0.1%, 26% 0%, 30% 0.15%, 35% 0%, 40% 0.1%, 45% 0%, 50% 0.2%,
@@ -63,52 +68,59 @@
             filter: drop-shadow(0 2px 12px rgba(0,0,0,0.18)) drop-shadow(0 0 2px rgba(0,0,0,0.08));
         }
 
-        /* Crease highlights (soft-light) */
         .article-container::before {
-            content: '';
+            content: "";
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             pointer-events: none;
             z-index: 2;
+            opacity: .72;
             mix-blend-mode: soft-light;
-            filter: url(#paper-wrinkle);
             background:
-                linear-gradient(to right,
-                    transparent 49.7%, rgba(0,0,0,0.04) 49.85%,
-                    rgba(255,255,255,0.18) 49.95%, rgba(255,255,255,0.22) 50%,
-                    rgba(255,255,255,0.18) 50.05%, rgba(0,0,0,0.04) 50.15%,
-                    transparent 50.3%),
-                linear-gradient(to bottom,
-                    transparent 29%, rgba(255,255,255,0.2) 29.8%,
-                    rgba(255,255,255,0.35) 30%, rgba(255,255,255,0.2) 30.2%,
-                    transparent 31%),
-                radial-gradient(ellipse at 25% 20%, rgba(255,255,255,0.25) 0%, transparent 30%),
-                radial-gradient(ellipse at 70% 65%, rgba(255,255,255,0.2) 0%, transparent 25%),
-                linear-gradient(32deg, transparent 49.5%, rgba(200,190,170,0.3) 49.5%, rgba(200,190,170,0.3) 50%, transparent 50%) no-repeat 15% 25% / 120px 1px,
-                linear-gradient(-18deg, transparent 49.5%, rgba(200,190,170,0.25) 49.5%, rgba(200,190,170,0.25) 50%, transparent 50%) no-repeat 65% 45% / 80px 1px;
+                linear-gradient(90deg,
+                    transparent 0% 49.2%,
+                    rgba(255,255,255,.20) 49.55%,
+                    rgba(70,52,31,.11) 50.00%,
+                    rgba(255,255,255,.08) 50.38%,
+                    transparent 50.85%
+                ),
+                linear-gradient(103deg,
+                    transparent 0% 40.8%,
+                    rgba(255,255,255,.15) 43.2%,
+                    rgba(78,58,34,.10) 44.4%,
+                    rgba(255,255,255,.06) 45.5%,
+                    transparent 48.2%
+                ),
+                linear-gradient(18deg,
+                    transparent 0% 61.8%,
+                    rgba(255,255,255,.10) 63.1%,
+                    rgba(72,55,30,.07) 64.2%,
+                    transparent 65.5%
+                ),
+                radial-gradient(38rem 10rem at 24% 18%, rgba(255,255,255,.10), transparent 70%),
+                radial-gradient(28rem 10rem at 73% 66%, rgba(0,0,0,.07), transparent 72%);
         }
 
-        /* Vignette + grain (multiply) */
         .article-container::after {
-            content: '';
+            content: "";
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             pointer-events: none;
             z-index: 3;
+            opacity: .34;
             mix-blend-mode: multiply;
             background:
-                radial-gradient(ellipse at center, transparent 40%, rgba(180,168,140,0.12) 70%, rgba(150,138,110,0.22) 100%),
-                radial-gradient(circle at 12% 35%, rgba(160,140,100,0.1) 0%, transparent 6px),
-                radial-gradient(circle at 78% 62%, rgba(160,140,100,0.08) 0%, transparent 8px),
-                radial-gradient(circle at 55% 88%, rgba(160,140,100,0.09) 0%, transparent 5px),
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+                radial-gradient(circle at 50% 50%, transparent 62%, rgba(0,0,0,.16) 100%),
+                linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.03)),
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
         }
 
         .article-container h1, .article-container h2, .article-container h3 {
-            text-shadow: 0 0.5px 0 rgba(0,0,0,0.05);
+            color: rgba(20,17,14,.94);
+            text-shadow: 0.012em 0.012em 0 rgba(0,0,0,.05);
         }
-        .article-container p, .article-container span, .article-container a {
-            opacity: 0.95;
+        .article-container p, .article-container .meta, .article-container .author {
+            color: rgba(45,39,33,.74);
         }
 
         /* Top Bar */
@@ -416,12 +428,6 @@
     </style>
 </head>
 <body>
-<svg class="paper-grain" aria-hidden="true">
-    <filter id="paper-wrinkle" x="-5%" y="-5%" width="110%" height="110%">
-        <feTurbulence type="turbulence" baseFrequency="0.015 0.02" numOctaves="3" seed="5" stitchTiles="stitch" result="warp"/>
-        <feDisplacementMap in="SourceGraphic" in2="warp" scale="3" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-</svg>
 <div class="article-container">
     <!-- Top Bar -->
     <div class="top-bar">

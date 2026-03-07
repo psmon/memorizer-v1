@@ -16,42 +16,37 @@
             --font-headline: 'Playfair Display', Georgia, 'Times New Roman', Times, serif;
             --font-body: 'NanumMyeongjoYetHangul', Georgia, 'Times New Roman', Times, serif;
             --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --paper-1: #e7e0d2;
+            --paper-2: #ddd5c6;
+            --ink: #1f1b17;
         }
 
         body {
             font-family: var(--font-body);
-            background: #e8e0cc;
-            color: #2C2A24;
+            background: #d4cdbf;
+            color: rgba(25,22,18,.92);
             line-height: 1.6;
             -webkit-font-smoothing: antialiased;
         }
-
-        /* =========================================
-           5-Layer Newspaper Texture System
-           Layer 1: Background tone (body)
-           Layer 2: Paper base + crumpled gradients (.news-container)
-           Layer 3: Crease/wrinkle highlights (::before, soft-light)
-           Layer 4: Vignette + grain (::after, multiply)
-           Layer 5: SVG displacement filter on wrinkle layer
-           ========================================= */
 
         .news-container {
             max-width: 1440px;
             margin: 24px auto;
             position: relative;
-            /* Layer 2: Paper base tone + crumpled mesh gradients */
-            background-color: #F3EDDD;
-            background-image:
-                /* 5x irregular mesh for crumpled light/shadow */
-                radial-gradient(ellipse at 18% 12%, rgba(248,241,221,0.8) 0%, transparent 38%),
-                radial-gradient(ellipse at 72% 25%, rgba(213,205,183,0.45) 0%, transparent 32%),
-                radial-gradient(ellipse at 35% 55%, rgba(248,241,221,0.6) 0%, transparent 42%),
-                radial-gradient(ellipse at 82% 72%, rgba(213,205,183,0.35) 0%, transparent 28%),
-                radial-gradient(ellipse at 12% 85%, rgba(248,241,221,0.45) 0%, transparent 33%),
-                radial-gradient(ellipse at 55% 40%, rgba(240,234,219,0.3) 0%, transparent 50%),
-                /* Diagonal fold mark */
-                linear-gradient(142deg, transparent 0%, rgba(255,255,255,0.07) 12%, transparent 26%, rgba(0,0,0,0.025) 48%, transparent 62%, rgba(255,255,255,0.05) 76%, transparent 100%);
-            /* Torn edge effect */
+            isolation: isolate;
+            color: var(--ink);
+
+            /* 바탕 종이: 회색 베이지 톤 */
+            background:
+                radial-gradient(1100px 700px at 14% 12%, rgba(255,255,255,.20), transparent 60%),
+                radial-gradient(900px 520px at 84% 72%, rgba(73,56,30,.07), transparent 55%),
+                linear-gradient(180deg, var(--paper-1) 0%, var(--paper-2) 100%);
+
+            box-shadow:
+                inset 0 0 120px rgba(58,44,24,.06),
+                inset 0 0 24px rgba(255,255,255,.08);
+
+            /* Torn edge */
             clip-path: polygon(
                 0% 0.3%, 2% 0%, 4% 0.2%, 6% 0%, 8% 0.1%, 12% 0%, 15% 0.2%, 18% 0%,
                 22% 0.1%, 26% 0%, 30% 0.15%, 35% 0%, 40% 0.1%, 45% 0%, 50% 0.2%,
@@ -73,70 +68,69 @@
             filter: drop-shadow(0 2px 12px rgba(0,0,0,0.18)) drop-shadow(0 0 2px rgba(0,0,0,0.08));
         }
 
-        /* SVG filter container (hidden) */
-        .paper-grain { position: fixed; width: 0; height: 0; }
-
-        /* Layer 3: Crease/wrinkle highlights + scratches (soft-light blend) */
+        /* 주름/접힘 (soft-light) — 큰 주름 2개 + 보조 1개 */
         .news-container::before {
-            content: '';
+            content: "";
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             pointer-events: none;
             z-index: 2;
+            opacity: .72;
             mix-blend-mode: soft-light;
-            /* Apply SVG displacement filter for organic wrinkle warping */
-            filter: url(#paper-wrinkle);
+
             background:
-                /* Center vertical fold crease — narrow subtle line */
-                linear-gradient(to right,
-                    transparent 49.7%, rgba(0,0,0,0.04) 49.85%,
-                    rgba(255,255,255,0.18) 49.95%, rgba(255,255,255,0.22) 50%,
-                    rgba(255,255,255,0.18) 50.05%, rgba(0,0,0,0.04) 50.15%,
-                    transparent 50.3%),
-                /* Horizontal fold crease at ~30% from top */
-                linear-gradient(to bottom,
-                    transparent 29%, rgba(255,255,255,0.2) 29.8%,
-                    rgba(255,255,255,0.35) 30%, rgba(255,255,255,0.2) 30.2%,
-                    transparent 31%),
-                /* Broad crumple highlight patches */
-                radial-gradient(ellipse at 25% 20%, rgba(255,255,255,0.25) 0%, transparent 30%),
-                radial-gradient(ellipse at 70% 65%, rgba(255,255,255,0.2) 0%, transparent 25%),
-                radial-gradient(ellipse at 15% 75%, rgba(255,255,255,0.15) 0%, transparent 28%),
-                radial-gradient(ellipse at 80% 15%, rgba(255,255,255,0.18) 0%, transparent 22%),
-                /* Scratch lines */
-                linear-gradient(32deg, transparent 49.5%, rgba(200,190,170,0.3) 49.5%, rgba(200,190,170,0.3) 50%, transparent 50%) no-repeat 15% 25% / 120px 1px,
-                linear-gradient(-18deg, transparent 49.5%, rgba(200,190,170,0.25) 49.5%, rgba(200,190,170,0.25) 50%, transparent 50%) no-repeat 65% 45% / 80px 1px,
-                linear-gradient(55deg, transparent 49.5%, rgba(200,190,170,0.2) 49.5%, rgba(200,190,170,0.2) 50%, transparent 50%) no-repeat 40% 72% / 100px 1px,
-                linear-gradient(-42deg, transparent 49.5%, rgba(200,190,170,0.25) 49.5%, rgba(200,190,170,0.25) 50%, transparent 50%) no-repeat 82% 18% / 60px 1px;
+                /* 중앙 세로 접힘 */
+                linear-gradient(90deg,
+                    transparent 0% 49.2%,
+                    rgba(255,255,255,.20) 49.55%,
+                    rgba(70,52,31,.11) 50.00%,
+                    rgba(255,255,255,.08) 50.38%,
+                    transparent 50.85%
+                ),
+                /* 큰 대각 주름 */
+                linear-gradient(103deg,
+                    transparent 0% 40.8%,
+                    rgba(255,255,255,.15) 43.2%,
+                    rgba(78,58,34,.10) 44.4%,
+                    rgba(255,255,255,.06) 45.5%,
+                    transparent 48.2%
+                ),
+                /* 보조 주름 */
+                linear-gradient(18deg,
+                    transparent 0% 61.8%,
+                    rgba(255,255,255,.10) 63.1%,
+                    rgba(72,55,30,.07) 64.2%,
+                    transparent 65.5%
+                ),
+                /* 국소 눌린 면 */
+                radial-gradient(38rem 10rem at 24% 18%, rgba(255,255,255,.10), transparent 70%),
+                radial-gradient(28rem 10rem at 73% 66%, rgba(0,0,0,.07), transparent 72%);
         }
 
-        /* Layer 4: Vignette (multiply) + grain noise (::after) */
+        /* 가장자리 비네팅 + 톤 불균일 + 섬유 노이즈 (multiply) */
         .news-container::after {
-            content: '';
+            content: "";
             position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            inset: 0;
             pointer-events: none;
             z-index: 3;
+            opacity: .34;
             mix-blend-mode: multiply;
+
             background:
-                /* Dark vignette around edges */
-                radial-gradient(ellipse at center, transparent 40%, rgba(180,168,140,0.12) 70%, rgba(150,138,110,0.22) 100%),
-                /* Foxing spots (age/rust spots) */
-                radial-gradient(circle at 12% 35%, rgba(160,140,100,0.1) 0%, transparent 6px),
-                radial-gradient(circle at 78% 62%, rgba(160,140,100,0.08) 0%, transparent 8px),
-                radial-gradient(circle at 55% 88%, rgba(160,140,100,0.09) 0%, transparent 5px),
-                radial-gradient(circle at 30% 15%, rgba(160,140,100,0.07) 0%, transparent 7px),
-                radial-gradient(circle at 88% 42%, rgba(160,140,100,0.08) 0%, transparent 4px),
-                /* Noise grain via SVG data URI */
-                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.06'/%3E%3C/svg%3E");
+                radial-gradient(circle at 50% 50%, transparent 62%, rgba(0,0,0,.16) 100%),
+                linear-gradient(180deg, rgba(255,255,255,.05), rgba(0,0,0,.03)),
+                /* 미세 섬유감 노이즈 */
+                url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
         }
 
-        /* Text depth — subtle ink impression */
+        /* 인쇄물 타이포 */
         .news-container h1, .news-container h2, .news-container h3 {
-            text-shadow: 0 0.5px 0 rgba(0,0,0,0.05);
+            color: rgba(20,17,14,.94);
+            text-shadow: 0.012em 0.012em 0 rgba(0,0,0,.05);
         }
-        .news-container p, .news-container span, .news-container a {
-            opacity: 0.95;
+        .news-container p, .news-container .meta, .news-container .author {
+            color: rgba(45,39,33,.74);
         }
 
         /* Utility Bar */
@@ -315,9 +309,10 @@
             padding: 12px 64px;
         }
         .nav-item {
-            font-family: var(--font-ui);
-            font-size: 13px;
-            font-weight: 500;
+            font-family: var(--font-headline);
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
             color: #2C2A24;
             cursor: pointer;
             text-decoration: none;
@@ -505,16 +500,31 @@
         }
         .trend-item:hover .trend-title { text-decoration: underline; }
         .trend-num {
-            font-family: var(--font-ui);
+            font-family: var(--font-headline);
             font-size: 28px;
             font-weight: 600;
-            color: #E5E2DC;
+            color: rgba(160,148,128,.45);
             min-width: 32px;
+        }
+        .trend-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
         }
         .trend-title {
             font-size: 15px;
             font-weight: 600;
             line-height: 1.3;
+        }
+        .trend-preview {
+            font-size: 13px;
+            line-height: 1.4;
+            color: rgba(45,39,33,.6);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         /* Featured / Editor's Pick */
@@ -651,14 +661,6 @@
     </style>
 </head>
 <body>
-<!-- Step 1: SVG filters — organic wrinkle displacement + grain -->
-<svg class="paper-grain" aria-hidden="true">
-    <!-- Wrinkle displacement filter: feTurbulence → feDisplacementMap -->
-    <filter id="paper-wrinkle" x="-5%" y="-5%" width="110%" height="110%">
-        <feTurbulence type="turbulence" baseFrequency="0.015 0.02" numOctaves="3" seed="5" stitchTiles="stitch" result="warp"/>
-        <feDisplacementMap in="SourceGraphic" in2="warp" scale="3" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-</svg>
 <div class="news-container" id="newsApp">
     <!-- Search Overlay -->
     <div class="search-overlay" id="searchOverlay" onclick="if(event.target===this)closeSearch()">
@@ -709,6 +711,7 @@
         <button class="nav-item" data-category="architecture" onclick="selectCategory('architecture')">Architecture</button>
         <button class="nav-item" data-category="agentic" onclick="selectCategory('agentic')">Agentic</button>
         <button class="nav-item" data-category="mcp" onclick="selectCategory('mcp')">MCP</button>
+        <button class="nav-item" data-category="biz" onclick="selectCategory('biz')">Biz</button>
     </div>
     <div class="divider"></div>
 
@@ -787,6 +790,7 @@
                     <a href="javascript:void(0)" onclick="selectCategory('architecture')">Architecture</a>
                     <a href="javascript:void(0)" onclick="selectCategory('agentic')">Agentic</a>
                     <a href="javascript:void(0)" onclick="selectCategory('mcp')">MCP</a>
+                    <a href="javascript:void(0)" onclick="selectCategory('biz')">Biz</a>
                 </div>
                 <div class="footer-nav-col">
                     <span class="col-title">ABOUT</span>
@@ -1018,10 +1022,14 @@
 
         let html = '<span class="section-label" style="margin-bottom:8px">Most Popular</span>';
         items.forEach((item, i) => {
+            const preview = item.preview ? escapeHtml(item.preview).split('\n').slice(0, 2).join(' ') : '';
             html += `
                 <div class="trend-item" onclick="goToArticle('${item.id}')">
                     <span class="trend-num">${i + 1}</span>
-                    <span class="trend-title">${escapeHtml(item.title)}</span>
+                    <div class="trend-content">
+                        <span class="trend-title">${escapeHtml(item.title)}</span>
+                        ${preview ? `<span class="trend-preview">${preview}</span>` : ''}
+                    </div>
                 </div>
             `;
             if (i < items.length - 1) {

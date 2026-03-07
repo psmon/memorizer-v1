@@ -20,7 +20,8 @@ public class NewsController : Controller
         ["openai"] = new[] { "openai", "gpt", "chatgpt", "o1", "o3", "o4" },
         ["architecture"] = new[] { "architecture", "아키텍처", "설계", "design pattern", "시스템 설계" },
         ["agentic"] = new[] { "agent", "agentic", "에이전트", "ai agent" },
-        ["mcp"] = new[] { "mcp", "model context protocol" }
+        ["mcp"] = new[] { "mcp", "model context protocol" },
+        ["biz"] = new[] { "경제", "경영", "비즈니스", "business", "economy", "스타트업", "startup", "투자", "매출", "수익" }
     };
 
     public NewsController(IStorage storage, ILogger<NewsController> logger)
@@ -224,6 +225,7 @@ public class NewsController : Controller
         "architecture" => "Architecture",
         "agentic" => "Agentic",
         "mcp" => "MCP",
+        "biz" => "Biz",
         _ => key
     };
 }
