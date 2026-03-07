@@ -5,6 +5,7 @@
 
 # VCS
 .git/
+.github/
 
 # Build outputs
 bin/
@@ -15,3 +16,28 @@ node_modules/
 # OS files
 Thumbs.db
 .DS_Store
+
+# Design files (Pencil MCP)
+Pencil/
+
+# Documentation & images (not needed at runtime)
+docs/
+prompt/
+scripts/
+*.png
+*.md
+!Directory.Build.props
+
+# Claude config
+.claude/
+
+# Misc
+*.txt
+*.yml
+!docker-compose.yml
+*.ps1
+*.sh
+*.user
+coverlet.runsettings
+global.json
+LICENSE
