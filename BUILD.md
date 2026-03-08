@@ -17,9 +17,6 @@ docker push registry.webnori.com/memorizer:latest
 ## 🐳 Build the DockerHub Image
 
 ```
-## No Cache
-docker build --no-cache -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .
-
 ## Cache
 docker build -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .
 
@@ -30,6 +27,9 @@ docker push psmon/mcp-memorizer:latest
 
 docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.6
 docker push psmon/mcp-memorizer:v1.4.6
+
+## No Cache - 빌드 꼬일때 ( push및 pull이 느려지는 단점 )
+docker build --no-cache -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .
 
 ```
 

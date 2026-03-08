@@ -307,10 +307,13 @@
         }
         .related-grid {
             display: flex;
+            flex-wrap: wrap;
             gap: 32px;
         }
         .related-card {
-            flex: 1;
+            flex: 1 1 calc(33.333% - 22px);
+            min-width: 220px;
+            max-width: calc(33.333% - 22px);
             display: flex;
             flex-direction: column;
             gap: 12px;
@@ -903,7 +906,7 @@
             const grid = document.getElementById('relatedGrid');
             section.style.display = '';
 
-            grid.innerHTML = articles.slice(0, 3).map(a => `
+            grid.innerHTML = articles.map(a => `
                 <div class="related-card" onclick="window.location.href='${BASE_URL}/article/${a.id}'">
                     <span class="card-type">${escapeHtml(a.type || '').toUpperCase()}</span>
                     <h3>${escapeHtml(a.title)}</h3>

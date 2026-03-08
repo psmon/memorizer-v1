@@ -2,6 +2,7 @@ using System.Text.Json;
 using Memorizer.Controllers;
 using Memorizer.Models;
 using Memorizer.Services;
+using Memorizer.Settings;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -18,7 +19,8 @@ public sealed class NewsControllerTests
     {
         _storageMock = new Mock<IStorage>();
         var loggerMock = new Mock<ILogger<NewsController>>();
-        _controller = new NewsController(_storageMock.Object, loggerMock.Object);
+        var serverSettings = new ServerSettings();
+        _controller = new NewsController(_storageMock.Object, loggerMock.Object, serverSettings);
     }
 
     private static Memory CreateTestMemory(int index, string? title = null)
@@ -89,15 +91,12 @@ public sealed class NewsControllerTests
         _storageMock.Setup(s => s.GetBlogMemoriesPaginated(1, 20, "MCP", null, null, default))
             .ReturnsAsync((memories, 1));
 
-        // searchQuery should bypass category filter
         var result = await _controller.GetArticles("vibe", 20, 0, "MCP");
 
         var okResult = Assert.IsType<OkObjectResult>(result);
         Assert.NotNull(okResult.Value);
-        // Verify GetNewsArticlesByKeywords was NOT called
         _storageMock.Verify(s => s.GetNewsArticlesByKeywords(
             It.IsAny<string[]?>(), It.IsAny<int>(), It.IsAny<int>(), default), Times.Never);
-        // Verify GetBlogMemoriesPaginated WAS called with the search query
         _storageMock.Verify(s => s.GetBlogMemoriesPaginated(
             1, 20, "MCP", null, null, default), Times.Once);
     }
@@ -199,7 +198,6 @@ public sealed class NewsControllerTests
 
         var okResult = Assert.IsType<OkObjectResult>(result);
         var json = JsonSerializer.Serialize(okResult.Value);
-        // Full text field contains all lines, but preview should be truncated to 5 lines
         using var doc = JsonDocument.Parse(json);
         var articles = doc.RootElement.GetProperty("articles");
         var preview = articles[0].GetProperty("preview").GetString();

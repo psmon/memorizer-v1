@@ -701,17 +701,8 @@
     </div>
     <div class="divider-thick"></div>
 
-    <!-- Navigation / Category -->
+    <!-- Navigation / Category (dynamically loaded from API) -->
     <div class="nav-bar" id="navBar">
-        <button class="nav-item active" data-category="all" onclick="selectCategory('all')">All</button>
-        <button class="nav-item" data-category="vibe" onclick="selectCategory('vibe')">Vibe</button>
-        <button class="nav-item" data-category="skill" onclick="selectCategory('skill')">Skill</button>
-        <button class="nav-item" data-category="claude-code" onclick="selectCategory('claude-code')">Claude-code</button>
-        <button class="nav-item" data-category="openai" onclick="selectCategory('openai')">OpenAI</button>
-        <button class="nav-item" data-category="architecture" onclick="selectCategory('architecture')">Architecture</button>
-        <button class="nav-item" data-category="agentic" onclick="selectCategory('agentic')">Agentic</button>
-        <button class="nav-item" data-category="mcp" onclick="selectCategory('mcp')">MCP</button>
-        <button class="nav-item" data-category="biz" onclick="selectCategory('biz')">Biz</button>
     </div>
     <div class="divider"></div>
 
@@ -829,6 +820,28 @@
     document.getElementById('dateText').textContent = new Date().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
     });
+
+    // Load categories dynamically from API
+    async function loadCategories() {
+        try {
+            const resp = await fetch(`${BASE_URL}/api/categories`);
+            if (!resp.ok) throw new Error('Failed to load categories');
+            const categories = await resp.json();
+            const navBar = document.getElementById('navBar');
+            navBar.innerHTML = '';
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-item' + (cat.key === 'all' ? ' active' : '');
+                btn.dataset.category = cat.key;
+                btn.textContent = cat.label;
+                btn.onclick = () => selectCategory(cat.key);
+                navBar.appendChild(btn);
+            });
+        } catch (err) {
+            console.error('Error loading categories:', err);
+        }
+    }
+    loadCategories();
 
     async function loadArticles(category, searchQuery) {
         try {

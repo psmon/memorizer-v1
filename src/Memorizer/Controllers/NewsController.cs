@@ -18,12 +18,37 @@ public class NewsController : Controller
         ["all"] = Array.Empty<string>(),
         ["vibe"] = new[] { "vibe", "vibes", "바이브", "viving", "vibecoding" },
         ["skill"] = new[] { "skill", "스킬" },
-        ["claude-code"] = new[] { "claude code", "claude-code", "클로드", "claude", "anthropic" },
+        ["claude"] = new[] { "claude code", "claude-code", "클로드", "claude", "anthropic" },
         ["openai"] = new[] { "openai", "gpt", "chatgpt", "o1", "o3", "o4" },
+        ["gemini"] = new[] { "gemini", "google gemini", "제미나이", "bard", "google ai" },
+        ["open-model"] = new[]
+            {
+                "llama", "라마",
+                "mistral", "mixtral", "미스트랄",
+                "deepseek", "deepseek r1", "딥시크",
+                "qwen", "qwen2", "큐웬",
+                "gemma"
+            },
         ["architecture"] = new[] { "architecture", "아키텍처", "설계", "design pattern", "시스템 설계" },
         ["agentic"] = new[] { "agent", "agentic", "에이전트", "ai agent" },
         ["mcp"] = new[] { "mcp", "model context protocol" },
         ["biz"] = new[] { "경제", "경영", "비즈니스", "business", "economy", "스타트업", "startup", "투자", "매출", "수익" }
+    };
+    
+    private static string GetCategoryLabel(string key) => key switch
+    {
+        "all" => "All",
+        "vibe" => "Vibe",
+        "skill" => "Skill",
+        "claude" => "Claude",
+        "openai" => "OpenAI",
+        "gemini" => "Gemini",
+        "open-model" => "Model",
+        "architecture" => "Architecture",
+        "agentic" => "Agentic",
+        "mcp" => "MCP",
+        "biz" => "Biz",
+        _ => key
     };
 
     public NewsController(IStorage storage, ILogger<NewsController> logger, ServerSettings serverSettings)
@@ -218,18 +243,5 @@ public class NewsController : Controller
             preview = preview[..500] + "...";
         return preview;
     }
-
-    private static string GetCategoryLabel(string key) => key switch
-    {
-        "all" => "All",
-        "vibe" => "Vibe",
-        "skill" => "Skill",
-        "claude-code" => "Claude-code",
-        "openai" => "OpenAI",
-        "architecture" => "Architecture",
-        "agentic" => "Agentic",
-        "mcp" => "MCP",
-        "biz" => "Biz",
-        _ => key
-    };
+    
 }
