@@ -821,7 +821,9 @@
     let currentCategory = 'all';
     let activeSearchQuery = '';
     let allArticles = [];
+    let totalArticleCount = 0;
     let searchDebounceTimer = null;
+    let isLoadingMore = false;
 
     // Set today's date
     document.getElementById('dateText').textContent = new Date().toLocaleDateString('en-US', {
@@ -840,6 +842,7 @@
             if (!resp.ok) throw new Error('Failed to load');
             const data = await resp.json();
             allArticles = data.articles || [];
+            totalArticleCount = data.totalCount || allArticles.length;
             renderAll();
         } catch (err) {
             console.error('Error loading articles:', err);
@@ -849,6 +852,7 @@
     function selectCategory(cat) {
         currentCategory = cat;
         activeSearchQuery = '';
+        mostPopularVisible = 10;
         document.querySelectorAll('.nav-item').forEach(el => {
             el.classList.toggle('active', el.dataset.category === cat);
         });
@@ -1015,10 +1019,13 @@
         }).join('');
     }
 
+    let mostPopularVisible = 10;
+    const POPULAR_START_INDEX = 4; // Most Popular starts from article index 4
+
     function renderMostPopular() {
         const container = document.getElementById('mostPopular');
-        // Articles 5-14 (index 4-13), titles only, max 10
-        const items = allArticles.slice(4, 14);
+        const allItems = allArticles.slice(POPULAR_START_INDEX);
+        const items = allItems.slice(0, mostPopularVisible);
 
         let html = '<span class="section-label" style="margin-bottom:8px">Most Popular</span>';
         items.forEach((item, i) => {
@@ -1040,7 +1047,58 @@
         if (items.length === 0) {
             html += '<p style="color:#999;padding:16px 0">No trending articles.</p>';
         }
+
+        // Show "more 5" button if there could be more items (check total from API)
+        const totalPopularAvailable = totalArticleCount - POPULAR_START_INDEX;
+        if (mostPopularVisible < totalPopularAvailable && totalPopularAvailable > 0) {
+            html += `
+                <div style="text-align:center;padding:16px 0" id="morePopularBtn">
+                    <button onclick="loadMorePopular()" style="
+                        font-family:var(--font-ui);font-size:12px;font-weight:600;
+                        letter-spacing:0.5px;color:#2C2A24;background:none;
+                        border:1px solid #2C2A24;padding:8px 24px;border-radius:2px;
+                        cursor:pointer;transition:background 0.2s,color 0.2s;
+                    " onmouseover="this.style.background='#2C2A24';this.style.color='#F0EADB'"
+                       onmouseout="this.style.background='none';this.style.color='#2C2A24'">
+                        MORE 5
+                    </button>
+                </div>
+            `;
+        }
+
         container.innerHTML = html;
+    }
+
+    async function loadMorePopular() {
+        if (isLoadingMore) return;
+        mostPopularVisible += 5;
+
+        // If we need more data than currently loaded, fetch from API
+        const needed = POPULAR_START_INDEX + mostPopularVisible;
+        if (needed > allArticles.length && allArticles.length < totalArticleCount) {
+            isLoadingMore = true;
+            // Show loading state on button
+            const btnContainer = document.getElementById('morePopularBtn');
+            if (btnContainer) btnContainer.innerHTML = '<span style="color:#999;font-size:12px">Loading...</span>';
+            try {
+                let url = `${BASE_URL}/api/articles?count=${needed + 5}`;
+                if (activeSearchQuery) {
+                    url += `&searchQuery=${encodeURIComponent(activeSearchQuery)}`;
+                } else {
+                    url += `&category=${encodeURIComponent(currentCategory)}`;
+                }
+                const resp = await fetch(url);
+                if (resp.ok) {
+                    const data = await resp.json();
+                    allArticles = data.articles || [];
+                    totalArticleCount = data.totalCount || allArticles.length;
+                }
+            } catch (err) {
+                console.error('Error loading more articles:', err);
+            }
+            isLoadingMore = false;
+        }
+        renderMostPopular();
     }
 
     function renderEditorsPick() {

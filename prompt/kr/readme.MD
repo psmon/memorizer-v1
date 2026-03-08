@@ -310,6 +310,12 @@ AI Tech Now 뉴스 페이지 구현 - Pencil 디자인 기반 뉴스 레이아�
 
 - [AiTechNowWithPencil](52-AiTechNowWithPencil.md)
 
+## Version 1.4.6
+
+AI Tech Now 뉴스 뷰 개선 - Most Popular 섹션 "more 5" 페이지네이션 버튼(지속 로드 가능), 기사 페이지 중복 제목 제거, 공유 링크 복사 기능(CanonicalUrl + 상대경로 조합), 기사 본문 Mermaid 다이어그램 렌더링, 모바일 우측 빈공간 반응형 스타일 수정, UI 홈 사이드바에 AITECH-NEWS 메뉴 추가(새 창 열기)
+
+- [AiNews-View-Improve](53-AiNews-View-Improve.md)
+
 ## Claude Cli Setting : Vibe 코딩할시 활용
 
 ```

@@ -17,14 +17,19 @@ docker push registry.webnori.com/memorizer:latest
 ## 🐳 Build the DockerHub Image
 
 ```
+## No Cache
 docker build --no-cache -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .
+
+## Cache
+docker build -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .
+
+## Tag and Push
 
 docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:latest
 docker push psmon/mcp-memorizer:latest
 
-// Common ver
-docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.5
-docker push psmon/mcp-memorizer:v1.4.5
+docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.6
+docker push psmon/mcp-memorizer:v1.4.6
 
 ```
 

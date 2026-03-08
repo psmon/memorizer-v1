@@ -1,6 +1,7 @@
 using System.Xml.Linq;
 using Memorizer.Models;
 using Memorizer.Services;
+using Memorizer.Settings;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Memorizer.Controllers;
@@ -10,6 +11,7 @@ public class NewsController : Controller
 {
     private readonly IStorage _storage;
     private readonly ILogger<NewsController> _logger;
+    private readonly ServerSettings _serverSettings;
 
     private static readonly Dictionary<string, string[]> CategoryKeywords = new()
     {
@@ -24,10 +26,11 @@ public class NewsController : Controller
         ["biz"] = new[] { "경제", "경영", "비즈니스", "business", "economy", "스타트업", "startup", "투자", "매출", "수익" }
     };
 
-    public NewsController(IStorage storage, ILogger<NewsController> logger)
+    public NewsController(IStorage storage, ILogger<NewsController> logger, ServerSettings serverSettings)
     {
         _storage = storage;
         _logger = logger;
+        _serverSettings = serverSettings;
     }
 
     [HttpGet("")]
@@ -40,6 +43,7 @@ public class NewsController : Controller
     public IActionResult Article(Guid id)
     {
         ViewBag.ArticleId = id;
+        ViewBag.CanonicalUrl = _serverSettings.CanonicalUrl?.TrimEnd('/') ?? "";
         return View();
     }
 

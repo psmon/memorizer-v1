@@ -312,6 +312,12 @@ AI Tech Now news page implementation - Pencil design-based news layout, keyword 
 
 - [AiTechNowWithPencil](52-AiTechNowWithPencil.md)
 
+## Version 1.4.6
+
+AI Tech Now news view improvements - Most Popular section "more 5" pagination button for continuous loading, article page duplicate title removal, share link copy feature (CanonicalUrl + relative path), Mermaid diagram rendering in article body, mobile responsive style fix for right-side empty space, AITECH-NEWS menu addition to UI home sidebar (opens in new window)
+
+- [AiNews-View-Improve](53-AiNews-View-Improve.md)
+
 ## Claude Cli Setting: Use for Vibe Coding
 
 ```

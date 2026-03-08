@@ -206,5 +206,19 @@
 ## PageUrl (추가):
     - news/ai-tech-now - AI Tech Now 뉴스 페이지
 
-마지막 자동수정일시분 : 2026-03-07 12:00:00
-마지막 반영 지침번호 : 52
+## AI Tech Now 뉴스 뷰 개선 (v53 추가)
+- Most Popular 섹션 "more 5" 페이지네이션 버튼 (5개씩 추가 로드, 지속 작동)
+- 기사 페이지 중복 제목 제거 (마크다운 본문 첫 제목이 헤더와 동일시 제거)
+- 공유 링크 복사 기능 (ServerSettings.CanonicalUrl + 상대경로 조합, 클립보드 복사 + 토스트 알림)
+- 기사 본문 Mermaid 다이어그램 렌더링 (mermaid@10.6.1 CDN, 코드블록 자동 감지)
+- 모바일 우측 빈공간 반응형 스타일 수정 (640px 이하 article-body padding 개선)
+- UI 홈 사이드바 AITECH-NEWS 메뉴 추가 (target="_blank" 새 창 열기)
+
+## 주요 파일 (v53 관련)
+- src/Memorizer/Controllers/NewsController.cs - ServerSettings 주입, ViewBag.CanonicalUrl 전달
+- src/Memorizer/Views/News/Index.cshtml - Most Popular more 5 버튼, loadMorePopular()
+- src/Memorizer/Views/News/Article.cshtml - 중복 제목 제거, 공유 버튼, Mermaid 렌더링, 모바일 반응형
+- src/Memorizer/Views/Shared/_Layout.cshtml - AITECH-NEWS 메뉴 추가
+
+마지막 자동수정일시분 : 2026-03-08 12:00:00
+마지막 반영 지침번호 : 53
