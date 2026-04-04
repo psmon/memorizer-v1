@@ -17,6 +17,8 @@ This project extends the capabilities of the **original Memorizer** by adding Gr
 
 playground : https://mcp.webnori.com/ui/blog
 
+AI Tech Now : https://mcp.webnori.com/news/ai-tech-now — A memory-powered tech news feed that curates and delivers the latest AI technology trends, automatically organized through Memorizer's knowledge graph.
+
 Realese Note : [Memorizer Extended](prompt/en/readme.MD)
 
 
