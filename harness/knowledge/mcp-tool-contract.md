@@ -63,7 +63,7 @@ MCP 도구의 1차 소비자는 LLM이다. 이 문서는 **"LLM이 이 도구를
 | ID | 결함 | 심각도 | 근거 | 출처 |
 |----|------|-------|------|------|
 | K1 | Cypher 쓰기 검사가 부분 문자열 매칭 → Description 예시 `ORDER BY m.createdAt`가 스스로 거부됨. `CALL` 미차단 | Moderate | `MemoryTools.cs:735-744` (예시 :710) | prompt 14, docs/05-Research §7 |
-| K2 | `POST /api/graph/sync` 무인증 + FullSync 폴백 경로가 `MATCH (n) DETACH DELETE n` 실행 | **Critical** | `AuthenticationMiddleware.cs:170,195`, `GraphSyncService.cs:86-90` | prompt 04, 06 |
+| K2 | ~~`POST /api/graph/sync` 무인증~~ (v1.4.8 해소: 로그인 필요) + FullSync 폴백 경로가 `MATCH (n) DETACH DELETE n` 실행 | Moderate (인증 후 남은 위험) | `AuthenticationMiddleware.cs:170,195`, `GraphSyncService.cs:86-90` | prompt 04, 06 |
 | K3 | `/api/graph/search/cypher` 무인증 POST, 키워드 검사 없음(read 세션에만 의존) | Moderate | `AuthenticationMiddleware.cs:169`, `GraphController.cs:339-351`, `GraphRepository.cs:75-91` | prompt 06 |
 | K4 | ApiKey 미설정 시 `"default-api-key"` 폴백, `==` 비교 | **Critical** | `AuthenticationService.cs:38-39` | prompt 05 |
 | K5 | 잘못된 ApiKey 값을 평문 로그 | Moderate | `AuthenticationMiddleware.cs:55` | prompt 34 |
@@ -80,3 +80,4 @@ MCP 도구의 1차 소비자는 LLM이다. 이 문서는 **"LLM이 이 도구를
 - 비인증 사용자 Edit/Delete 차단 (`AuthenticationMiddleware.cs:266-280`)
 - OpenAI 구현체: ApiKey 비어 있으면 예외 (`OpenAILlmExService.cs:29`, `MultiModalOpenAIService.cs:26`)
 - Store `title` 필수 검증 (`Memory.cs:192`)
+- `/ui/tools/*` 쓰기와 `POST /api/graph/sync`는 로그인 필요 — `AuthenticationMiddleware.IsAdminOperation` (v1.4.8, `AuthenticationMiddlewareTests`). `"/ui/"`가 접두사 공개라 새 관리 POST를 `/ui/` 아래 만들 때 이 규칙에 포함되는지 확인

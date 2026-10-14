@@ -3,7 +3,7 @@
 # Rancher 1.6 only accepts compose file format v2 (no profiles, no env_file interpolation),
 # so this file stays self-contained. Local/dev environments use docker-compose.yml + env/ presets.
 #
-# Deployed as stack "mcp-memory2" (v1.4.7): Custom LM Studio devices A (a1.webnori.com) / B (a2.webnori.com),
+# Deployed as stack "mcp-memory2" (v1.4.8): Custom LM Studio devices A (a1.webnori.com) / B (a2.webnori.com),
 # SearXNG web search. Keys are placeholders — the real values live only in Rancher.
 # Rancher-managed containers resolve only *.rancher.internal by default: services that call the
 # internet need `dns: [8.8.8.8]` (memorizer, searxng).
@@ -127,7 +127,7 @@ services:
       io.rancher.container.pull_image: always
 
   memorizer:
-    image: registry.webnori.com/memorizer:v1.4.7
+    image: registry.webnori.com/memorizer:v1.4.8
     container_name: memorizer-app
     ports:
       - "5000:8080"
@@ -140,9 +140,10 @@ services:
       ConnectionStrings__Storage: Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
       # ── Custom LM Studio devices (env/llm-custom.env) ──
       MEMORIZER_Embeddings__Type: Custom
-      MEMORIZER_Embeddings__ApiUrl: https://a1.webnori.com
-      MEMORIZER_Embeddings__Model: text-embedding-nomic-embed-text-v1.5
-      MEMORIZER_Embeddings__ApiKey: sk-lm-device-a
+      # Embeddings on device B: EmbeddingGemma (768 dims, much better Korean retrieval than nomic)
+      MEMORIZER_Embeddings__ApiUrl: https://a2.webnori.com
+      MEMORIZER_Embeddings__Model: text-embedding-embeddinggemma-2
+      MEMORIZER_Embeddings__ApiKey: sk-lm-device-b
       MEMORIZER_LLM__Type: Custom
       MEMORIZER_LLM__ApiUrl: https://a1.webnori.com
       MEMORIZER_LLM__Model: google/gemma-4-e4b
