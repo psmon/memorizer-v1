@@ -3,7 +3,7 @@
   "$schemaVersion": "1.2.0",
   "name": "Memorizer Harness",
   "description": "MCP 도구·LLM 연동·임베딩 검색 중심의 AI 메모리 서비스 QA 워크플로우",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "agents": ["tamer", "mcp-tool-inspector", "test-sentinel", "akka-net-specialist"],
   "engine": [],
   "created": "2026-10-14",
