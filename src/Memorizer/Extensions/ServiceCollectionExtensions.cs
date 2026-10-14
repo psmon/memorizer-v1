@@ -61,7 +61,6 @@ public static class ServiceCollectionExtensions
             return new WebSearchService(httpClient, settings, logger);
         });
         
-        services.AddHostedService<WebSearchBrowserBootstrapService>();
 
         return services;
     }

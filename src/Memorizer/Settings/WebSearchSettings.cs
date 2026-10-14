@@ -8,14 +8,12 @@ public sealed class WebSearchSettings
     public WebSearchAccessMode AccessMode { get; set; } = WebSearchAccessMode.Fetch;
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
     public int MaxPageContentChars { get; set; } = 6000;
-    public HeadlessWebSearchSettings Headless { get; set; } = new();
-
     /// <summary>
     /// Ordered, comma-separated providers used by automatic web search (AskBot), each as
     /// "Provider" or "Provider:AccessMode". The first provider returning results wins.
-    /// Examples: "SearXng", "SearXng,Naver:Headless". SearXng ignores the access mode.
+    /// Examples: "SearXng", "SearXng,Naver:Api". SearXng ignores the access mode.
     /// </summary>
-    public string ProviderChain { get; set; } = "Naver:Headless";
+    public string ProviderChain { get; set; } = "SearXng";
 
     public SearXngSearchSettings SearXng { get; set; } = new();
 
@@ -28,17 +26,8 @@ public enum WebSearchAccessMode
 {
     Api,
     Fetch,
+    /// <summary>Deprecated: the Playwright headless browser was removed. Treated as <see cref="Fetch"/>.</summary>
     Headless
-}
-
-public sealed class HeadlessWebSearchSettings
-{
-    public bool Enabled { get; set; } = false;
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(20);
-    public bool AutoInstallBrowserOnStartup { get; set; } = true;
-    public bool AutoInstallLinuxDependenciesOnStartup { get; set; } = false;
-    public bool ChromiumSandbox { get; set; } = true;
-    public string? BrowserInstallPath { get; set; }
 }
 
 public sealed class SearXngSearchSettings

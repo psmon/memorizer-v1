@@ -60,7 +60,7 @@
 ## 폐기된 이력 (❌ 참고하지 말 것)
 
 - 웹검색 전용 액터 3종(WebSearch/Fetch/EvidenceRank) 설계안 → ChatBotActor 내부 메서드로 구현됨 (`ChatBotActor.cs:1011, 1026`)
-- 네이버/빙/구글 3곳 병렬 검색 → 한때 네이버 Headless 고정 → **2026-10-14 SearXNG 메타검색 + `WebSearch:ProviderChain` 폴백으로 교체** (`IWebSearchService.SearchWithFallbackAsync`)
+- 네이버/빙/구글 3곳 병렬 검색 → 한때 네이버 Headless 고정 → **2026-10-14 SearXNG 메타검색 + `WebSearch:ProviderChain` 폴백으로 교체** (`IWebSearchService.SearchWithFallbackAsync`), v1.4.7에서 Playwright 패키지 제거
 
 ## 권장 패턴 (요약)
 

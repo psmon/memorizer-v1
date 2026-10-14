@@ -37,35 +37,10 @@ FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 
-# Create demo directory with write permissions for app user (for PRD wireframe generation)
+# Writable directories for the app user: PRD wireframe demos and the AskBot image volume mount point
+# (pre-created so a new named volume inherits app ownership). Web search uses SearXNG — no browser in the image.
 USER root
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    libglib2.0-0 \
-    libnss3 \
-    libnspr4 \
-    libdbus-1-3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    libatspi2.0-0 \
-    libxshmfence1 \
-    libgtk-3-0 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-RUN mkdir -p /app/wwwroot/demo && chown -R app:app /app/wwwroot/demo
-# Playwright headless: create data dir and fix node binary execute permissions
-# Pre-create volume mount points so new named volumes are owned by the app user
-RUN mkdir -p /app/data/askbot-images /app/data/playwright-browsers && chown -R app:app /app/data \
-    && if [ -d /app/.playwright/node ]; then chmod -R +x /app/.playwright/node; fi \
-    && chown -R app:app /app/.playwright 2>/dev/null || true
+RUN mkdir -p /app/wwwroot/demo /app/data/askbot-images && chown -R app:app /app/wwwroot/demo /app/data
 USER app
 
 ENTRYPOINT ["dotnet", "Memorizer.dll"]

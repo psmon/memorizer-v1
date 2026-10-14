@@ -136,8 +136,8 @@ public sealed class SearXngWebSearchTests
 
     [Theory]
     [InlineData("SearXng", 1)]
-    [InlineData("SearXng, Naver:Headless", 2)]
-    [InlineData("searxng,naver:headless,google:fetch", 3)]
+    [InlineData("SearXng, Naver:Fetch", 2)]
+    [InlineData("searxng,naver:api,google:fetch", 3)]
     [InlineData("SearXng, Unknown, Naver:BadMode", 1)]
     [InlineData("", 0)]
     public void ParseProviderChain_ParsesEntries(string chain, int expectedCount)
@@ -150,10 +150,10 @@ public sealed class SearXngWebSearchTests
     [Fact]
     public void ParseProviderChain_ReadsProviderAndMode()
     {
-        var parsed = WebSearchService.ParseProviderChain("SearXng, Naver:Headless");
+        var parsed = WebSearchService.ParseProviderChain("SearXng, Naver:Fetch");
 
         Assert.Equal((WebSearchProvider.SearXng, (WebSearchAccessMode?)null), parsed[0]);
-        Assert.Equal((WebSearchProvider.Naver, (WebSearchAccessMode?)WebSearchAccessMode.Headless), parsed[1]);
+        Assert.Equal((WebSearchProvider.Naver, (WebSearchAccessMode?)WebSearchAccessMode.Fetch), parsed[1]);
     }
 
     private static WebSearchService CreateService(HttpMessageHandler handler, string chain)

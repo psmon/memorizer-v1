@@ -79,10 +79,12 @@ first provider that returns results:
 | Entry | Meaning |
 |-------|---------|
 | `SearXng` | Self-hosted SearXNG container (`searxng` profile). Queries Google, Naver, Bing, DuckDuckGo, Brave… at once; engines that are rate-limited or show a CAPTCHA are covered by the others. No browser, no API key. |
-| `Naver:Headless`, `Google:Headless` | Scrape the search page with Playwright Chromium. Needs `WEBSEARCH_INSTALL_BROWSER=true` (and `WEBSEARCH_INSTALL_LINUX_DEPS=true` + `MEMORIZER_RUN_AS=0:0`). |
+| `Naver:Fetch`, `Google:Fetch` | Plain HTTP fetch of the search page (fragile: layout changes / bot checks). |
 | `Naver:Api` | Naver Open API — set `MEMORIZER_WebSearch__Naver__ClientId` / `ClientSecret` in `env/local.override.env`. |
 
-Default: `SearXng` only. Example with a browser fallback: `WEBSEARCH_PROVIDERS=SearXng,Naver:Headless`.
+Default: `SearXng` only. Example with a fallback: `WEBSEARCH_PROVIDERS=SearXng,Naver:Api`.
+
+The image contains **no browser** (Playwright was removed in v1.4.7). A legacy `Headless` access mode is accepted and treated as `Fetch`.
 Engines are configured in [`searxng/settings.yml`](searxng/settings.yml) (Naver and Bing are enabled there; Korean queries use `ko-KR`).
 Check SearXNG directly: `http://localhost:8888/search?q=akka&format=json`.
 
@@ -116,11 +118,9 @@ Switching the embedding model on an existing database breaks search until the co
 | `MEMORIZER_RUN_AS` | Container user: `app` or `0:0` | `app` |
 | `CANONICAL_URL` | Public URL of the app | `http://localhost:5050` |
 | `WEBSEARCH_PROVIDERS` | AskBot web search chain (see Web search) | `SearXng` |
-| `WEBSEARCH_MODE` | Default access mode for page reading / manual API calls: `Fetch` \| `Headless` | `Fetch` |
+| `WEBSEARCH_MODE` | Default access mode for page reading / manual API calls: `Fetch` \| `Api` | `Fetch` |
 | `SEARXNG_PORT` / `SEARXNG_SECRET` | SearXNG localhost port / secret key | `8888` / sample |
 | `SEARXNG_URL` | SearXNG URL used by the app | `http://searxng:8080` |
-| `WEBSEARCH_INSTALL_BROWSER` | Install Chromium on startup (Headless) | `false` |
-| `WEBSEARCH_INSTALL_LINUX_DEPS` | Install Linux deps on startup (needs `MEMORIZER_RUN_AS=0:0`) | `false` |
 
 ### Provider endpoints / models
 | Variable | Preset | Default |

@@ -425,3 +425,6 @@ src/MemorizerProxy/.env
 # Docker compose local settings (see .env.example, env/)
 /.env
 /env/local.override.env
+# Credentials (e.g. Rancher API keys) — never commit
+/env/*.secret.env
+/env/rancher.env

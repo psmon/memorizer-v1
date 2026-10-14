@@ -166,18 +166,12 @@ services:
       # AskBot image storage (persisted in askbot_images volume)
       ASKBOT_IMAGE_STORAGE_PATH: /app/data/askbot-images
       # WebSearch — AskBot tries WEBSEARCH_PROVIDERS in order ("Provider" or "Provider:AccessMode"),
-      # e.g. "SearXng" or "SearXng,Naver:Headless". Headless needs the browser (and MEMORIZER_RUN_AS=0:0 for deps).
+      # e.g. "SearXng" or "SearXng,Naver:Api". No browser is used.
       MEMORIZER_WebSearch__ProviderChain: ${WEBSEARCH_PROVIDERS:-SearXng}
       MEMORIZER_WebSearch__SearXng__ApiUrl: ${SEARXNG_URL:-http://searxng:8080}
       MEMORIZER_WebSearch__AccessMode: ${WEBSEARCH_MODE:-Fetch}
-      MEMORIZER_WebSearch__Headless__Enabled: "true"
-      MEMORIZER_WebSearch__Headless__AutoInstallBrowserOnStartup: ${WEBSEARCH_INSTALL_BROWSER:-false}
-      MEMORIZER_WebSearch__Headless__AutoInstallLinuxDependenciesOnStartup: ${WEBSEARCH_INSTALL_LINUX_DEPS:-false}
-      MEMORIZER_WebSearch__Headless__ChromiumSandbox: "false"
-      MEMORIZER_WebSearch__Headless__BrowserInstallPath: /app/data/playwright-browsers
     volumes:
       - askbot_images:/app/data/askbot-images
-      - playwright_browsers:/app/data/playwright-browsers
     healthcheck:
       # aspnet base image has no wget/curl — probe /healthz with bash /dev/tcp
       test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /healthz HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
@@ -205,4 +199,3 @@ volumes:
   neo4j_plugins:
   ollama_data:
   askbot_images:
-  playwright_browsers:

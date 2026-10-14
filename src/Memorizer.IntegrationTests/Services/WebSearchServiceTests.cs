@@ -296,17 +296,25 @@ public sealed class WebSearchServiceTests
     }
 
     [Fact]
-    public async Task SearchAsync_Headless_WhenDisabled_ShouldThrow()
+    public async Task SearchAsync_HeadlessMode_IsTreatedAsFetch()
     {
+        // Playwright was removed; legacy "Headless" config must keep working as plain HTTP fetch
+        HttpRequestMessage? captured = null;
         using var httpClient = new HttpClient(new StubHttpMessageHandler((req, ct) =>
-            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK))));
+        {
+            captured = req;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("<html><body></body></html>", Encoding.UTF8, "text/html")
+            });
+        }));
 
-        var settings = CreateFetchSettings();
-        settings.Headless.Enabled = false;
-        var service = new WebSearchService(httpClient, settings, CreateLogger());
+        var service = new WebSearchService(httpClient, CreateFetchSettings(), CreateLogger());
 
-        await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            service.SearchAsync(WebSearchProvider.Google, "맛집", 3, WebSearchAccessMode.Headless));
+        var result = await service.SearchAsync(WebSearchProvider.Naver, "맛집", 3, WebSearchAccessMode.Headless);
+
+        Assert.Equal(WebSearchProvider.Naver, result.Provider);
+        Assert.Equal("search.naver.com", captured!.RequestUri!.Host);
     }
 
     private static WebSearchSettings CreateSettings()
@@ -339,12 +347,7 @@ public sealed class WebSearchServiceTests
         {
             AccessMode = WebSearchAccessMode.Fetch,
             Timeout = TimeSpan.FromSeconds(5),
-            MaxPageContentChars = 2000,
-            Headless = new HeadlessWebSearchSettings
-            {
-                Enabled = false,
-                Timeout = TimeSpan.FromSeconds(10)
-            }
+            MaxPageContentChars = 2000
         };
     }
 

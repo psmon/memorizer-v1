@@ -7,7 +7,7 @@ namespace Memorizer.Controllers;
 
 /// <summary>
 /// Public web search API controller (no authentication required).
-/// Supports search and page-read flows with Fetch/Headless/API modes.
+/// Supports search and page-read flows via SearXNG, provider APIs and Fetch mode.
 /// </summary>
 [ApiController]
 [AllowAnonymous]
@@ -160,7 +160,7 @@ public sealed class WebSearchController : ControllerBase
         return Ok(new
         {
             providers = new[] { "searxng", "google", "bing", "naver" },
-            accessModes = new[] { "api", "fetch", "headless" }
+            accessModes = new[] { "api", "fetch" }
         });
     }
 

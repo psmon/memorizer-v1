@@ -1,7 +1,6 @@
 using Memorizer.Services;
 using Memorizer.Settings;
 using Microsoft.Extensions.Logging;
-using Microsoft.Playwright;
 using Moq;
 
 namespace Memorizer.IntegrationTests.Services;
@@ -88,30 +87,21 @@ public sealed class WebSearchServiceLiveTests
 
     [Fact]
     [Trait("Category", "LiveWeb")]
-    public async Task Live_Headless_Naver_Matjip_ShouldReturnResults_WhenEnabled()
+    public async Task Live_SearXng_Matjip_ShouldReturnResults()
     {
+        // Needs a running SearXNG (docker compose profile "searxng"); override with SEARXNG_URL
         if (!IsLiveWebEnabled()) return;
 
         using var httpClient = CreateHttpClient();
         var settings = CreateFetchSettings();
-        settings.AccessMode = WebSearchAccessMode.Headless;
-        settings.Headless.Enabled = true;
+        settings.SearXng.ApiUrl = new Uri(Environment.GetEnvironmentVariable("SEARXNG_URL") ?? "http://localhost:8888");
 
         var service = new WebSearchService(httpClient, settings, CreateLogger());
 
-        try
-        {
-            var result = await service.SearchAsync(WebSearchProvider.Naver, "맛집", 3, WebSearchAccessMode.Headless);
-            Assert.NotNull(result);
-            Assert.Equal(WebSearchProvider.Naver, result.Provider);
-        }
-        catch (PlaywrightException ex) when (
-            ex.Message.Contains("missing dependencies", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("Executable doesn't exist", StringComparison.OrdinalIgnoreCase))
-        {
-            // Host dependency issue: real headless test cannot run on this machine.
-            return;
-        }
+        var result = await service.SearchAsync(WebSearchProvider.SearXng, "맛집", 3);
+
+        Assert.Equal(WebSearchProvider.SearXng, result.Provider);
+        Assert.NotEmpty(result.Items);
     }
 
     private static bool IsLiveWebEnabled()
@@ -136,12 +126,7 @@ public sealed class WebSearchServiceLiveTests
         {
             AccessMode = WebSearchAccessMode.Fetch,
             Timeout = TimeSpan.FromSeconds(20),
-            MaxPageContentChars = 5000,
-            Headless = new HeadlessWebSearchSettings
-            {
-                Enabled = false,
-                Timeout = TimeSpan.FromSeconds(25)
-            }
+            MaxPageContentChars = 5000
         };
     }
 

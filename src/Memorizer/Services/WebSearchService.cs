@@ -5,12 +5,12 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Memorizer.Settings;
-using Microsoft.Playwright;
 
 namespace Memorizer.Services;
 
 /// <summary>
-/// External web search service supporting API, direct fetch scraping, and optional headless mode.
+/// External web search service: SearXNG meta-search (JSON), provider APIs, and direct fetch scraping.
+/// Headless browser mode was removed with Playwright; <see cref="WebSearchAccessMode.Headless"/> is treated as Fetch.
 /// </summary>
 public sealed class WebSearchService : IWebSearchService
 {
@@ -54,7 +54,6 @@ public sealed class WebSearchService : IWebSearchService
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("text/html"));
 
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        WebSearchBrowserBootstrapService.ApplyBrowserPathEnvironment(_settings.Headless.BrowserInstallPath, _logger);
     }
 
     public async Task<WebSearchResponse> SearchAsync(
@@ -78,8 +77,8 @@ public sealed class WebSearchService : IWebSearchService
         return mode switch
         {
             WebSearchAccessMode.Api => await SearchWithApiAsync(provider, query, maxResults, cancellationToken),
-            WebSearchAccessMode.Fetch => await SearchWithFetchAsync(provider, query, maxResults, cancellationToken),
-            WebSearchAccessMode.Headless => await SearchWithHeadlessAsync(provider, query, maxResults, cancellationToken),
+            // Headless (Playwright) was removed — fall back to plain HTTP fetch
+            WebSearchAccessMode.Fetch or WebSearchAccessMode.Headless => await SearchWithFetchAsync(provider, query, maxResults, cancellationToken),
             _ => throw new ArgumentOutOfRangeException(nameof(accessMode), mode, "Unsupported access mode")
         };
     }
@@ -92,10 +91,7 @@ public sealed class WebSearchService : IWebSearchService
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || (uri.Scheme != "http" && uri.Scheme != "https"))
             throw new ArgumentException("Only absolute http/https URLs are allowed.", nameof(url));
 
-        var mode = accessMode ?? _settings.AccessMode;
-        var html = mode == WebSearchAccessMode.Headless
-            ? await FetchHtmlWithHeadlessAsync(uri.ToString(), cancellationToken)
-            : await FetchHtmlAsync(uri.ToString(), cancellationToken);
+        var html = await FetchHtmlAsync(uri.ToString(), cancellationToken);
 
         var title = ExtractTitle(html);
         var text = ExtractText(html);
@@ -230,7 +226,7 @@ public sealed class WebSearchService : IWebSearchService
         return new WebSearchResponse(WebSearchProvider.SearXng, query, items);
     }
 
-    // Hangul syllables block: U+AC00 (가) .. U+D7A3 (힣)
+    // Hangul syllables block: U+AC00 .. U+D7A3
     private static bool ContainsHangul(string text) => text.Any(c => c is >= '가' and <= '힣');
 
     private async Task<WebSearchResponse> SearchWithApiAsync(WebSearchProvider provider, string query, int maxResults, CancellationToken cancellationToken)
@@ -262,102 +258,6 @@ public sealed class WebSearchService : IWebSearchService
         return new WebSearchResponse(provider, query, items);
     }
 
-    private async Task<WebSearchResponse> SearchWithHeadlessAsync(WebSearchProvider provider, string query, int maxResults, CancellationToken cancellationToken)
-    {
-        if (!_settings.Headless.Enabled)
-            throw new InvalidOperationException("Headless mode is disabled. Set WebSearch:Headless:Enabled=true.");
-
-        var encodedQuery = UrlEncoder.Default.Encode(query);
-        var searchUrl = provider switch
-        {
-            WebSearchProvider.Google => $"https://www.google.com/search?q={encodedQuery}&hl=ko",
-            WebSearchProvider.Bing => $"https://www.bing.com/search?q={encodedQuery}&setlang=ko",
-            WebSearchProvider.Naver => $"https://search.naver.com/search.naver?where=nexearch&query={encodedQuery}",
-            _ => throw new ArgumentOutOfRangeException(nameof(provider), provider, "Unsupported provider")
-        };
-
-        _logger.LogInformation("Headless search URL: {SearchUrl}", searchUrl);
-
-        WebSearchBrowserBootstrapService.ApplyBrowserPathEnvironment(_settings.Headless.BrowserInstallPath, _logger);
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(_settings.Headless.Timeout);
-
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true,
-            ChromiumSandbox = _settings.Headless.ChromiumSandbox
-        });
-
-        var page = await browser.NewPageAsync(new BrowserNewPageOptions
-        {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        });
-
-        await page.GotoAsync(searchUrl, new PageGotoOptions
-        {
-            WaitUntil = WaitUntilState.NetworkIdle,
-            Timeout = (float)_settings.Headless.Timeout.TotalMilliseconds
-        });
-
-        timeoutCts.Token.ThrowIfCancellationRequested();
-
-        IReadOnlyList<WebSearchItem> items;
-        if (provider == WebSearchProvider.Naver)
-        {
-            items = await ParseNaverWithPlaywrightAsync(page, maxResults);
-        }
-        else
-        {
-            var html = await page.ContentAsync();
-            _logger.LogInformation("Headless search returned HTML length: {HtmlLength} chars for provider {Provider}", html.Length, provider);
-            items = ParseSearchResults(provider, html, maxResults);
-        }
-
-        _logger.LogInformation("Headless search parsed {ItemCount} results from {Provider}", items.Count, provider);
-        return new WebSearchResponse(provider, query, items);
-    }
-
-    private async Task<IReadOnlyList<WebSearchItem>> ParseNaverWithPlaywrightAsync(IPage page, int maxResults)
-    {
-        var items = new List<WebSearchItem>();
-        var seenUrls = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        // Naver uses data-heatmap-target=".link" for search result links
-        var linkElements = await page.QuerySelectorAllAsync("a[data-heatmap-target=\".link\"]");
-        _logger.LogInformation("Naver DOM query found {Count} link elements", linkElements.Count);
-
-        foreach (var element in linkElements)
-        {
-            if (items.Count >= maxResults)
-                break;
-
-            var href = await element.GetAttributeAsync("href");
-            if (string.IsNullOrWhiteSpace(href))
-                continue;
-
-            // Filter out internal Naver links
-            if (href.Contains("naver.com") || href.Contains("pstatic.net"))
-                continue;
-
-            if (!Uri.TryCreate(href, UriKind.Absolute, out var uri))
-                continue;
-
-            // Deduplicate
-            if (!seenUrls.Add(uri.AbsoluteUri))
-                continue;
-
-            var title = (await element.InnerTextAsync())?.Trim() ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(title))
-                title = uri.Host;
-
-            items.Add(new WebSearchItem(title, uri.AbsoluteUri, string.Empty, WebSearchProvider.Naver));
-        }
-
-        return items;
-    }
-
     private async Task<string> FetchHtmlAsync(string url, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -370,38 +270,6 @@ public sealed class WebSearchService : IWebSearchService
             throw new HttpRequestException($"Fetch failed with status code {(int)response.StatusCode} ({response.StatusCode}) for {url}.");
 
         return body;
-    }
-
-    private async Task<string> FetchHtmlWithHeadlessAsync(string url, CancellationToken cancellationToken)
-    {
-        if (!_settings.Headless.Enabled)
-            throw new InvalidOperationException("Headless mode is disabled. Set WebSearch:Headless:Enabled=true.");
-
-        WebSearchBrowserBootstrapService.ApplyBrowserPathEnvironment(_settings.Headless.BrowserInstallPath, _logger);
-
-        using var timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(_settings.Headless.Timeout);
-
-        using var playwright = await Playwright.CreateAsync();
-        await using var browser = await playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
-        {
-            Headless = true,
-            ChromiumSandbox = _settings.Headless.ChromiumSandbox
-        });
-
-        var page = await browser.NewPageAsync(new BrowserNewPageOptions
-        {
-            UserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-        });
-
-        await page.GotoAsync(url, new PageGotoOptions
-        {
-            WaitUntil = WaitUntilState.NetworkIdle,
-            Timeout = (float)_settings.Headless.Timeout.TotalMilliseconds
-        });
-
-        timeoutCts.Token.ThrowIfCancellationRequested();
-        return await page.ContentAsync();
     }
 
     private IReadOnlyList<WebSearchItem> ParseSearchResults(WebSearchProvider provider, string html, int maxResults)
