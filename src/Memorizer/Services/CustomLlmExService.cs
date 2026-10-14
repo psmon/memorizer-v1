@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Memorizer.Extensions;
 using Memorizer.Settings;
 
 namespace Memorizer.Services;
@@ -41,6 +42,7 @@ public sealed class CustomLlmExService : ILlmExService
         _httpClient.Timeout = _settings.Timeout;
         _httpClient.DefaultRequestHeaders.Accept.Clear();
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.UseBearerApiKey(_settings.ApiKey);
     }
 
     public async Task<LlmHealthResult> CheckHealthAsync(CancellationToken cancellationToken = default)

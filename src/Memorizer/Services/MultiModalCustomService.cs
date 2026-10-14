@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Memorizer.Extensions;
 using Memorizer.Settings;
 
 namespace Memorizer.Services;
@@ -8,7 +9,7 @@ namespace Memorizer.Services;
 /// <summary>
 /// Service for Multi-modal LLM that can process both images and text
 /// Compatible with OpenAI API format (LM Studio, etc.)
-/// Uses custom HTTP-based implementation without API key
+/// Uses custom HTTP-based implementation; ApiKey (optional) is sent as an OpenAI-compatible Bearer token
 /// </summary>
 public sealed class MultiModalCustomService : IMultiModalService
 {
@@ -41,6 +42,7 @@ public sealed class MultiModalCustomService : IMultiModalService
         _httpClient.Timeout = _settings.Timeout;
         _httpClient.DefaultRequestHeaders.Accept.Clear();
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.UseBearerApiKey(_settings.ApiKey);
     }
 
     public async Task<string> AnalyzeImageAsync(

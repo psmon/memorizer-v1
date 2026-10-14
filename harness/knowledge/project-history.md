@@ -29,7 +29,7 @@
 | 메모리 조각 선택(RAG) | 37→39→40→43→45 | 규칙 3회 교체, PrdMaker/ShapeUp에 복제, 테스트 없음 | (후보: prompt-curator) |
 | ShapeUp 캔버스 UI | 41~47 | 자체 캔버스 JS, UI 테스트 없음 | (후보: frontend-view-inspector) |
 | Mermaid 렌더링 | 36, 37, 51, 53 | 프롬프트 규칙으로만 대응 (`ChatBotActor.cs:46-58`) | (후보: frontend-view-inspector) |
-| LLM 공급자 | 01, 10, 11, 33, 38 | 추상화 3벌(ILlmService/ILlmExService/IMultiModalService), 임베딩 오류 시 **랜덤 벡터 폴백**(`CustomEmbeddingService.cs:68-70, 91-93, 181-183`), 알 수 없는 Type은 조용히 Custom | (후보: llm-provider-specialist) |
+| LLM 공급자 | 01, 10, 11, 33, 38 | 추상화 3벌(ILlmService/ILlmExService/IMultiModalService), 임베딩 오류 시 **랜덤 벡터 폴백** — Custom은 2026-10-14 제거(🔒 예외 전파), **Ollama·OpenAI 임베딩에는 잔존**(`OllamaEmbeddingService.cs`, `OpenAIEmbeddingService.cs`), 알 수 없는 Type은 조용히 Custom | (후보: llm-provider-specialist) |
 
 교훈: **worst-case/15** — 플로팅 UI+에이전트+액터+SSE를 한 프롬프트로 요청 → 폐기 → 3단계로 분할해 성공.
 → 하네스에서도 큰 요청은 엔진 단계로 쪼갠다.

@@ -275,7 +275,7 @@ public static class ServiceCollectionExtensions
             }
             else
             {
-                // Default to Custom service (no API key required)
+                // Default to Custom service (ApiKey optional, sent as Bearer token)
                 var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
                 var httpClient = httpClientFactory.CreateClient();
                 httpClient.BaseAddress = settings.ApiUrl;

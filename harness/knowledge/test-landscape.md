@@ -22,7 +22,8 @@ xUnit · Moq · Akka.TestKit.Xunit2 · Akka.Hosting.TestKit · coverlet · 대�
 | SkillMakerActor | SkillMakerActorTests (4개) | 🟡 실제 크래시 경로(GatheringInfo→GeneratingSkill)·JSON 파싱 폴백·세션 타임아웃 미검증 |
 | NewsController | NewsControllerTests (11개) | 🟢 |
 | WebSearchService | WebSearchServiceTests(mock 9), WebSearchServiceLiveTests | 🟢 mock / 🟡 Live는 가짜 초록 |
-| MultiModalService | MultiModalServiceTests | 🔴 사내 LAN LLM 직접 호출 |
+| Custom 공급자 인증·임베딩 실패 처리 | CustomProviderAuthTests (7, stub HTTP) | 🟢 Bearer 전송, 키 없을 때 무헤더, 401·불완전 배치 시 예외 (2026-10-14) |
+| MultiModalService | MultiModalServiceTests | 🔴 사내 LAN LLM 직접 호출 — LM Studio 토큰 인증 도입 후 키 없이 호출해 401 예상 |
 | **MemoryTools (MCP)** | — | 🔴 무방비 |
 | **GraphSync / Graph 검색 / GraphRelationship** | — | 🔴 무방비 (prompt 03·04에서 요청됐으나 미작성) |
 | **MetadataEmbedding / TitleGeneration** | — | 🔴/🟡 무방비 |

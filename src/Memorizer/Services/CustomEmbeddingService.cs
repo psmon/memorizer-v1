@@ -1,6 +1,7 @@
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using Memorizer.Extensions;
 using Memorizer.Settings;
 
 namespace Memorizer.Services;
@@ -43,8 +44,11 @@ public class CustomEmbeddingService : IEmbeddingService
         _httpClient.Timeout = _settings.Timeout;
         _httpClient.DefaultRequestHeaders.Accept.Clear();
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.UseBearerApiKey(_settings.ApiKey);
     }
 
+    // Errors are not replaced with random vectors: a random embedding would be stored
+    // in the database and silently corrupt similarity search. Callers receive the exception.
     public async Task<float[]> Generate(
         string text,
         CancellationToken cancellationToken = default)
@@ -56,7 +60,7 @@ public class CustomEmbeddingService : IEmbeddingService
             var embedding = await GenerateEmbeddingInternal(text, cancellationToken);
 
             _logger.LogDebug("Successfully generated embedding with {Dimensions} dimensions using Custom API", embedding.Length);
-            
+
             EmbeddingDimensions = embedding.Length;
 
             return embedding;
@@ -64,10 +68,7 @@ public class CustomEmbeddingService : IEmbeddingService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating embedding with Custom API: {ErrorMessage}", ex.Message);
-
-            // Fallback to a random embedding in case of error
-            _logger.LogWarning("Falling back to random embedding generation");
-            return GenerateRandomEmbedding();
+            throw;
         }
     }
 
@@ -75,23 +76,12 @@ public class CustomEmbeddingService : IEmbeddingService
         JsonDocument document,
         CancellationToken cancellationToken = default)
     {
-        try
-        {
-            // Convert JsonDocument to string for embedding
-            var text = document.RootElement.ToString();
-            
-            _logger.LogDebug("Generating embedding for JSON document using Custom API");
+        // Convert JsonDocument to string for embedding
+        var text = document.RootElement.ToString();
 
-            return await Generate(text, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating embedding from JSON with Custom API: {ErrorMessage}", ex.Message);
-            
-            // Fallback to a random embedding in case of error
-            _logger.LogWarning("Falling back to random embedding generation");
-            return GenerateRandomEmbedding();
-        }
+        _logger.LogDebug("Generating embedding for JSON document using Custom API");
+
+        return await Generate(text, cancellationToken);
     }
 
     private async Task<float[]> GenerateEmbeddingInternal(
@@ -168,7 +158,13 @@ public class CustomEmbeddingService : IEmbeddingService
 
             // Sort by index to ensure correct order
             var sortedData = embeddingResponse.Data.OrderBy(d => d.Index).ToList();
-            var embeddings = sortedData.Select(d => d.Embedding?.ToArray() ?? GenerateRandomEmbedding()).ToList();
+            if (sortedData.Count != texts.Count || sortedData.Any(d => d.Embedding == null))
+            {
+                throw new InvalidOperationException(
+                    $"Incomplete batch embedding response from Custom API: expected {texts.Count}, received {sortedData.Count(d => d.Embedding != null)}");
+            }
+
+            var embeddings = sortedData.Select(d => d.Embedding!.ToArray()).ToList();
 
             _logger.LogDebug("Successfully generated {Count} embeddings using Custom API", embeddings.Count);
 
@@ -177,10 +173,7 @@ public class CustomEmbeddingService : IEmbeddingService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating batch embeddings with Custom API: {ErrorMessage}", ex.Message);
-            
-            // Fallback: generate random embeddings for all texts
-            _logger.LogWarning("Falling back to random embedding generation for batch");
-            return texts.Select(_ => GenerateRandomEmbedding()).ToList();
+            throw;
         }
     }
 
@@ -228,32 +221,6 @@ public class CustomEmbeddingService : IEmbeddingService
         }
     }
 
-    private static float[] GenerateRandomEmbedding()
-    {
-        Random random = new();
-        float[] embedding = new float[EmbeddingDimensions];
-        
-        for (int i = 0; i < embedding.Length; i++)
-        {
-            embedding[i] = (float)random.NextDouble();
-        }
-
-        // Normalize the embedding
-        float sum = 0;
-        for (int i = 0; i < embedding.Length; i++)
-        {
-            sum += embedding[i] * embedding[i];
-        }
-
-        float magnitude = (float)Math.Sqrt(sum);
-        for (int i = 0; i < embedding.Length; i++)
-        {
-            embedding[i] /= magnitude;
-        }
-
-        return embedding;
-    }
-    
     public int GetEmbeddingDimensions()
     {
         return EmbeddingDimensions;
