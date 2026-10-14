@@ -8,9 +8,9 @@ This document provides instructions for building and running the Memorizer appli
 
 
 ```
-docker build -f src/Memorizer/Dockerfile -t registry.webnori.com/memorizer:v1.4.7 -t registry.webnori.com/memorizer:latest .
+docker build -f src/Memorizer/Dockerfile -t registry.webnori.com/memorizer:v1.4.8 -t registry.webnori.com/memorizer:latest .
 
-docker push registry.webnori.com/memorizer:v1.4.7
+docker push registry.webnori.com/memorizer:v1.4.8
 docker push registry.webnori.com/memorizer:latest
 ```
 
@@ -34,8 +34,8 @@ docker build -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .
 docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:latest
 docker push psmon/mcp-memorizer:latest
 
-docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.7
-docker push psmon/mcp-memorizer:v1.4.7
+docker tag psmon/mcp-memorizer:build psmon/mcp-memorizer:v1.4.8
+docker push psmon/mcp-memorizer:v1.4.8
 
 ## No Cache - 빌드 꼬일때 ( push및 pull이 느려지는 단점 )
 docker build --no-cache -f src/Memorizer/Dockerfile -t psmon/mcp-memorizer:build .

@@ -127,8 +127,8 @@ public class AuthenticationMiddleware
             {
                 _logger.LogInformation("Unauthenticated access attempt to protected route: {Path}", path);
                 
-                // For API calls, return 401
-                if (path.StartsWith("/api/"))
+                // For API calls and admin operations (called via fetch), return 401
+                if (path.StartsWith("/api/") || IsAdminOperation(path, method))
                 {
                     context.Response.StatusCode = 401;
                     await context.Response.WriteAsync("Unauthorized");
@@ -148,8 +148,21 @@ public class AuthenticationMiddleware
         await _next(context);
     }
 
+    /// <summary>
+    /// Admin operations — bulk regeneration, metadata embedding sync, graph sync and schema
+    /// initialization — always require login, even though /ui/ pages are public to view.
+    /// </summary>
+    internal static bool IsAdminOperation(string path, string method) =>
+        !HttpMethods.IsGet(method) && !HttpMethods.IsHead(method) &&
+        (path == "/ui/tools" || path.StartsWith("/ui/tools/") || path == "/api/graph/sync");
+
     private bool RequiresAuthentication(string path, string method)
     {
+        if (IsAdminOperation(path, method))
+        {
+            return true;
+        }
+
         // Public paths that don't require authentication
         var publicPaths = new[]
         {
