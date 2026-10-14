@@ -52,18 +52,21 @@ Key features:
 
 ### 🐳 Quick Start (Public Image)
 
-The easiest way to get started is using the pre-built Docker image and our [`docker-compose.yml`](docker-compose.yml) file:
+The easiest way to get started is our single [`docker-compose.yml`](docker-compose.yml) — environment differences (LLM provider, ports, secrets) are injected from `.env` and `env/` presets:
 
 ```bash
-docker-compose up -d
+cp .env.example .env
+docker compose up -d
 ```
 
-This will:
-- Download and run the latest [`petabridge/memorizer` image from Docker Hub](https://hub.docker.com/r/petabridge/memorizer)
-- Start PostgreSQL with pgvector (port 5432)
-- Start PgAdmin (port 5050)
-- Start Ollama (port 11434)
+With the default `.env` this will:
+- Run the `psmon/mcp-memorizer` image (Memorizer Extended)
+- Start PostgreSQL with pgvector (port 5432) and Neo4j (ports 7474/7687)
+- Start Ollama (port 11434) and pull the embedding/LLM models (`ollama` profile)
 - Start Memorizer API (port 5000)
+- PgAdmin (port 5050) is optional: add `tools` to `COMPOSE_PROFILES`
+
+To use a Custom (LM Studio) or OpenAI provider, change `LLM_PRESET` in `.env`. See [docker-compose.md](docker-compose.md).
 
 **View the Memorizer Web UI on http://localhost:5000/ui**.
 
@@ -75,23 +78,17 @@ If you want to build and run from source:
 - Docker and Docker Compose
 - .NET 9.0 SDK
 
-#### 1. Build and Publish Local Container
+#### Build from Source and Run
 
 ```bash
-# From solution root directory
-# Build and publish the .NET container
-dotnet publish -c Release /t:PublishContainer
+# Build the app image from src/Memorizer/Dockerfile and start everything
+docker compose up -d --build
+
+# Later: rebuild only the app, keep the databases running
+docker compose up -d --build --no-deps memorizer
 ```
 
-This creates a container image named `memorizer:latest`.
-
-#### 2. Start Infrastructure and Application
-
-```bash
-docker-compose -f docker-compose.local.yml up -d
-```
-
-This starts the same services but uses your locally built image.
+This starts the same services but uses an image built from your working tree.
 
 ---
 

@@ -421,3 +421,7 @@ src/Memorizer.IntegrationTests/test_output.txt
 src/MemorizerProxy/.env
 /Pencil/images
 .claude/settings.local.json
+
+# Docker compose local settings (see .env.example, env/)
+/.env
+/env/local.override.env

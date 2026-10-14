@@ -217,8 +217,8 @@ await SchemaMigrator.MigrateAsync(connectionString, cancellationToken);
 
 4. **빌드 및 테스트**
    ```bash
-   docker-compose -f docker-compose.local-psmon.yml build memorizer
-   docker-compose -f docker-compose.local-psmon.yml up -d memorizer
+   # .env = env/psmon.stack.env 복사본 (DB 컨테이너는 내리지 않는다)
+   docker compose up -d --build --no-deps memorizer
    ```
 
 5. **적용 확인**

@@ -35,11 +35,11 @@ memorizer-v1/
 │   │   └── wwwroot/               # 정적 파일
 │   ├── Memorizer.IntegrationTests/ # 통합 테스트
 │   └── MemorizerProxy/            # 프록시 프로젝트
-├── prompt/
-│   ├── kr/                        # 한국어 프롬프트
-│   │   └── skill-maker/           # 스킬 생성 가이드
-│   └── docs/                      # API 문서
-├── docker-compose.local-psmon.yml # 로컬 개발 환경
+├── harness/                       # 하네스 (정원지기·전문가·지식·로그)
+├── docker-compose.yml             # 단일 compose (환경은 .env + env/ 주입)
+├── docker-compose.rancher.yml     # Rancher 1.6 서버 배포 전용 (compose v2)
+├── .env.example                   # compose 설정 템플릿 → .env (git 제외)
+├── env/                           # LLM 프리셋(llm-*.env), 시나리오(*.stack.env)
 └── .claude/
     └── skills/                    # Claude Code 스킬
 ```
@@ -125,13 +125,19 @@ builder.Services.Configure<LlmSettings>(
 
 ### 환경변수 오버라이드
 
-```yaml
-# docker-compose.local-psmon.yml
-environment:
-  MEMORIZER_Server__UserName: admin
-  MEMORIZER_Server__Password: admin123
-  MEMORIZER_LLM__Type: Ollama
-  MEMORIZER_LLM__ApiUrl: http://host.docker.internal:11434
+docker-compose.yml에 값을 직접 쓰지 않고 주입한다:
+
+| 무엇 | 어디에 |
+|------|-------|
+| LLM 공급자 (Embeddings/LLM/LLM-EX/MultiModal) | `env/llm-{ollama,custom,openai}.env` — `.env`의 `LLM_PRESET`으로 선택 |
+| 포트·이미지·프로필·비밀값 | `.env` (`.env.example` 복사) |
+| 기능별 개별 오버라이드 | `env/local.override.env` (선택, git 제외) |
+
+```dotenv
+# env/local.override.env — 예: LLM은 Ollama, LLM-EX만 사내 Custom 서버
+MEMORIZER_LLM-EX__Type=Custom
+MEMORIZER_LLM-EX__ApiUrl=http://192.168.0.64:1234
+MEMORIZER_LLM-EX__Model=openai/gpt-oss-120b
 ```
 
 ## 컨트롤러 패턴
@@ -313,14 +319,17 @@ public class ChatBotActorTests : TestKit
 ### Docker Compose 사용
 
 ```bash
-# 빌드 및 실행
-docker-compose -f docker-compose.local-psmon.yml up --build
+# 최초 1회: psmon 로컬 시나리오를 .env로
+cp env/psmon.stack.env .env
 
-# 재빌드
-docker-compose -f docker-compose.local-psmon.yml build memorizer
+# 빌드 및 실행
+docker compose up -d --build
+
+# 앱만 재빌드 (postgres/neo4j는 내리지 않는다)
+docker compose up -d --build --no-deps memorizer
 
 # 로그 확인
-docker-compose -f docker-compose.local-psmon.yml logs -f memorizer
+docker compose logs -f memorizer
 ```
 
 ### 주의사항

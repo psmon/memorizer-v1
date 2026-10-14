@@ -1,128 +1,186 @@
+# Memorizer — unified Docker Compose
+#
+# One file for every local/dev scenario. What changes per environment is injected:
+#   .env                     → scenario switches + secrets (copy from .env.example, never committed)
+#   env/llm-<preset>.env     → LLM provider preset (Embeddings / LLM / LLM-EX / MultiModal)
+#   env/local.override.env   → optional per-variable overrides (never committed)
+#
+# Quick start:
+#   cp .env.example .env            # defaults: all-in-one Ollama
+#   docker compose up -d
+#
+# Rebuild only the app (keep DB containers running):
+#   docker compose up -d --build --no-deps memorizer
+#
+# Profiles (COMPOSE_PROFILES in .env): ollama = local Ollama + model pull, tools = pgAdmin
+# Rancher 1.6 server deployment uses docker-compose.rancher.yml instead (compose v2 format).
+# See docker-compose.md for details.
+
 services:
   postgres:
     image: pgvector/pgvector:pg17
     restart: unless-stopped
     container_name: postgmem-postgres
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=postgmem
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-postgmem}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - ${POSTGRES_DATA:-postgres_data}:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
+  neo4j:
+    image: neo4j:5-community
+    restart: unless-stopped
+    container_name: memorizer-neo4j
+    ports:
+      - "${NEO4J_HTTP_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-password}
+      NEO4J_PLUGINS: '["apoc", "graph-data-science"]'
+      NEO4J_dbms_memory_pagecache_size: 1G
+      NEO4J_dbms_memory_heap_initial__size: 1G
+      NEO4J_dbms_memory_heap_max__size: 2G
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+
   pgadmin:
     image: dpage/pgadmin4
+    profiles: [tools]
     restart: unless-stopped
     container_name: postgmem-pgadmin
     environment:
-      - PGADMIN_DEFAULT_EMAIL=admin@example.com
-      - PGADMIN_DEFAULT_PASSWORD=admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
-      - "5050:80"
+      - "${PGADMIN_PORT:-5050}:80"
     depends_on:
       - postgres
 
   ollama:
     image: ollama/ollama
+    profiles: [ollama]
     restart: unless-stopped
     container_name: postgmem-ollama
     ports:
-      - "11434:11434"
+      - "${OLLAMA_PORT:-11434}:11434"
     volumes:
-      - ollama-data:/root/.ollama
+      - ollama_data:/root/.ollama
 
-  # Initialize Ollama with the required models
+  # Pulls the embedding + LLM models used by env/llm-ollama.env
   ollama-init:
     image: curlimages/curl:latest
+    profiles: [ollama]
     container_name: postgmem-ollama-init
     entrypoint: ["/bin/sh", "-c"]
     depends_on:
       - ollama
-    command: >
-      "
-      echo 'Waiting for Ollama service to start...' &&
-      sleep 15 &&
-      
-      echo 'Pulling embedding model...' &&
-      for i in 1 2 3 4 5; do
-        echo 'Attempting to pull embedding model (try '$$i'/5)...' &&
-        if curl -s -X POST http://ollama:11434/api/pull -d '{\"name\": \"all-minilm:33m-l12-v2-fp16\"}'; then
-          echo 'Embedding model pull initiated successfully' &&
-          break
-        fi &&
-        echo 'Ollama not ready yet for embedding model, waiting...' &&
-        sleep 10
-      done &&
-      
-      echo 'Pulling lightweight LLM model...' &&
-      for i in 1 2 3 4 5; do
-        echo 'Attempting to pull LLM model (try '$$i'/5)...' &&
-        if curl -s -X POST http://ollama:11434/api/pull -d '{\"name\": \"qwen2:0.5b\"}'; then
-          echo 'LLM model pull initiated successfully' &&
-          echo 'All models pulled successfully' &&
-          exit 0
-        fi &&
-        echo 'Failed to pull LLM model, retrying...' &&
-        sleep 10
-      done &&
-      echo 'Failed to pull models after multiple attempts' &&
-      exit 1
-      "
-
-  # memorizer application
-  memorizer:
-    image: petabridge/memorizer:latest
-    restart: unless-stopped
-    container_name: memorizer
     environment:
-      - ConnectionStrings__Storage=Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      - MEMORIZER_Embeddings__ApiUrl=http://ollama:11434
-      - MEMORIZER_Embeddings__Model=all-minilm:33m-l12-v2-fp16
-      - MEMORIZER_LLM__ApiUrl=http://ollama:11434
-      - MEMORIZER_LLM__Model=qwen2:0.5b
-      - MEMORIZER_LLM__Timeout=00:02:00
-      - MEMORIZER_LLM__Chunking__MinCharactersForChunking=2000
-      - MEMORIZER_LLM__Chunking__TargetChunkSize=1500
-      # LLM-EX configuration (Ollama)
-      - MEMORIZER_LLM-EX__Type=Ollama
-      - MEMORIZER_LLM-EX__ApiUrl=http://ollama:11434
-      - MEMORIZER_LLM-EX__Model=qwen2:0.5b
-      - MEMORIZER_LLM-EX__Timeout=00:05:00
-      - MEMORIZER_Server__CanonicalUrl=http://localhost:5000
-      # OAuth 2.0 Settings
-      - MEMORIZER_OAuth__Enabled=true
-      - MEMORIZER_OAuth__Issuer=memorizer
-      - MEMORIZER_OAuth__Audience=memorizer-api
-      - MEMORIZER_OAuth__SecretKey=your-super-secret-key-at-least-32-characters-long
-      - MEMORIZER_OAuth__TokenExpirationHours=24
-      # OAuth Client (for ChatGPT MCP integration)
-      - MEMORIZER_OAuth__Clients__0__ClientId=chatgpt-mcp
-      - MEMORIZER_OAuth__Clients__0__ClientSecret=chatgpt-secret-key
-      - MEMORIZER_OAuth__Clients__0__AllowedScopes__0=mcp:read
-      - MEMORIZER_OAuth__Clients__0__AllowedScopes__1=mcp:write
-      - MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0=https://chatgpt.com/aip/g-callback
-      - ASPNETCORE_ENVIRONMENT=Development
+      PULL_MODELS: ${OLLAMA_EMBEDDING_MODEL:-all-minilm:33m-l12-v2-fp16} ${OLLAMA_LLM_MODEL:-qwen2:0.5b}
+    command:
+      - |
+        echo 'Waiting for Ollama service to start...'
+        sleep 15
+        for model in $$PULL_MODELS; do
+          ok=0
+          for i in 1 2 3 4 5; do
+            echo "Pulling $$model (try $$i/5)..."
+            if curl -sf -X POST http://ollama:11434/api/pull -d "{\"name\": \"$$model\"}" > /dev/null; then
+              echo "Pulled $$model"; ok=1; break
+            fi
+            sleep 10
+          done
+          [ "$$ok" = 1 ] || { echo "Failed to pull $$model"; exit 1; }
+        done
+        echo 'All models pulled successfully'
+
+  memorizer:
+    image: ${MEMORIZER_IMAGE:-psmon/mcp-memorizer:latest}
+    build:
+      context: .
+      dockerfile: src/Memorizer/Dockerfile
+    restart: unless-stopped
+    container_name: memorizer-app
+    user: "${MEMORIZER_RUN_AS:-app}"
     ports:
-      - "5000:8080"
+      - "${MEMORIZER_PORT:-5000}:8080"
+    env_file:
+      # LLM provider preset — selected by LLM_PRESET in .env (ollama | custom | openai)
+      - path: env/llm-${LLM_PRESET:-ollama}.env
+      # Optional per-variable overrides (e.g. mix providers per feature)
+      - path: env/local.override.env
+        required: false
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ConnectionStrings__Storage: Host=postgres;Port=5432;Database=${POSTGRES_DB:-postgmem};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres}
+      # Neo4j
+      Neo4j__Uri: bolt://neo4j:7687
+      Neo4j__User: neo4j
+      Neo4j__Password: ${NEO4J_PASSWORD:-password}
+      Neo4j__Database: neo4j
+      # Chunking (shared by every provider)
+      MEMORIZER_LLM__Chunking__MinCharactersForChunking: "2000"
+      MEMORIZER_LLM__Chunking__TargetChunkSize: "1500"
+      # Server
+      MEMORIZER_Server__CanonicalUrl: ${CANONICAL_URL:-http://localhost:5000}
+      MEMORIZER_Server__UserName: ${ADMIN_USERNAME:-admin}
+      MEMORIZER_Server__Password: ${ADMIN_PASSWORD:-admin123}
+      MEMORIZER_Server__ApiKey: ${MEMORIZER_API_KEY:-your-api-key-here}
+      # OAuth 2.0 (ChatGPT MCP integration)
+      MEMORIZER_OAuth__Enabled: ${OAUTH_ENABLED:-true}
+      MEMORIZER_OAuth__Issuer: memorizer
+      MEMORIZER_OAuth__Audience: memorizer-api
+      MEMORIZER_OAuth__SecretKey: ${OAUTH_SECRET_KEY:-your-super-secret-key-at-least-32-characters-long}
+      MEMORIZER_OAuth__TokenExpirationHours: "24"
+      MEMORIZER_OAuth__Clients__0__ClientId: ${OAUTH_CLIENT_ID:-chatgpt-mcp}
+      MEMORIZER_OAuth__Clients__0__ClientSecret: ${OAUTH_CLIENT_SECRET:-chatgpt-secret-key}
+      MEMORIZER_OAuth__Clients__0__AllowedScopes__0: "mcp:read"
+      MEMORIZER_OAuth__Clients__0__AllowedScopes__1: "mcp:write"
+      MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0: "https://chatgpt.com/aip/g-callback"
+      # AskBot image storage (persisted in askbot_images volume)
+      ASKBOT_IMAGE_STORAGE_PATH: /app/data/askbot-images
+      # WebSearch — Fetch (default) or Headless (Playwright). Headless dependency auto-install needs MEMORIZER_RUN_AS=0:0
+      MEMORIZER_WebSearch__AccessMode: ${WEBSEARCH_MODE:-Fetch}
+      MEMORIZER_WebSearch__Headless__Enabled: "true"
+      MEMORIZER_WebSearch__Headless__AutoInstallBrowserOnStartup: ${WEBSEARCH_INSTALL_BROWSER:-false}
+      MEMORIZER_WebSearch__Headless__AutoInstallLinuxDependenciesOnStartup: ${WEBSEARCH_INSTALL_LINUX_DEPS:-false}
+      MEMORIZER_WebSearch__Headless__ChromiumSandbox: "false"
+      MEMORIZER_WebSearch__Headless__BrowserInstallPath: /app/data/playwright-browsers
+    volumes:
+      - askbot_images:/app/data/askbot-images
+      - playwright_browsers:/app/data/playwright-browsers
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1"]
-      interval: 5s
+      # aspnet base image has no wget/curl — probe /healthz with bash /dev/tcp
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /healthz HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && head -1 <&3 | grep -q ' 200 '"]
+      interval: 10s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 30s
     depends_on:
       postgres:
         condition: service_healthy
+      neo4j:
+        condition: service_started
       ollama-init:
         condition: service_completed_successfully
+        required: false
 
 volumes:
-  postgres-data:
-  ollama-data: 
+  postgres_data:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:
+  ollama_data:
+  askbot_images:
+  playwright_browsers:

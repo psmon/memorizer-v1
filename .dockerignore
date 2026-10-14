@@ -36,6 +36,11 @@ scripts/
 *.yml
 !docker-compose.yml
 *.ps1
+
+# Compose settings / secrets
+.env
+.env.*
+env/
 *.sh
 *.user
 coverlet.runsettings

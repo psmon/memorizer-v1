@@ -4,7 +4,8 @@
 ## first build or update
 
 ```bash
-docker-compose -f docker-compose.local.yml up -d --build
+cp .env.example .env   # first time only
+docker compose up -d --build
 ```
 
 ## Claude Cli Setting

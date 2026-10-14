@@ -2,201 +2,142 @@
 
 ## Overview
 
-This project provides multiple docker-compose configuration files for different deployment scenarios. Each configuration uses different LLM providers (Custom, Ollama, OpenAI) for various features.
+One compose file runs every local/dev scenario. Nothing environment-specific is hard-coded in it —
+the differences (LLM provider, ports, image, secrets) are **injected**:
 
-## Configuration Files
-
-| File | LLM Provider | LLM-EX Provider | Use Case |
-|------|-------------|-----------------|----------|
-| `docker-compose.yml` | Ollama | Ollama | Default configuration for local development |
-| `docker-compose.custom-sample.yml` | Custom | Custom | Internal network with LM Studio compatible API |
-| `docker-compose.local-psmon.yml` | Custom | Custom | Local development with custom LLM server |
-| `docker-compose.openai-sample.yml` | OpenAI | OpenAI | Cloud-based OpenAI API |
-| `docker-compose.ollama.yml` | N/A | N/A | Ollama service only (for server deployment) |
-| `docker-compose.server.yml` | Ollama | Ollama | Server deployment (Rancher 1.6) |
-
-## LLM Provider Types
-
-### Custom
-- Uses LM Studio compatible OpenAI-style API
-- Best for internal network deployments
-- No API key required
-- Configuration:
-  ```yaml
-  MEMORIZER_LLM__Type: Custom
-  MEMORIZER_LLM__ApiUrl: http://192.168.0.50:1234
-  MEMORIZER_LLM__Model: openai/gpt-oss-20b
-  ```
-
-### Ollama
-- Uses local Ollama instance
-- Best for lightweight local development
-- No API key required
-- Configuration:
-  ```yaml
-  MEMORIZER_LLM__Type: Ollama
-  MEMORIZER_LLM__ApiUrl: http://ollama:11434
-  MEMORIZER_LLM__Model: qwen2:0.5b
-  ```
-
-### OpenAI
-- Uses OpenAI cloud API
-- Requires API key
-- Configuration:
-  ```yaml
-  MEMORIZER_LLM__Type: OpenAI
-  MEMORIZER_LLM__ApiUrl: api.openai.com
-  MEMORIZER_LLM__Model: gpt-4o
-  MEMORIZER_LLM__ApiKey: sk-...
-  ```
-
-## LLM-EX Configuration
-
-LLM-EX (Extended) is used for deep analysis features like PRD analysis and Event Storming. It supports the same three provider types: Custom, Ollama, and OpenAI.
-
-### Custom LLM-EX
-```yaml
-MEMORIZER_LLM-EX__Type: Custom
-MEMORIZER_LLM-EX__ApiUrl: http://192.168.0.50:1234
-MEMORIZER_LLM-EX__Model: openai/gpt-oss-120b
-MEMORIZER_LLM-EX__Timeout: 00:05:00
+```
+docker-compose.yml          ← single service definition (local / dev / self-hosted)
+docker-compose.rancher.yml  ← Rancher 1.6 server deployment only (compose v2, self-contained)
+.env.example                ← template → copy to .env (git-ignored): scenario switches + secrets
+env/
+├── llm-ollama.env          ← LLM preset: local Ollama
+├── llm-custom.env          ← LLM preset: LM Studio / OpenAI-compatible server on the LAN
+├── llm-openai.env          ← LLM preset: OpenAI cloud
+├── psmon.stack.env         ← ready-made scenario (copy to .env)
+└── local.override.env      ← optional, git-ignored: per-variable overrides
 ```
 
-### Ollama LLM-EX
-```yaml
-MEMORIZER_LLM-EX__Type: Ollama
-MEMORIZER_LLM-EX__ApiUrl: http://ollama:11434
-MEMORIZER_LLM-EX__Model: qwen2:0.5b
-MEMORIZER_LLM-EX__Timeout: 00:05:00
-```
+Injection order for the `memorizer` service (later wins):
 
-### OpenAI LLM-EX
-```yaml
-MEMORIZER_LLM-EX__Type: OpenAI
-MEMORIZER_LLM-EX__Model: gpt-4o
-MEMORIZER_LLM-EX__ApiKey: sk-...
-MEMORIZER_LLM-EX__Timeout: 00:05:00
-```
+1. `env/llm-${LLM_PRESET}.env` — provider preset
+2. `env/local.override.env` — your overrides (optional)
+3. `environment:` in docker-compose.yml — common settings (DB, Neo4j, Server, OAuth, WebSearch) whose values come from `.env`
 
-## Environment Variables Reference
+> Keep provider variables (`MEMORIZER_Embeddings__*`, `MEMORIZER_LLM__*`, `MEMORIZER_LLM-EX__*`, `MEMORIZER_MultiModal__*`) in the env files only.
+> Anything set under `environment:` overrides the env files.
 
-### Core Settings
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `ConnectionStrings__Storage` | PostgreSQL connection string | Required |
-| `ASPNETCORE_ENVIRONMENT` | Environment mode | Development |
+## Quick Start
 
-### Embeddings Settings
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMORIZER_Embeddings__Type` | Provider type (Custom/Ollama/OpenAI) | Ollama |
-| `MEMORIZER_Embeddings__ApiUrl` | API endpoint URL | http://localhost:11434 |
-| `MEMORIZER_Embeddings__Model` | Embedding model name | all-minilm:33m-l12-v2-fp16 |
-| `MEMORIZER_Embeddings__ApiKey` | API key (OpenAI only) | - |
-
-### LLM Settings
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMORIZER_LLM__Type` | Provider type (Custom/Ollama/OpenAI) | Ollama |
-| `MEMORIZER_LLM__ApiUrl` | API endpoint URL | http://localhost:11434 |
-| `MEMORIZER_LLM__Model` | LLM model name | llama3 |
-| `MEMORIZER_LLM__Timeout` | Request timeout | 00:02:00 |
-| `MEMORIZER_LLM__ApiKey` | API key (OpenAI only) | - |
-
-### LLM-EX Settings (Deep Analysis)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMORIZER_LLM-EX__Type` | Provider type (Custom/Ollama/OpenAI) | Custom |
-| `MEMORIZER_LLM-EX__ApiUrl` | API endpoint URL | http://localhost:1234 |
-| `MEMORIZER_LLM-EX__Model` | LLM model name | openai/gpt-oss-120b |
-| `MEMORIZER_LLM-EX__Timeout` | Request timeout (longer for complex analysis) | 00:05:00 |
-| `MEMORIZER_LLM-EX__ApiKey` | API key (OpenAI only) | - |
-
-### MultiModal Settings
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMORIZER_MultiModal__Type` | Provider type (Custom/OpenAI) | Custom |
-| `MEMORIZER_MultiModal__ApiUrl` | API endpoint URL | http://localhost:1234 |
-| `MEMORIZER_MultiModal__Model` | Vision model name | qwen/qwen3-vl-8b |
-| `MEMORIZER_MultiModal__ApiKey` | API key (OpenAI only) | - |
-
-### Neo4j Settings
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `Neo4j__Uri` | Neo4j Bolt URI | bolt://localhost:7687 |
-| `Neo4j__User` | Neo4j username | neo4j |
-| `Neo4j__Password` | Neo4j password | password |
-| `Neo4j__Database` | Neo4j database name | neo4j |
-
-### Server Settings
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMORIZER_Server__CanonicalUrl` | Public URL for the application | http://localhost:5000 |
-| `MEMORIZER_Server__UserName` | Admin username | - |
-| `MEMORIZER_Server__Password` | Admin password | - |
-| `MEMORIZER_Server__ApiKey` | API authentication key | - |
-
-### OAuth 2.0 Settings (for ChatGPT MCP integration)
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `MEMORIZER_OAuth__Enabled` | Enable OAuth 2.0 authentication | false |
-| `MEMORIZER_OAuth__Issuer` | Token issuer name | memorizer |
-| `MEMORIZER_OAuth__Audience` | Token audience | memorizer-api |
-| `MEMORIZER_OAuth__SecretKey` | Secret key for token signing (min 32 chars) | Required |
-| `MEMORIZER_OAuth__TokenExpirationHours` | Token expiration time in hours | 24 |
-
-### OAuth Client Configuration
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `MEMORIZER_OAuth__Clients__0__ClientId` | Client identifier | chatgpt-mcp |
-| `MEMORIZER_OAuth__Clients__0__ClientSecret` | Client secret | chatgpt-secret-key |
-| `MEMORIZER_OAuth__Clients__0__AllowedScopes__0` | First allowed scope | mcp:read |
-| `MEMORIZER_OAuth__Clients__0__AllowedScopes__1` | Second allowed scope | mcp:write |
-| `MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0` | Allowed redirect URI | https://chatgpt.com/aip/g-callback |
-
-## OAuth Configuration Example
-
-For ChatGPT MCP integration:
-```yaml
-# OAuth 2.0 Settings
-MEMORIZER_OAuth__Enabled: "true"
-MEMORIZER_OAuth__Issuer: memorizer
-MEMORIZER_OAuth__Audience: memorizer-api
-MEMORIZER_OAuth__SecretKey: your-super-secret-key-at-least-32-characters-long
-MEMORIZER_OAuth__TokenExpirationHours: "24"
-# OAuth Client (for ChatGPT MCP integration)
-MEMORIZER_OAuth__Clients__0__ClientId: chatgpt-mcp
-MEMORIZER_OAuth__Clients__0__ClientSecret: chatgpt-secret-key
-MEMORIZER_OAuth__Clients__0__AllowedScopes__0: "mcp:read"
-MEMORIZER_OAuth__Clients__0__AllowedScopes__1: "mcp:write"
-MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0: "https://chatgpt.com/aip/g-callback"
-```
-
-## Usage Examples
-
-### Local Development with Ollama (Default)
 ```bash
-docker-compose up -d
+cp .env.example .env        # default: Ollama all-in-one
+docker compose up -d
 ```
 
-### Local Development with Custom LLM Server
-```bash
-docker-compose -f docker-compose.local-psmon.yml up -d
+| Task | Command |
+|------|---------|
+| Start (use image from registry) | `docker compose up -d` |
+| Build from source and start | `docker compose up -d --build` |
+| Rebuild only the app, keep DBs running | `docker compose up -d --build --no-deps memorizer` |
+| Use a scenario file without copying | `docker compose --env-file env/psmon.stack.env up -d` |
+| Show the resolved configuration | `docker compose config` |
+
+## Scenarios
+
+| Scenario | `.env` settings | Replaces old file |
+|----------|----------------|-------------------|
+| Ollama all-in-one (default) | `LLM_PRESET=ollama`, `COMPOSE_PROFILES=ollama` | `docker-compose.yml`, `docker-compose.local.yml` |
+| Custom LLM server on the LAN | `LLM_PRESET=custom`, `COMPOSE_PROFILES=`, `CUSTOM_LLM_URL=...` | `docker-compose.custom-sample.yml` |
+| psmon local dev (Custom, 768-dim, Headless WebSearch, port 5012) | `cp env/psmon.stack.env .env` | `docker-compose.local-psmon.yml` |
+| OpenAI cloud | `LLM_PRESET=openai`, `COMPOSE_PROFILES=`, `OPENAI_API_KEY=sk-...` | `docker-compose.openai-sample.yml` |
+| Rancher 1.6 server | `docker-compose.rancher.yml` | `docker-compose.server.yml`, `docker-compose.ollama.yml` |
+
+### Mixing providers per feature
+
+Presets set all four features to one provider. To mix them (e.g. Ollama for LLM but a large Custom model for LLM-EX),
+create `env/local.override.env`:
+
+```dotenv
+MEMORIZER_LLM-EX__Type=Custom
+MEMORIZER_LLM-EX__ApiUrl=http://192.168.0.64:1234
+MEMORIZER_LLM-EX__Model=openai/gpt-oss-120b
 ```
 
-### Production with OpenAI
-```bash
-docker-compose -f docker-compose.openai-sample.yml up -d
-```
+## Profiles
 
-### Server Deployment
-```bash
-docker-compose -f docker-compose.server.yml up -d
-```
+| Profile | Services | Enable with |
+|---------|----------|-------------|
+| (always) | postgres, neo4j, memorizer | — |
+| `ollama` | ollama, ollama-init (pulls `OLLAMA_EMBEDDING_MODEL` and `OLLAMA_LLM_MODEL`) | `COMPOSE_PROFILES=ollama` |
+| `tools` | pgadmin (port 5050) | `COMPOSE_PROFILES=ollama,tools` |
 
-## Notes
+## ⚠️ Embedding dimensions
 
-- LLM-EX is designed for deep analysis tasks and uses higher capacity models
-- The default timeout for LLM-EX is 5 minutes to accommodate complex analysis
-- When using OpenAI, ensure API keys are properly configured for all services (LLM, LLM-EX, Embeddings, MultiModal)
-- Custom provider is compatible with LM Studio and similar OpenAI-compatible API servers
+The vector columns are created as **384 dims** by default (`migrations/001_init.sql`; the 768 migration `009` is commented out).
+The embedding model must match the database:
+
+| Model | Dims | Preset |
+|-------|------|--------|
+| `all-minilm:33m-l12-v2-fp16` (Ollama) | 384 | llm-ollama (default) |
+| `text-embedding-all-minilm-l12-v2` (Custom) | 384 | llm-custom (default) |
+| `text-embedding-nomic-embed-text-v1.5` (Custom) | 768 | psmon.stack — DB migrated manually to 768 |
+| `text-embedding-3-small` (OpenAI) | 1536 | llm-openai — requires migrating the vector columns first |
+
+Switching the embedding model on an existing database breaks search until the columns and data are migrated
+(see `src/Memorizer/migrations/embedding_dimension.md`).
+
+## `.env` Variables
+
+### Scenario switches
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_PRESET` | `ollama` \| `custom` \| `openai` → `env/llm-<preset>.env` | `ollama` |
+| `COMPOSE_PROFILES` | Optional services: `ollama`, `tools` | `ollama` |
+| `MEMORIZER_IMAGE` | App image name (also the tag used by `--build`) | `psmon/mcp-memorizer:latest` |
+| `MEMORIZER_PORT` | Host port for the app | `5000` |
+| `MEMORIZER_RUN_AS` | Container user: `app` or `0:0` | `app` |
+| `CANONICAL_URL` | Public URL of the app | `http://localhost:5000` |
+| `WEBSEARCH_MODE` | `Fetch` \| `Headless` (Playwright) | `Fetch` |
+| `WEBSEARCH_INSTALL_BROWSER` | Install Chromium on startup (Headless) | `false` |
+| `WEBSEARCH_INSTALL_LINUX_DEPS` | Install Linux deps on startup (needs `MEMORIZER_RUN_AS=0:0`) | `false` |
+
+### Provider endpoints / models
+| Variable | Preset | Default |
+|----------|--------|---------|
+| `OLLAMA_URL` | ollama | `http://ollama:11434` |
+| `OLLAMA_EMBEDDING_MODEL` / `OLLAMA_LLM_MODEL` / `OLLAMA_LLM_EX_MODEL` | ollama | `all-minilm:33m-l12-v2-fp16` / `qwen2:0.5b` / = LLM model |
+| `CUSTOM_LLM_URL` / `CUSTOM_LLM_EX_URL` | custom | `http://192.168.0.50:1234` / = LLM URL |
+| `CUSTOM_EMBEDDING_MODEL` / `CUSTOM_LLM_MODEL` / `CUSTOM_LLM_EX_MODEL` / `CUSTOM_MULTIMODAL_MODEL` | custom | `text-embedding-all-minilm-l12-v2` / `google/gemma-4-e4b` / `google/gemma-4-26b-a4b` / `qwen/qwen3-vl-8b` |
+| `CUSTOM_LLM_API_KEY` | custom | LM Studio API token (Bearer). Empty = no auth |
+| `OPENAI_API_KEY` | openai | — (required) |
+| `OPENAI_EMBEDDING_MODEL` / `OPENAI_LLM_MODEL` / `OPENAI_LLM_EX_MODEL` / `OPENAI_MULTIMODAL_MODEL` | openai | `text-embedding-3-small` / `gpt-4o` / `gpt-4o` / `gpt-4o` |
+
+### Secrets (dev defaults — change for anything shared)
+| Variable | Maps to | Default |
+|----------|---------|---------|
+| `POSTGRES_USER` / `POSTGRES_PASSWORD` / `POSTGRES_DB` | postgres + `ConnectionStrings__Storage` | `postgres` / `postgres` / `postgmem` |
+| `NEO4J_PASSWORD` | neo4j + `Neo4j__Password` | `password` |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | `MEMORIZER_Server__UserName` / `Password` | `admin` / `admin123` |
+| `MEMORIZER_API_KEY` | `MEMORIZER_Server__ApiKey` | `your-api-key-here` |
+| `OAUTH_ENABLED` / `OAUTH_SECRET_KEY` | `MEMORIZER_OAuth__Enabled` / `SecretKey` | `true` / sample key |
+| `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` | `MEMORIZER_OAuth__Clients__0__*` | `chatgpt-mcp` / sample secret |
+
+### Ports
+`POSTGRES_PORT` (5432), `NEO4J_HTTP_PORT` (7474), `NEO4J_BOLT_PORT` (7687), `OLLAMA_PORT` (11434), `PGADMIN_PORT` (5050). Override `POSTGRES_DATA` with a host path to bind-mount the database directory.
+
+## Application Settings Reference
+
+Provider variables used inside the presets (`MEMORIZER_` prefix maps to appsettings sections):
+
+| Section | Variables |
+|---------|-----------|
+| Embeddings | `Type` (Custom/Ollama/OpenAI), `ApiUrl`, `Model`, `ApiKey` |
+| LLM | `Type`, `ApiUrl`, `Model`, `Timeout`, `ApiKey`, `Chunking__MinCharactersForChunking`, `Chunking__TargetChunkSize` |
+| LLM-EX (deep analysis: PRD Maker, ShapeUp) | `Type`, `ApiUrl`, `Model`, `Timeout` (5 min), `ApiKey` |
+| MultiModal (vision) | `Type` (Custom/OpenAI — no Ollama), `ApiUrl`, `Model`, `Temperature`, `MaxTokens`, `Timeout`, `ApiKey` |
+
+## Rancher 1.6
+
+`docker-compose.rancher.yml` keeps compose v2 format because Rancher 1.6 does not support profiles or
+`env_file` interpolation. It uses the Ollama provider; a commented OpenAI block shows the alternative.
+Modern `docker compose` prints warnings for this file (`version` obsolete, `$i` not set) — that is expected
+and does not affect Rancher.
