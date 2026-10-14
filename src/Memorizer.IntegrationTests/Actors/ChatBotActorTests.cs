@@ -212,11 +212,9 @@ public class ChatBotActorTests : TestKit
         _mockStorage.Setup(x => x.Search(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<double>(), null, default))
             .ReturnsAsync(new List<Memory>());
 
-        mockWebSearchService.Setup(x => x.SearchAsync(
-                It.IsAny<WebSearchProvider>(),
+        mockWebSearchService.Setup(x => x.SearchWithFallbackAsync(
                 It.IsAny<string>(),
                 It.IsAny<int>(),
-                It.IsAny<WebSearchAccessMode?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WebSearchResponse(
                 WebSearchProvider.Google,
@@ -248,11 +246,9 @@ public class ChatBotActorTests : TestKit
         Assert.Equal(sessionId, response.SessionId);
         Assert.Equal(ResponseType.WebSearchBased, response.Type);
 
-        mockWebSearchService.Verify(x => x.SearchAsync(
-            WebSearchProvider.Naver,
+        mockWebSearchService.Verify(x => x.SearchWithFallbackAsync(
             It.IsAny<string>(),
             5,
-            WebSearchAccessMode.Headless,
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -278,11 +274,9 @@ public class ChatBotActorTests : TestKit
         _mockStorage.Setup(x => x.Search(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<double>(), null, default))
             .ReturnsAsync(new List<Memory>());
 
-        mockWebSearchService.Setup(x => x.SearchAsync(
-                It.IsAny<WebSearchProvider>(),
+        mockWebSearchService.Setup(x => x.SearchWithFallbackAsync(
                 It.IsAny<string>(),
                 It.IsAny<int>(),
-                It.IsAny<WebSearchAccessMode?>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new HttpRequestException("Network error"));
 

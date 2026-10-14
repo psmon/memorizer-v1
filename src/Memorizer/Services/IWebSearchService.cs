@@ -6,7 +6,9 @@ public enum WebSearchProvider
 {
     Google,
     Bing,
-    Naver
+    Naver,
+    /// <summary>Self-hosted SearXNG meta-search (JSON API). Access mode does not apply.</summary>
+    SearXng
 }
 
 public sealed record WebSearchItem(
@@ -45,6 +47,15 @@ public interface IWebSearchService
     Task<PageReadResponse> ReadPageAsync(
         string url,
         WebSearchAccessMode? accessMode = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Searches with the configured provider chain (WebSearch:ProviderChain), returning the first
+    /// non-empty result. Provider failures are logged and the next provider is tried.
+    /// </summary>
+    Task<WebSearchResponse> SearchWithFallbackAsync(
+        string query,
+        int maxResults = 5,
         CancellationToken cancellationToken = default);
 
     Task<WebSearchPreviewResponse> SearchAndReadTopResultAsync(

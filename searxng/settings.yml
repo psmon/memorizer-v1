@@ -1,0 +1,32 @@
+# SearXNG settings for Memorizer (internal meta-search used by AskBot web search)
+# Only overrides are listed here; everything else comes from SearXNG's defaults.
+# Docs: https://docs.searxng.org/admin/settings/index.html
+use_default_settings: true
+
+general:
+  instance_name: "memorizer-searxng"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "auto"
+  # json is required — Memorizer calls /search?format=json
+  formats:
+    - html
+    - json
+
+server:
+  # Overridden by the SEARXNG_SECRET environment variable (see docker-compose.yml)
+  secret_key: "memorizer-local-searxng-change-me"
+  # Internal service: no bot limiter (it would need a Valkey/Redis container)
+  limiter: false
+  image_proxy: false
+  public_instance: false
+
+# Extra general-web engines (disabled by default upstream): Naver for Korean results,
+# Bing for redundancy when another engine is rate-limited or shows a CAPTCHA.
+engines:
+  - name: naver
+    disabled: false
+  - name: bing
+    disabled: false

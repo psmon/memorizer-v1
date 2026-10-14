@@ -47,7 +47,7 @@ docker compose up -d
 |----------|----------------|-------------------|
 | Ollama all-in-one (default) | `LLM_PRESET=ollama`, `COMPOSE_PROFILES=ollama` | `docker-compose.yml`, `docker-compose.local.yml` |
 | Custom LLM server on the LAN | `LLM_PRESET=custom`, `COMPOSE_PROFILES=`, `LLM_A_URL` + `LLM_A_API_KEY` | `docker-compose.custom-sample.yml` |
-| psmon local dev (Custom, 768-dim, Headless WebSearch, port 5012) | `cp env/psmon.stack.env .env` | `docker-compose.local-psmon.yml` |
+| psmon local dev (Custom LLM A/B, 768-dim, SearXNG web search, port 5012) | `cp env/psmon.stack.env .env` | `docker-compose.local-psmon.yml` |
 | OpenAI cloud | `LLM_PRESET=openai`, `COMPOSE_PROFILES=`, `OPENAI_API_KEY=sk-...` | `docker-compose.openai-sample.yml` |
 | Rancher 1.6 server | `docker-compose.rancher.yml` | `docker-compose.server.yml`, `docker-compose.ollama.yml` |
 
@@ -68,7 +68,26 @@ MEMORIZER_LLM-EX__Model=openai/gpt-oss-120b
 |---------|----------|-------------|
 | (always) | postgres, neo4j, memorizer | — |
 | `ollama` | ollama, ollama-init (pulls `OLLAMA_EMBEDDING_MODEL` and `OLLAMA_LLM_MODEL`) | `COMPOSE_PROFILES=ollama` |
-| `tools` | pgadmin (port 5051) | `COMPOSE_PROFILES=ollama,tools` |
+| `searxng` | searxng — web search for AskBot (localhost:8888 for manual checks) | `COMPOSE_PROFILES=ollama,searxng` |
+| `tools` | pgadmin (port 5051) | `COMPOSE_PROFILES=ollama,searxng,tools` |
+
+## Web search (SearXNG)
+
+AskBot falls back to web search when no memory matches. It tries `WEBSEARCH_PROVIDERS` in order and uses the
+first provider that returns results:
+
+| Entry | Meaning |
+|-------|---------|
+| `SearXng` | Self-hosted SearXNG container (`searxng` profile). Queries Google, Naver, Bing, DuckDuckGo, Brave… at once; engines that are rate-limited or show a CAPTCHA are covered by the others. No browser, no API key. |
+| `Naver:Headless`, `Google:Headless` | Scrape the search page with Playwright Chromium. Needs `WEBSEARCH_INSTALL_BROWSER=true` (and `WEBSEARCH_INSTALL_LINUX_DEPS=true` + `MEMORIZER_RUN_AS=0:0`). |
+| `Naver:Api` | Naver Open API — set `MEMORIZER_WebSearch__Naver__ClientId` / `ClientSecret` in `env/local.override.env`. |
+
+Default: `SearXng` only. Example with a browser fallback: `WEBSEARCH_PROVIDERS=SearXng,Naver:Headless`.
+Engines are configured in [`searxng/settings.yml`](searxng/settings.yml) (Naver and Bing are enabled there; Korean queries use `ko-KR`).
+Check SearXNG directly: `http://localhost:8888/search?q=akka&format=json`.
+
+> The Bing Search API was retired in Aug 2025 and Google Custom Search JSON API is closed to new customers
+> (shutdown Jan 2027), so the `Api` mode for Google/Bing is not a long-term option.
 
 ## ⚠️ Embedding dimensions
 
@@ -96,7 +115,10 @@ Switching the embedding model on an existing database breaks search until the co
 | `MEMORIZER_PORT` | Host port for the app | `5050` |
 | `MEMORIZER_RUN_AS` | Container user: `app` or `0:0` | `app` |
 | `CANONICAL_URL` | Public URL of the app | `http://localhost:5050` |
-| `WEBSEARCH_MODE` | `Fetch` \| `Headless` (Playwright) | `Fetch` |
+| `WEBSEARCH_PROVIDERS` | AskBot web search chain (see Web search) | `SearXng` |
+| `WEBSEARCH_MODE` | Default access mode for page reading / manual API calls: `Fetch` \| `Headless` | `Fetch` |
+| `SEARXNG_PORT` / `SEARXNG_SECRET` | SearXNG localhost port / secret key | `8888` / sample |
+| `SEARXNG_URL` | SearXNG URL used by the app | `http://searxng:8080` |
 | `WEBSEARCH_INSTALL_BROWSER` | Install Chromium on startup (Headless) | `false` |
 | `WEBSEARCH_INSTALL_LINUX_DEPS` | Install Linux deps on startup (needs `MEMORIZER_RUN_AS=0:0`) | `false` |
 

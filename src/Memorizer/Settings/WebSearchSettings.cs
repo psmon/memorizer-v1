@@ -10,6 +10,15 @@ public sealed class WebSearchSettings
     public int MaxPageContentChars { get; set; } = 6000;
     public HeadlessWebSearchSettings Headless { get; set; } = new();
 
+    /// <summary>
+    /// Ordered, comma-separated providers used by automatic web search (AskBot), each as
+    /// "Provider" or "Provider:AccessMode". The first provider returning results wins.
+    /// Examples: "SearXng", "SearXng,Naver:Headless". SearXng ignores the access mode.
+    /// </summary>
+    public string ProviderChain { get; set; } = "Naver:Headless";
+
+    public SearXngSearchSettings SearXng { get; set; } = new();
+
     public GoogleSearchSettings Google { get; set; } = new();
     public BingSearchSettings Bing { get; set; } = new();
     public NaverSearchSettings Naver { get; set; } = new();
@@ -30,6 +39,17 @@ public sealed class HeadlessWebSearchSettings
     public bool AutoInstallLinuxDependenciesOnStartup { get; set; } = false;
     public bool ChromiumSandbox { get; set; } = true;
     public string? BrowserInstallPath { get; set; }
+}
+
+public sealed class SearXngSearchSettings
+{
+    /// <summary>Base URL of the SearXNG instance (the "json" format must be enabled in its settings.yml).</summary>
+    public Uri ApiUrl { get; set; } = new("http://localhost:8888");
+
+    /// <summary>Search language for non-Korean queries ("auto" lets SearXNG decide). Korean queries use "ko-KR".</summary>
+    public string Language { get; set; } = "auto";
+
+    public string Categories { get; set; } = "general";
 }
 
 public sealed class GoogleSearchSettings

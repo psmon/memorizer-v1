@@ -60,7 +60,7 @@
 ## 폐기된 이력 (❌ 참고하지 말 것)
 
 - 웹검색 전용 액터 3종(WebSearch/Fetch/EvidenceRank) 설계안 → ChatBotActor 내부 메서드로 구현됨 (`ChatBotActor.cs:1011, 1026`)
-- 네이버/빙/구글 3곳 병렬 검색 → 현재 네이버만 사용 (`ChatBotActor.cs:907, 1035`)
+- 네이버/빙/구글 3곳 병렬 검색 → 한때 네이버 Headless 고정 → **2026-10-14 SearXNG 메타검색 + `WebSearch:ProviderChain` 폴백으로 교체** (`IWebSearchService.SearchWithFallbackAsync`)
 
 ## 권장 패턴 (요약)
 

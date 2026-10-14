@@ -159,7 +159,7 @@ public sealed class WebSearchController : ControllerBase
     {
         return Ok(new
         {
-            providers = new[] { "google", "bing", "naver" },
+            providers = new[] { "searxng", "google", "bing", "naver" },
             accessModes = new[] { "api", "fetch", "headless" }
         });
     }

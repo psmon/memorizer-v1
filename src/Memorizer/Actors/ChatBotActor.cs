@@ -903,15 +903,11 @@ Maintain conversation continuity and reference previous context when appropriate
                 var searchKeyword = await ExtractWebSearchKeyword(topic);
                 AddReasoningStep($"Searching web for: {searchKeyword}");
 
-                var searchResult = await _webSearchService!.SearchAsync(
-                    WebSearchProvider.Naver,
-                    searchKeyword,
-                    maxResults: 3,
-                    accessMode: WebSearchAccessMode.Headless);
+                var searchResult = await _webSearchService!.SearchWithFallbackAsync(searchKeyword, maxResults: 3);
 
                 if (searchResult.Items.Count > 0)
                 {
-                    AddReasoningStep($"Web search found {searchResult.Items.Count} results for topic: {topic}");
+                    AddReasoningStep($"Web search ({searchResult.Provider}) found {searchResult.Items.Count} results for topic: {topic}");
                     foreach (var item in searchResult.Items)
                     {
                         allWebReferences.Add(new WebSearchReference
@@ -1029,13 +1025,9 @@ Maintain conversation continuity and reference previous context when appropriate
         var searchKeyword = await ExtractWebSearchKeyword(request.Message);
         AddReasoningStep($"Search keyword: {searchKeyword}");
 
-        AddReasoningStep("Performing web search (Headless mode)...");
+        AddReasoningStep("Performing web search...");
 
-        var searchResult = await _webSearchService!.SearchAsync(
-            WebSearchProvider.Naver,
-            searchKeyword,
-            maxResults: 5,
-            accessMode: WebSearchAccessMode.Headless);
+        var searchResult = await _webSearchService!.SearchWithFallbackAsync(searchKeyword, maxResults: 5);
 
         if (searchResult.Items.Count == 0)
         {
@@ -1043,7 +1035,7 @@ Maintain conversation continuity and reference previous context when appropriate
             return await GenerateGeneralResponseAsync(request);
         }
 
-        AddReasoningStep($"Web search found {searchResult.Items.Count} results.");
+        AddReasoningStep($"Web search ({searchResult.Provider}) found {searchResult.Items.Count} results.");
 
         var webReferences = searchResult.Items.Select(item => new WebSearchReference
         {

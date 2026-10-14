@@ -80,7 +80,9 @@
 | **graph-sync-specialist** | 7 (02~07, 14) | PG↔Neo4j 정합성, NL→Cypher 품질 |
 | **prompt-curator** | 12 | 프롬프트가 PromptTemplates + 액터 내부 상수로 분산, LLM JSON 파싱 폴백, 메모리 조각 선택 규칙 |
 | **frontend-view-inspector** | 약 15 | Mermaid 4회, ShapeUp 캔버스 7회, SSE 뷰 |
-| **llm-provider-specialist** | 6 | 3벌 추상화, 랜덤 벡터 폴백, 조용한 Custom 폴백 |
+| **llm-provider-specialist** | 6 | 3벌 추상화, 랜덤 벡터 폴백(Custom은 해소), 조용한 Custom 폴백 |
+
+> 웹검색: 2026-10-14 네이버 Headless 고정 → SearXNG(구글·네이버·빙 등 메타검색) + ProviderChain 폴백으로 교체. Bing API는 2025-08 종료, Google CSE는 신규 불가(2027-01 종료) — API 모드에 의존하지 말 것.
 | storage-migration-keeper | 4~11 | SchemaMigrator, 마이그레이션 016~022, Storage 테스트 0 |
 
 > 영입은 한 번에 1~2명. 보안(web-ingress-guard)과 그래프(graph-sync-specialist)가 Critical 결함을 품고 있어 우선순위가 높다.

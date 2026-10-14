@@ -70,6 +70,9 @@ public sealed class WebSearchService : IWebSearchService
         if (maxResults <= 0)
             throw new ArgumentOutOfRangeException(nameof(maxResults), "maxResults must be greater than 0.");
 
+        if (provider == WebSearchProvider.SearXng)
+            return await SearchSearXngAsync(query, maxResults, cancellationToken);
+
         var mode = accessMode ?? _settings.AccessMode;
 
         return mode switch
@@ -126,6 +129,109 @@ public sealed class WebSearchService : IWebSearchService
             return new WebSearchPreviewResponse(provider, query, top, null);
         }
     }
+
+    public async Task<WebSearchResponse> SearchWithFallbackAsync(
+        string query,
+        int maxResults = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var chain = ParseProviderChain(_settings.ProviderChain);
+        WebSearchResponse? last = null;
+
+        foreach (var (provider, mode) in chain)
+        {
+            try
+            {
+                var result = await SearchAsync(provider, query, maxResults, mode, cancellationToken);
+                if (result.Items.Count > 0)
+                {
+                    _logger.LogInformation("Web search via {Provider} returned {Count} results", provider, result.Items.Count);
+                    return result;
+                }
+
+                _logger.LogInformation("Web search via {Provider} returned no results, trying next provider", provider);
+                last = result;
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(ex, "Web search via {Provider} failed, trying next provider", provider);
+            }
+        }
+
+        return last ?? new WebSearchResponse(chain.Count > 0 ? chain[^1].Provider : WebSearchProvider.SearXng, query, []);
+    }
+
+    /// <summary>
+    /// Parses "SearXng, Naver:Headless" into (provider, access mode) pairs. Unknown entries are skipped.
+    /// </summary>
+    public static IReadOnlyList<(WebSearchProvider Provider, WebSearchAccessMode? Mode)> ParseProviderChain(string? chain)
+    {
+        var result = new List<(WebSearchProvider, WebSearchAccessMode?)>();
+        if (string.IsNullOrWhiteSpace(chain))
+            return result;
+
+        foreach (var entry in chain.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var parts = entry.Split(':', 2, StringSplitOptions.TrimEntries);
+            if (!Enum.TryParse<WebSearchProvider>(parts[0], true, out var provider))
+                continue;
+
+            WebSearchAccessMode? mode = null;
+            if (parts.Length == 2)
+            {
+                if (!Enum.TryParse<WebSearchAccessMode>(parts[1], true, out var parsedMode))
+                    continue;
+                mode = parsedMode;
+            }
+
+            result.Add((provider, mode));
+        }
+
+        return result;
+    }
+
+    private async Task<WebSearchResponse> SearchSearXngAsync(string query, int maxResults, CancellationToken cancellationToken)
+    {
+        var language = ContainsHangul(query) ? "ko-KR" : _settings.SearXng.Language;
+        var baseUrl = _settings.SearXng.ApiUrl.ToString().TrimEnd('/');
+        var requestUri = new Uri(
+            $"{baseUrl}/search?q={Uri.EscapeDataString(query)}&format=json" +
+            $"&language={Uri.EscapeDataString(language)}&categories={Uri.EscapeDataString(_settings.SearXng.Categories)}");
+
+        using var response = await _httpClient.GetAsync(requestUri, cancellationToken);
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        EnsureSuccess(response.StatusCode, content, WebSearchProvider.SearXng);
+
+        using var doc = JsonDocument.Parse(content);
+        var items = new List<WebSearchItem>();
+
+        if (doc.RootElement.TryGetProperty("results", out var results) && results.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in results.EnumerateArray())
+            {
+                var url = item.TryGetProperty("url", out var u) ? u.GetString() ?? string.Empty : string.Empty;
+                if (string.IsNullOrWhiteSpace(url) || items.Any(i => i.Url == url))
+                    continue;
+
+                var title = item.TryGetProperty("title", out var t) ? CleanInlineHtml(t.GetString() ?? string.Empty) : string.Empty;
+                var snippet = item.TryGetProperty("content", out var c) ? CleanInlineHtml(c.GetString() ?? string.Empty) : string.Empty;
+                items.Add(new WebSearchItem(title, url, snippet, WebSearchProvider.SearXng));
+
+                if (items.Count >= maxResults)
+                    break;
+            }
+        }
+
+        if (items.Count == 0 && doc.RootElement.TryGetProperty("unresponsive_engines", out var unresponsive))
+        {
+            _logger.LogWarning("SearXNG returned no results. Unresponsive engines: {Engines}", unresponsive.ToString());
+        }
+
+        return new WebSearchResponse(WebSearchProvider.SearXng, query, items);
+    }
+
+    // Hangul syllables block: U+AC00 (가) .. U+D7A3 (힣)
+    private static bool ContainsHangul(string text) => text.Any(c => c is >= '가' and <= '힣');
 
     private async Task<WebSearchResponse> SearchWithApiAsync(WebSearchProvider provider, string query, int maxResults, CancellationToken cancellationToken)
     {

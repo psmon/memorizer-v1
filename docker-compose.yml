@@ -12,7 +12,7 @@
 # Rebuild only the app (keep DB containers running):
 #   docker compose up -d --build --no-deps memorizer
 #
-# Profiles (COMPOSE_PROFILES in .env): ollama = local Ollama + model pull, tools = pgAdmin
+# Profiles (COMPOSE_PROFILES in .env): ollama = local Ollama + model pull, searxng = web search, tools = pgAdmin
 # Rancher 1.6 server deployment uses docker-compose.rancher.yml instead (compose v2 format).
 # See docker-compose.md for details.
 
@@ -104,6 +104,22 @@ services:
         done
         echo 'All models pulled successfully'
 
+  # Self-hosted meta-search for AskBot web search (Google / Naver / Bing / DuckDuckGo / Brave ...).
+  # No browser and no API keys; blocked engines are covered by the others. Config: searxng/settings.yml
+  searxng:
+    image: searxng/searxng:latest
+    profiles: [searxng]
+    restart: unless-stopped
+    container_name: memorizer-searxng
+    environment:
+      SEARXNG_BASE_URL: http://localhost:${SEARXNG_PORT:-8888}/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-memorizer-local-searxng-change-me}
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+    ports:
+      # Bound to localhost for manual checks (http://localhost:8888); the app uses http://searxng:8080
+      - "127.0.0.1:${SEARXNG_PORT:-8888}:8080"
+
   memorizer:
     image: ${MEMORIZER_IMAGE:-psmon/mcp-memorizer:latest}
     build:
@@ -149,7 +165,10 @@ services:
       MEMORIZER_OAuth__Clients__0__AllowedRedirectUris__0: "https://chatgpt.com/aip/g-callback"
       # AskBot image storage (persisted in askbot_images volume)
       ASKBOT_IMAGE_STORAGE_PATH: /app/data/askbot-images
-      # WebSearch — Fetch (default) or Headless (Playwright). Headless dependency auto-install needs MEMORIZER_RUN_AS=0:0
+      # WebSearch — AskBot tries WEBSEARCH_PROVIDERS in order ("Provider" or "Provider:AccessMode"),
+      # e.g. "SearXng" or "SearXng,Naver:Headless". Headless needs the browser (and MEMORIZER_RUN_AS=0:0 for deps).
+      MEMORIZER_WebSearch__ProviderChain: ${WEBSEARCH_PROVIDERS:-SearXng}
+      MEMORIZER_WebSearch__SearXng__ApiUrl: ${SEARXNG_URL:-http://searxng:8080}
       MEMORIZER_WebSearch__AccessMode: ${WEBSEARCH_MODE:-Fetch}
       MEMORIZER_WebSearch__Headless__Enabled: "true"
       MEMORIZER_WebSearch__Headless__AutoInstallBrowserOnStartup: ${WEBSEARCH_INSTALL_BROWSER:-false}
@@ -173,6 +192,9 @@ services:
         condition: service_started
       ollama-init:
         condition: service_completed_successfully
+        required: false
+      searxng:
+        condition: service_started
         required: false
 
 volumes:

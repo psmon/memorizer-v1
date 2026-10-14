@@ -62,7 +62,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /app/wwwroot/demo && chown -R app:app /app/wwwroot/demo
 # Playwright headless: create data dir and fix node binary execute permissions
-RUN mkdir -p /app/data && chown -R app:app /app/data \
+# Pre-create volume mount points so new named volumes are owned by the app user
+RUN mkdir -p /app/data/askbot-images /app/data/playwright-browsers && chown -R app:app /app/data \
     && if [ -d /app/.playwright/node ]; then chmod -R +x /app/.playwright/node; fi \
     && chown -R app:app /app/.playwright 2>/dev/null || true
 USER app
