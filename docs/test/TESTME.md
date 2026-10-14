@@ -11,7 +11,7 @@ docker compose up -d --build
 ## Claude Cli Setting
 
 ```
-claude mcp add memorizer http://localhost:5000/sse --transport sse --header "X-API-Key: your-api-key-here"
+claude mcp add memorizer http://localhost:5050/sse --transport sse --header "X-API-Key: your-api-key-here"
 
 claude mcp list
 

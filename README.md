@@ -63,12 +63,12 @@ With the default `.env` this will:
 - Run the `psmon/mcp-memorizer` image (Memorizer Extended)
 - Start PostgreSQL with pgvector (port 5432) and Neo4j (ports 7474/7687)
 - Start Ollama (port 11434) and pull the embedding/LLM models (`ollama` profile)
-- Start Memorizer API (port 5000)
-- PgAdmin (port 5050) is optional: add `tools` to `COMPOSE_PROFILES`
+- Start Memorizer API (port 5050)
+- PgAdmin (port 5051) is optional: add `tools` to `COMPOSE_PROFILES`
 
 To use a Custom (LM Studio) or OpenAI provider, change `LLM_PRESET` in `.env`. See [docker-compose.md](docker-compose.md).
 
-**View the Memorizer Web UI on http://localhost:5000/ui**.
+**View the Memorizer Web UI on http://localhost:5050/ui**.
 
 ### 🚀 Local Development Builds
 
@@ -99,7 +99,7 @@ To use Memorizer with any MCP-compatible client, add the following to your confi
 ```json
 {
   "memorizer": {
-    "url": "http://localhost:5000/sse"
+    "url": "http://localhost:5050/sse"
   }
 }
 ```
@@ -114,7 +114,7 @@ Memorizer includes a web-based user interface for managing memories through your
 
 Once the application is running (via `docker-compose up -d`), you can access the Web UI at:
 
-**http://localhost:5000/ui/**
+**http://localhost:5050/ui/**
 
 ### Features
 

@@ -46,7 +46,7 @@ docker compose up -d
 | Scenario | `.env` settings | Replaces old file |
 |----------|----------------|-------------------|
 | Ollama all-in-one (default) | `LLM_PRESET=ollama`, `COMPOSE_PROFILES=ollama` | `docker-compose.yml`, `docker-compose.local.yml` |
-| Custom LLM server on the LAN | `LLM_PRESET=custom`, `COMPOSE_PROFILES=`, `CUSTOM_LLM_URL=...` | `docker-compose.custom-sample.yml` |
+| Custom LLM server on the LAN | `LLM_PRESET=custom`, `COMPOSE_PROFILES=`, `LLM_A_URL` + `LLM_A_API_KEY` | `docker-compose.custom-sample.yml` |
 | psmon local dev (Custom, 768-dim, Headless WebSearch, port 5012) | `cp env/psmon.stack.env .env` | `docker-compose.local-psmon.yml` |
 | OpenAI cloud | `LLM_PRESET=openai`, `COMPOSE_PROFILES=`, `OPENAI_API_KEY=sk-...` | `docker-compose.openai-sample.yml` |
 | Rancher 1.6 server | `docker-compose.rancher.yml` | `docker-compose.server.yml`, `docker-compose.ollama.yml` |
@@ -68,7 +68,7 @@ MEMORIZER_LLM-EX__Model=openai/gpt-oss-120b
 |---------|----------|-------------|
 | (always) | postgres, neo4j, memorizer | — |
 | `ollama` | ollama, ollama-init (pulls `OLLAMA_EMBEDDING_MODEL` and `OLLAMA_LLM_MODEL`) | `COMPOSE_PROFILES=ollama` |
-| `tools` | pgadmin (port 5050) | `COMPOSE_PROFILES=ollama,tools` |
+| `tools` | pgadmin (port 5051) | `COMPOSE_PROFILES=ollama,tools` |
 
 ## ⚠️ Embedding dimensions
 
@@ -93,9 +93,9 @@ Switching the embedding model on an existing database breaks search until the co
 | `LLM_PRESET` | `ollama` \| `custom` \| `openai` → `env/llm-<preset>.env` | `ollama` |
 | `COMPOSE_PROFILES` | Optional services: `ollama`, `tools` | `ollama` |
 | `MEMORIZER_IMAGE` | App image name (also the tag used by `--build`) | `psmon/mcp-memorizer:latest` |
-| `MEMORIZER_PORT` | Host port for the app | `5000` |
+| `MEMORIZER_PORT` | Host port for the app | `5050` |
 | `MEMORIZER_RUN_AS` | Container user: `app` or `0:0` | `app` |
-| `CANONICAL_URL` | Public URL of the app | `http://localhost:5000` |
+| `CANONICAL_URL` | Public URL of the app | `http://localhost:5050` |
 | `WEBSEARCH_MODE` | `Fetch` \| `Headless` (Playwright) | `Fetch` |
 | `WEBSEARCH_INSTALL_BROWSER` | Install Chromium on startup (Headless) | `false` |
 | `WEBSEARCH_INSTALL_LINUX_DEPS` | Install Linux deps on startup (needs `MEMORIZER_RUN_AS=0:0`) | `false` |
@@ -105,9 +105,10 @@ Switching the embedding model on an existing database breaks search until the co
 |----------|--------|---------|
 | `OLLAMA_URL` | ollama | `http://ollama:11434` |
 | `OLLAMA_EMBEDDING_MODEL` / `OLLAMA_LLM_MODEL` / `OLLAMA_LLM_EX_MODEL` | ollama | `all-minilm:33m-l12-v2-fp16` / `qwen2:0.5b` / = LLM model |
-| `CUSTOM_LLM_URL` / `CUSTOM_LLM_EX_URL` | custom | `http://192.168.0.50:1234` / = LLM URL |
+| `LLM_A_URL` / `LLM_A_API_KEY` | custom | `https://a1.webnori.com` / — (device A, default for every feature) |
+| `LLM_B_URL` / `LLM_B_API_KEY` | custom | — (device B, used only when a feature is routed to it) |
+| `EMBEDDING_URL`/`_API_KEY`, `LLM_URL`/`_API_KEY`, `LLM_EX_URL`/`_API_KEY`, `MULTIMODAL_URL`/`_API_KEY` | custom | device A — route a feature with e.g. `MULTIMODAL_URL=${LLM_B_URL}` + `MULTIMODAL_API_KEY=${LLM_B_API_KEY}` |
 | `CUSTOM_EMBEDDING_MODEL` / `CUSTOM_LLM_MODEL` / `CUSTOM_LLM_EX_MODEL` / `CUSTOM_MULTIMODAL_MODEL` | custom | `text-embedding-all-minilm-l12-v2` / `google/gemma-4-e4b` / `google/gemma-4-26b-a4b` / `qwen/qwen3-vl-8b` |
-| `CUSTOM_LLM_API_KEY` | custom | LM Studio API token (Bearer). Empty = no auth |
 | `OPENAI_API_KEY` | openai | — (required) |
 | `OPENAI_EMBEDDING_MODEL` / `OPENAI_LLM_MODEL` / `OPENAI_LLM_EX_MODEL` / `OPENAI_MULTIMODAL_MODEL` | openai | `text-embedding-3-small` / `gpt-4o` / `gpt-4o` / `gpt-4o` |
 
@@ -122,7 +123,7 @@ Switching the embedding model on an existing database breaks search until the co
 | `OAUTH_CLIENT_ID` / `OAUTH_CLIENT_SECRET` | `MEMORIZER_OAuth__Clients__0__*` | `chatgpt-mcp` / sample secret |
 
 ### Ports
-`POSTGRES_PORT` (5432), `NEO4J_HTTP_PORT` (7474), `NEO4J_BOLT_PORT` (7687), `OLLAMA_PORT` (11434), `PGADMIN_PORT` (5050). Override `POSTGRES_DATA` with a host path to bind-mount the database directory.
+`POSTGRES_PORT` (5432), `NEO4J_HTTP_PORT` (7474), `NEO4J_BOLT_PORT` (7687), `OLLAMA_PORT` (11434), `PGADMIN_PORT` (5051). Override `POSTGRES_DATA` with a host path to bind-mount the database directory.
 
 ## Application Settings Reference
 

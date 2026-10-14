@@ -63,7 +63,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@example.com}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
     ports:
-      - "${PGADMIN_PORT:-5050}:80"
+      - "${PGADMIN_PORT:-5051}:80"
     depends_on:
       - postgres
 
@@ -113,7 +113,7 @@ services:
     container_name: memorizer-app
     user: "${MEMORIZER_RUN_AS:-app}"
     ports:
-      - "${MEMORIZER_PORT:-5000}:8080"
+      - "${MEMORIZER_PORT:-5050}:8080"
     env_file:
       # LLM provider preset — selected by LLM_PRESET in .env (ollama | custom | openai)
       - path: env/llm-${LLM_PRESET:-ollama}.env
@@ -132,7 +132,7 @@ services:
       MEMORIZER_LLM__Chunking__MinCharactersForChunking: "2000"
       MEMORIZER_LLM__Chunking__TargetChunkSize: "1500"
       # Server
-      MEMORIZER_Server__CanonicalUrl: ${CANONICAL_URL:-http://localhost:5000}
+      MEMORIZER_Server__CanonicalUrl: ${CANONICAL_URL:-http://localhost:5050}
       MEMORIZER_Server__UserName: ${ADMIN_USERNAME:-admin}
       MEMORIZER_Server__Password: ${ADMIN_PASSWORD:-admin123}
       MEMORIZER_Server__ApiKey: ${MEMORIZER_API_KEY:-your-api-key-here}
