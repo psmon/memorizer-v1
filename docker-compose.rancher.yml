@@ -3,8 +3,11 @@
 # Rancher 1.6 only accepts compose file format v2 (no profiles, no env_file interpolation),
 # so this file stays self-contained. Local/dev environments use docker-compose.yml + env/ presets.
 #
-# LLM provider: Ollama (default below). To switch to OpenAI, replace the provider block in the
-# memorizer service with the commented "OpenAI provider" block and remove ollama/ollama-init.
+# Deployed as stack "mcp-memory2" (v1.4.7): Custom LM Studio devices A (a1.webnori.com) / B (a2.webnori.com),
+# SearXNG web search. Keys are placeholders — the real values live only in Rancher.
+# Rancher-managed containers resolve only *.rancher.internal by default: services that call the
+# internet need `dns: [8.8.8.8]` (memorizer, searxng).
+# Ollama/pgadmin services exist in the stack but are inactive.
 # Provider variable reference: env/llm-*.env, docker-compose.md
 version: '2'
 services:
@@ -110,41 +113,55 @@ services:
       io.rancher.scheduler.affinity:host_label: server=latemain
       io.rancher.container.start_once: 'true'
 
+  # SearXNG with settings baked in (searxng/Dockerfile) — no host file mount needed
+  searxng:
+    image: registry.webnori.com/memorizer-searxng:v1.4.7
+    restart: always
+    dns:
+      - 8.8.8.8
+    environment:
+      SEARXNG_SECRET: change-me
+      SEARXNG_BASE_URL: http://searxng:8080/
+    labels:
+      io.rancher.scheduler.affinity:host_label: server=latemain
+      io.rancher.container.pull_image: always
+
   memorizer:
-    image: psmon/mcp-memorizer:latest
+    image: registry.webnori.com/memorizer:v1.4.7
     container_name: memorizer-app
     ports:
       - "5000:8080"
+    dns:
+      - 8.8.8.8
+    volumes:
+      - /media/psmon/ssd/askbot-images:/app/data/askbot-images
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ConnectionStrings__Storage: Host=postgres;Port=5432;Database=postgmem;Username=postgres;Password=postgres
-      # ── Ollama provider (same as env/llm-ollama.env) ──
-      MEMORIZER_Embeddings__ApiUrl: http://ollama:11434
-      MEMORIZER_Embeddings__Model: all-minilm:33m-l12-v2-fp16
-      MEMORIZER_LLM__ApiUrl: http://ollama:11434
-      MEMORIZER_LLM__Model: qwen2:0.5b
+      # ── Custom LM Studio devices (env/llm-custom.env) ──
+      MEMORIZER_Embeddings__Type: Custom
+      MEMORIZER_Embeddings__ApiUrl: https://a1.webnori.com
+      MEMORIZER_Embeddings__Model: text-embedding-nomic-embed-text-v1.5
+      MEMORIZER_Embeddings__ApiKey: sk-lm-device-a
+      MEMORIZER_LLM__Type: Custom
+      MEMORIZER_LLM__ApiUrl: https://a1.webnori.com
+      MEMORIZER_LLM__Model: google/gemma-4-e4b
       MEMORIZER_LLM__Timeout: 00:02:00
-      MEMORIZER_LLM-EX__Type: Ollama
-      MEMORIZER_LLM-EX__ApiUrl: http://ollama:11434
-      MEMORIZER_LLM-EX__Model: qwen2:0.5b
+      MEMORIZER_LLM__ApiKey: sk-lm-device-a
+      MEMORIZER_LLM-EX__Type: Custom
+      MEMORIZER_LLM-EX__ApiUrl: https://a1.webnori.com
+      MEMORIZER_LLM-EX__Model: google/gemma-4-26b-a4b
       MEMORIZER_LLM-EX__Timeout: 00:05:00
-      # ── OpenAI provider (same as env/llm-openai.env) — replace the block above to use ──
-      # MEMORIZER_Embeddings__Type: OpenAI
-      # MEMORIZER_Embeddings__ApiUrl: api.openai.com
-      # MEMORIZER_Embeddings__Model: text-embedding-3-small
-      # MEMORIZER_Embeddings__ApiKey: sk-...
-      # MEMORIZER_LLM__Type: OpenAI
-      # MEMORIZER_LLM__ApiUrl: api.openai.com
-      # MEMORIZER_LLM__Model: gpt-4o
-      # MEMORIZER_LLM__Timeout: 00:02:00
-      # MEMORIZER_LLM__ApiKey: sk-...
-      # MEMORIZER_LLM-EX__Type: OpenAI
-      # MEMORIZER_LLM-EX__Model: gpt-4o
-      # MEMORIZER_LLM-EX__Timeout: 00:05:00
-      # MEMORIZER_LLM-EX__ApiKey: sk-...
-      # MEMORIZER_MultiModal__Type: OpenAI
-      # MEMORIZER_MultiModal__Model: gpt-4o
-      # MEMORIZER_MultiModal__ApiKey: sk-...
+      MEMORIZER_LLM-EX__ApiKey: sk-lm-device-a
+      MEMORIZER_MultiModal__Type: Custom
+      MEMORIZER_MultiModal__ApiUrl: https://a2.webnori.com
+      MEMORIZER_MultiModal__Model: qwen/qwen3.8-27b
+      MEMORIZER_MultiModal__ApiKey: sk-lm-device-b
+      # ── Web search (SearXNG service in this stack) ──
+      MEMORIZER_WebSearch__AccessMode: Fetch
+      MEMORIZER_WebSearch__ProviderChain: SearXng
+      MEMORIZER_WebSearch__SearXng__ApiUrl: http://searxng:8080
+      ASKBOT_IMAGE_STORAGE_PATH: /app/data/askbot-images
       # ── Common ──
       MEMORIZER_LLM__Chunking__MinCharactersForChunking: '2000'
       MEMORIZER_LLM__Chunking__TargetChunkSize: '1500'
@@ -152,7 +169,7 @@ services:
       Neo4j__User: neo4j
       Neo4j__Password: password
       Neo4j__Database: neo4j
-      MEMORIZER_Server__CanonicalUrl: https://mcp.memorizer.com
+      MEMORIZER_Server__CanonicalUrl: https://mcp.webnori.com
       MEMORIZER_Server__UserName: admin
       MEMORIZER_Server__Password: admin123
       MEMORIZER_Server__ApiKey: your_api_key_here
@@ -171,9 +188,10 @@ services:
     depends_on:
       - postgres
       - neo4j
-      - ollama-init
+      - searxng
     labels:
       io.rancher.scheduler.affinity:host_label: server=latemain
+      io.rancher.container.pull_image: always
 
 volumes:
   neo4j_data:

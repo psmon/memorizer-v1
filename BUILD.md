@@ -14,6 +14,14 @@ docker push registry.webnori.com/memorizer:v1.4.7
 docker push registry.webnori.com/memorizer:latest
 ```
 
+### SearXNG (web search, settings baked in for Rancher)
+
+```
+docker build -t registry.webnori.com/memorizer-searxng:v1.4.7 -t registry.webnori.com/memorizer-searxng:latest searxng
+docker push registry.webnori.com/memorizer-searxng:v1.4.7
+docker push registry.webnori.com/memorizer-searxng:latest
+```
+
 
 ## 🐳 Build the DockerHub Image
 
